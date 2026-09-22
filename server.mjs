@@ -9,6 +9,7 @@ import QRCode from 'qrcode';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(root, 'dist');
 const uploadRoot = path.join(root, 'uploads');
+const documentRoot = path.join(uploadRoot, 'documents');
 const port = Number(process.env.PORT || 4174);
 const ttlMs = 15 * 60 * 1000;
 const maxBytes = 100 * 1024 * 1024;
@@ -19,6 +20,7 @@ const mimeTypes = {
   '.jpeg': 'image/jpeg', '.ico': 'image/x-icon'
 };
 const sessions = new Map();
+const documents = new Map();
 
 function json(res, status, value) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -48,6 +50,10 @@ function decodeFileName(headers) {
   return cleanName(headers['x-file-name']);
 }
 
+function mimeForName(name) {
+  return mimeTypes[path.extname(name).toLowerCase()] || 'application/octet-stream';
+}
+
 function sessionFor(id) {
   const session = sessions.get(id);
   if (!session || session.expiresAt <= Date.now()) return null;
@@ -59,6 +65,127 @@ function sessionInfo(session) {
     .sort((left, right) => left.queueOrder - right.queueOrder || left.receivedOrder - right.receivedOrder)
     .map(({ filePath, ...file }) => file);
   return { id: session.id, expiresAt: new Date(session.expiresAt).toISOString(), files };
+}
+
+function recoverSessionFromDisk(names) {
+  if (!Array.isArray(names) || !names.length || !fs.existsSync(uploadRoot)) return null;
+  let directories = [];
+  try { directories = fs.readdirSync(uploadRoot, { withFileTypes: true }); } catch { return null; }
+  for (const entry of directories) {
+    if (!entry.isDirectory() || entry.name === 'documents' || !validId(entry.name)) continue;
+    const directory = path.join(uploadRoot, entry.name);
+    let stored = [];
+    try { stored = fs.readdirSync(directory); } catch { continue; }
+    const files = [];
+    for (let index = 0; index < names.length; index += 1) {
+      const name = cleanName(names[index]);
+      const suffix = `-${name}`;
+      const storedName = stored.find((item) => item.endsWith(suffix));
+      if (!storedName) break;
+      const filePath = path.join(directory, storedName);
+      let stat;
+      try { stat = fs.statSync(filePath); } catch { break; }
+      if (!stat.isFile()) break;
+      const fileId = storedName.slice(0, -suffix.length);
+      files.push({ id: fileId, name, type: mimeForName(name), size: stat.size, queueOrder: index, receivedOrder: index, uploadedAt: stat.mtime.toISOString(), filePath });
+    }
+    if (files.length !== names.length) continue;
+    const session = { id: entry.name, expiresAt: Date.now() + ttlMs, files, nextOrder: files.length, directory };
+    sessions.set(session.id, session);
+    return session;
+  }
+  return null;
+}
+
+function validId(value) {
+  return /^[A-Za-z0-9_-]+$/.test(String(value || ''));
+}
+
+function documentDirectory(id) {
+  return path.join(documentRoot, id);
+}
+
+function documentManifest(id) {
+  return path.join(documentDirectory(id), 'manifest.json');
+}
+
+function readDocument(id) {
+  if (!validId(id)) return null;
+  if (documents.has(id)) return documents.get(id);
+  try {
+    const document = JSON.parse(fs.readFileSync(documentManifest(id), 'utf8'));
+    if (!document || document.id !== id || !Array.isArray(document.pages)) return null;
+    documents.set(id, document);
+    return document;
+  } catch {
+    return null;
+  }
+}
+
+function documentInfo(document) {
+  return {
+    id: document.id,
+    createdAt: document.createdAt,
+    pages: document.pages.map(({ storedName, ...page }) => ({
+      ...page,
+      url: `/api/documents/${document.id}/pages/${page.id}`
+    }))
+  };
+}
+
+function commitSession(res, id) {
+  const session = sessionFor(id);
+  if (!session) return json(res, 410, { error: '此扫码通道已过期，请重新上传。' });
+  const sourceFiles = [...session.files].sort((left, right) => left.queueOrder - right.queueOrder || left.receivedOrder - right.receivedOrder);
+  if (!sourceFiles.length) return json(res, 409, { error: '还没有收到可保存的页面。' });
+
+  const documentId = crypto.randomBytes(12).toString('base64url');
+  const directory = documentDirectory(documentId);
+  try {
+    fs.mkdirSync(directory, { recursive: true });
+    const pages = sourceFiles.map((file, index) => {
+      const extension = path.extname(file.name).toLowerCase();
+      const storedName = `${String(index + 1).padStart(4, '0')}-${file.id}${extension}`;
+      fs.copyFileSync(file.filePath, path.join(directory, storedName));
+      return {
+        id: file.id,
+        order: index + 1,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        storedName
+      };
+    });
+    const document = { id: documentId, createdAt: new Date().toISOString(), pages };
+    fs.writeFileSync(documentManifest(documentId), JSON.stringify(document));
+    documents.set(documentId, document);
+    sessions.delete(id);
+    fs.rm(session.directory, { recursive: true, force: true }, () => {});
+    return json(res, 201, documentInfo(document));
+  } catch {
+    fs.rm(directory, { recursive: true, force: true }, () => {});
+    return json(res, 500, { error: '无法保存原页，请检查本机磁盘空间后重试。' });
+  }
+}
+
+function routeDocument(req, res, pieces) {
+  const id = pieces[2];
+  const document = readDocument(id);
+  if (!document) return json(res, 404, { error: '未找到已保存的文献页面。' });
+  if (req.method === 'GET' && pieces.length === 3) return json(res, 200, documentInfo(document));
+  if (req.method === 'GET' && pieces.length === 5 && pieces[3] === 'pages') {
+    const page = document.pages.find((item) => item.id === pieces[4]);
+    if (!page || !page.storedName) return json(res, 404, { error: '未找到此页面。' });
+    const target = path.resolve(documentDirectory(id), page.storedName);
+    if (!target.startsWith(`${documentDirectory(id)}${path.sep}`)) return json(res, 403, { error: '无权访问此页面。' });
+    fs.stat(target, (error, stat) => {
+      if (error || !stat.isFile()) return json(res, 404, { error: '未找到此页面。' });
+      res.writeHead(200, { 'Content-Type': page.type || 'application/octet-stream', 'Content-Length': stat.size, 'Cache-Control': 'no-store' });
+      fs.createReadStream(target).pipe(res);
+    });
+    return;
+  }
+  return json(res, 405, { error: '不支持的操作' });
 }
 
 function serveFile(res, target) {
@@ -136,11 +263,29 @@ function receiveFile(req, res, id) {
 function routeApi(req, res, url) {
   const pieces = url.pathname.split('/').filter(Boolean);
   if (req.method === 'POST' && url.pathname === '/api/mobile-links') return makeSession(res).catch(() => json(res, 500, { error: '二维码生成失败，请重试。' }));
+  if (pieces[0] === 'api' && pieces[1] === 'documents' && pieces[2]) return routeDocument(req, res, pieces);
+  if (req.method === 'GET' && url.pathname === '/api/mobile-links/recover') {
+    const count = Number(url.searchParams.get('count'));
+    let names = [];
+    try { names = JSON.parse(url.searchParams.get('names') || '[]'); } catch {}
+    const hasMatchingNames = (session) => {
+      if (!Array.isArray(names) || !names.length) return true;
+      const uploaded = [...session.files].sort((left, right) => left.queueOrder - right.queueOrder || left.receivedOrder - right.receivedOrder);
+      return uploaded.length === names.length && uploaded.every((file, index) => file.name === names[index]);
+    };
+    const candidates = [...sessions.values()]
+      .filter((session) => session.expiresAt > Date.now() && Number.isInteger(count) && count > 0 && session.files.length === count && hasMatchingNames(session))
+      .sort((left, right) => right.expiresAt - left.expiresAt);
+    const session = candidates[0] || recoverSessionFromDisk(names);
+    if (!session) return json(res, 404, { error: '没有找到仍可恢复的本次手机上传。' });
+    return json(res, 200, sessionInfo(session));
+  }
   if (pieces[0] !== 'api' || pieces[1] !== 'mobile-links' || !pieces[2]) return json(res, 404, { error: '未找到接口' });
   const id = pieces[2];
   const session = sessionFor(id);
   if (!session) return json(res, 410, { error: '此扫码通道已过期，请回到电脑端重新生成。' });
   if (req.method === 'GET' && pieces.length === 3) return json(res, 200, sessionInfo(session));
+  if (req.method === 'POST' && pieces.length === 4 && pieces[3] === 'commit') return commitSession(res, id);
   if (req.method === 'POST' && pieces.length === 4 && pieces[3] === 'files') return receiveFile(req, res, id);
   if (req.method === 'GET' && pieces.length === 5 && pieces[3] === 'files') {
     const file = session.files.find((item) => item.id === pieces[4]);

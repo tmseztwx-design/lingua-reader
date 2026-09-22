@@ -26,6 +26,23 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
 </script>
 <script>
 (function(){
+  var key='scribe-local-v1';
+  try{
+    var raw=localStorage.getItem(key);if(!raw)return;
+    var state=JSON.parse(raw),changed=false;
+    if(!state||typeof state!=='object')return;
+    if(!Array.isArray(state.docs)){state.docs=[];changed=true;}
+    if(!Array.isArray(state.cards)){state.cards=[];changed=true;}
+    ['filter','tab','kind'].forEach(function(name){if(!state[name]){state[name]='all';changed=true;}});
+    if(typeof state.minutes!=='number'){state.minutes=0;changed=true;}
+    if(typeof state.reviewed!=='number'){state.reviewed=0;changed=true;}
+    if(!state.settings||typeof state.settings!=='object'){state.settings={auto:true,timer:true,glossary:''};changed=true;}
+    if(changed){localStorage.setItem(key,JSON.stringify(state));window.location.reload();}
+  }catch(error){}
+})();
+</script>
+<script>
+(function(){
   function whenReady(fn){ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',fn); else fn(); }
   whenReady(function(){
     var STORE = 'scribe-local-v1';
@@ -201,10 +218,14 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       if(!activeLink)return;try{var response=await fetch('/api/mobile-links/'+activeLink),result=await response.json();if(response.status===410){clearInterval(pollTimer);showStatus('扫码通道已失效，请重新生成二维码。');return;}if(!response.ok)throw new Error();remoteFiles=(result.files||[]).slice().sort(function(left,right){return left.queueOrder-right.queueOrder||left.receivedOrder-right.receivedOrder;});renderQueue();showStatus(remoteFiles.length?'已收到 '+remoteFiles.length+' 页，已按手机端顺序进入同一处理队列。':'二维码已就绪，等待手机端整理并上传整组文件…');}
       catch(error){showStatus('暂时无法获取手机上传状态。');}}
     function setSteps(index){Array.prototype.forEach.call(document.querySelectorAll('#steps .step'),function(step,position){step.classList.remove('done','work');var mark=step.querySelector('.state');mark.textContent=position+1;if(position<index){step.classList.add('done');mark.textContent='✓';}else if(position===index){step.classList.add('work');}});}
-    function saveBatchDocument(){
-      var key='scribe-local-v1',state;try{state=JSON.parse(localStorage.getItem(key)||'{}')}catch(error){state={}};state.docs=Array.isArray(state.docs)?state.docs:[];state.docs.unshift({id:'m'+Date.now(),title:remoteFiles.length===1?remoteFiles[0].name.replace(/\.[^.]+$/,''):'手机扫描文献（'+remoteFiles.length+'页）',author:'手机直传',category:'图片文献',status:'reading',progress:0,pages:remoteFiles.length+' 页',time:'0 h',color:'new',sourcePages:remoteFiles.map(function(file,index){return {order:index+1,name:file.name,size:file.size}})});localStorage.setItem(key,JSON.stringify(state));}
+    function saveBatchDocument(savedDocument){
+      var key='scribe-local-v1',state;try{state=JSON.parse(localStorage.getItem(key)||'{}')}catch(error){state={}};state.docs=Array.isArray(state.docs)?state.docs:[];var pages=(savedDocument&&savedDocument.pages)||remoteFiles.map(function(file,index){return {order:index+1,name:file.name,size:file.size}}),documentId=savedDocument&&savedDocument.id,document={id:documentId?'mobile-'+documentId:'m'+Date.now(),serverDocumentId:documentId||'',title:remoteFiles.length===1?remoteFiles[0].name.replace(/\.[^.]+$/,''):'手机扫描文献（'+remoteFiles.length+'页）',author:'手机直传',category:'图片文献',status:'reading',progress:0,pages:pages.length+' 页',time:'0 h',color:'new',sourcePages:pages};state.docs.unshift(document);state.activeDocId=document.id;localStorage.setItem(key,JSON.stringify(state));return document;}
+    async function commitBatch(){
+      if(!activeLink)throw new Error('未找到本次手机上传，请重新生成扫码通道。');
+      var response=await fetch('/api/mobile-links/'+activeLink+'/commit',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法保存原始页面。');return result;
+    }
     function processBatch(){
-      if(!remoteFiles.length||batchComplete)return;processButton.disabled=true;var row=q('#fileRow');row.classList.add('show');q('#fileName').textContent='手机直传 · '+remoteFiles.length+' 页';q('#fileMeta').textContent='已按手机端顺序进入整组处理';showStatus('正在处理整组 '+remoteFiles.length+' 页，请等待…');var current=0;setSteps(current);var timer=setInterval(function(){current++;if(current>=7){clearInterval(timer);setSteps(7);saveBatchDocument();batchComplete=true;processButton.disabled=false;processButton.textContent='处理完成，打开精读 →';processButton.onclick=function(){var reader=q('.nav button[data-view="reader"]');if(reader)reader.click();};showStatus('已按既定顺序完成整组处理，可直接开始精读。');return;}setSteps(current);},420);}
+      if(!remoteFiles.length||batchComplete)return;processButton.disabled=true;var row=q('#fileRow');row.classList.add('show');q('#fileName').textContent='手机直传 · '+remoteFiles.length+' 页';q('#fileMeta').textContent='已按手机端顺序进入整组处理';showStatus('正在处理整组 '+remoteFiles.length+' 页，请等待…');var current=0;setSteps(current);var timer=setInterval(function(){current++;if(current>=7){clearInterval(timer);setSteps(7);processButton.textContent='正在保存 '+remoteFiles.length+' 页原件…';commitBatch().then(function(savedDocument){saveBatchDocument(savedDocument);batchComplete=true;clearInterval(pollTimer);processButton.disabled=false;processButton.textContent='处理完成，打开精读 →';processButton.onclick=function(){var reader=q('.nav button[data-view="reader"]');if(reader)reader.click();};showStatus('已保存全部 '+savedDocument.pages.length+' 页原件，可按顺序翻页精读。');}).catch(function(error){processButton.disabled=false;processButton.textContent='保存原页失败，重试';processButton.onclick=processBatch;showStatus(error.message);});return;}setSteps(current);},420);}
     mount();
   });
 })();
@@ -317,6 +338,74 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     document.addEventListener('mouseup',function(){setTimeout(function(){var selection=window.getSelection(),text=selection?selection.toString().trim():'',range=selection&&selection.rangeCount?selection.getRangeAt(0):null,paper=q('#paper');if(!text||!range||!paper||!paper.contains(range.commonAncestorContainer)){hideClassifier();return;}var rect=range.getBoundingClientRect();if(rect.width||rect.height)classify(text,rect);},0);});
     document.addEventListener('mousedown',function(event){if(selectionMenu&&!selectionMenu.contains(event.target))hideClassifier();},true);
     makeWordsClickable();buildSide();
+  });
+})();
+</script>
+<script>
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var key='scribe-local-v1',recovering={};
+    var style=document.createElement('style');
+    style.textContent='.source-reader-paper{max-width:none!important;padding:0!important;overflow:hidden;background:#f6f8fb!important}.source-reader-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 24px 16px;background:#fff;border-bottom:1px solid #e0e7f0}.source-reader-head h1{margin:4px 0 0;font:700 25px/1.25 Georgia,"Noto Serif SC",serif;color:var(--ink)}.source-reader-head p{margin:5px 0 0;color:var(--muted);font-size:13px}.source-page-count{flex:none;padding:8px 11px;border-radius:999px;background:#edf3ff;color:#4261b2;font-size:13px;font-weight:750}.source-viewer{display:grid;grid-template-columns:1fr;min-height:460px;padding:20px}.source-page-stage{display:grid;place-items:center;min-height:440px;padding:16px;border:1px solid #dce4ee;border-radius:12px;background:repeating-conic-gradient(#f6f8fb 0% 25%,#f0f3f7 0% 50%) 50%/22px 22px}.source-page-stage img{display:block;max-width:100%;max-height:min(73vh,900px);height:auto;border-radius:3px;background:#fff;box-shadow:0 10px 30px #17243e20}.source-file-fallback{max-width:430px;padding:30px;text-align:center;color:var(--muted);background:#fff;border-radius:10px}.source-file-fallback b{display:block;margin-bottom:7px;color:var(--ink);font:20px Georgia,"Noto Serif SC",serif}.source-file-fallback a{display:inline-block;margin-top:12px;color:#4668c5;font-weight:750}.source-page-tools{display:flex;align-items:center;justify-content:center;gap:11px;padding:15px 0 6px}.source-page-tools button{min-width:88px}.source-page-tools button:disabled{opacity:.42;cursor:not-allowed}.source-page-position{min-width:88px;text-align:center;color:var(--ink);font-size:14px;font-weight:750}.source-thumbs{display:flex;gap:9px;overflow-x:auto;padding:14px 1px 1px}.source-thumb{flex:0 0 66px;height:86px;padding:3px;border:1px solid #d5deeb;border-radius:7px;background:#fff;color:#687993;font-size:11px;overflow:hidden}.source-thumb.active{border:2px solid #5878d1;color:#3156ae;background:#f2f5ff}.source-thumb img{display:block;width:100%;height:58px;object-fit:cover;margin-bottom:3px}.source-unavailable{display:grid;place-items:center;min-height:440px;padding:32px;text-align:center;background:#fff}.source-unavailable h2{margin:0 0 8px;font:24px Georgia,"Noto Serif SC",serif;color:var(--ink)}.source-unavailable p{max-width:460px;margin:0;color:var(--muted);line-height:1.7}.source-unavailable .button{margin-top:16px}@media(max-width:760px){.source-reader-head{padding:18px}.source-reader-head h1{font-size:21px}.source-viewer{padding:12px}.source-page-stage{min-height:330px;padding:8px}.source-page-tools{gap:7px}.source-page-tools button{min-width:74px;padding-left:8px;padding-right:8px}.source-thumbs{gap:7px}.source-thumb{flex-basis:55px;height:72px}.source-thumb img{height:47px}}';
+    document.head.appendChild(style);
+    function q(selector,root){return (root||document).querySelector(selector);}
+    function escapeHtml(value){return String(value||'').replace(/[&<>'"]/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];});}
+    function read(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(error){return {};}}
+    function write(value){localStorage.setItem(key,JSON.stringify(value));}
+    function isImage(page){return /^image\//.test(String(page.type||''))||/\.(jpe?g|png|heic|heif)$/i.test(String(page.name||''));}
+    function sourceDocument(id){var state=read(),docs=Array.isArray(state.docs)?state.docs:[];return docs.find(function(document){return document.id===id&&Array.isArray(document.sourcePages)&&document.sourcePages.length;})||null;}
+    function activeSourceDocument(){var state=read();return sourceDocument(state.activeDocId);}
+    function setActive(document){var state=read();state.activeDocId=document.id;write(state);}
+    function setDocumentPages(id,saved){var state=read(),document=(state.docs||[]).find(function(item){return item.id===id;});if(!document)return null;document.serverDocumentId=saved.id;document.sourcePages=saved.pages||[];document.pages=(saved.pages||[]).length+' 页';document.lastPage=0;state.activeDocId=document.id;write(state);return document;}
+    function updateProgress(document,index){var state=read(),entry=(state.docs||[]).find(function(item){return item.id===document.id;});if(!entry)return;entry.lastPage=index;entry.progress=Math.max(Number(entry.progress)||0,Math.round((index+1)/Math.max(1,entry.sourcePages.length)*100));state.activeDocId=entry.id;write(state);}
+    async function recoverSourceDocument(document){
+      if(recovering[document.id]||document.serverDocumentId||!document.sourcePages.length)return;
+      recovering[document.id]=true;
+      try{
+        var names=document.sourcePages.map(function(page){return page.name;}),query='?count='+encodeURIComponent(document.sourcePages.length)+'&names='+encodeURIComponent(JSON.stringify(names));
+        var response=await fetch('/api/mobile-links/recover'+query),session=await response.json();
+        if(!response.ok)throw new Error(session.error||'未找到可恢复的原页。');
+        response=await fetch('/api/mobile-links/'+session.id+'/commit',{method:'POST'});var saved=await response.json();
+        if(!response.ok)throw new Error(saved.error||'原页恢复失败。');
+        var restored=setDocumentPages(document.id,saved);if(restored)renderSourceReader(restored.id);
+      }catch(error){
+        var note=q('#sourceRestoreMessage');if(note)note.textContent='旧版导入未保存原图，且本次临时上传已过期。请重新扫描导入，新的导入会永久保留全部页面。';
+      }finally{delete recovering[document.id];}
+    }
+    function renderSourceReader(id){
+      var document=id?sourceDocument(id):activeSourceDocument();if(!document)return;
+      var paper=q('#paper');if(!paper)return;
+      var pages=(document.sourcePages||[]).slice().sort(function(left,right){return (left.order||0)-(right.order||0);});
+      if(!pages.length)return;
+      var index=Math.max(0,Math.min(Number(document.lastPage)||0,pages.length-1)),page=pages[index];
+      var hasPageUrl=pages.some(function(item){return item.url;});
+      paper.classList.add('source-reader-paper');
+      var chapter=q('#reader .chapter');if(chapter)chapter.textContent='手机扫描文献 · '+document.title;
+      var progress=q('#reader .readprog small'),bar=q('#reader .readprog i'),percent=Math.round((index+1)/pages.length*100);if(progress)progress.textContent='阅读进度 '+percent+'%';if(bar)bar.style.width=percent+'%';
+      if(!hasPageUrl){
+        paper.innerHTML='<section class="source-unavailable"><div><div class="eyebrow">正在恢复原页</div><h2>正在寻找这 '+pages.length+' 页扫描件</h2><p id="sourceRestoreMessage">旧版本只保存了页数。若扫码通道仍有效，系统会自动把这批原页补回文献中。</p></div></section>';
+        recoverSourceDocument(document);return;
+      }
+      var body=isImage(page)?'<img src="'+escapeHtml(page.url)+'" alt="第 '+(index+1)+' 页：'+escapeHtml(page.name)+'" id="sourcePageImage">':'<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>该格式请下载后查看原文件。</span><a href="'+escapeHtml(page.url)+'" target="_blank" rel="noopener">打开第 '+(index+1)+' 页</a></div>';
+      var thumbs=pages.map(function(item,position){return '<button type="button" class="source-thumb '+(position===index?'active':'')+'" data-source-page="'+position+'" aria-label="查看第 '+(position+1)+' 页">'+(isImage(item)?'<img src="'+escapeHtml(item.url)+'" alt="">':'▤')+'<span>'+ (position+1)+'</span></button>';}).join('');
+      paper.innerHTML='<section class="source-reader"><header class="source-reader-head"><div><div class="eyebrow">已保存原始扫描件</div><h1>'+escapeHtml(document.title)+'</h1><p>按手机选择顺序阅读；每一页都已保存在当前文献中。</p></div><span class="source-page-count">共 '+pages.length+' 页</span></header><div class="source-viewer"><div class="source-page-stage">'+body+'</div><div class="source-page-tools"><button class="button secondary small" type="button" data-source-prev '+(index===0?'disabled':'')+'>← 上一页</button><span class="source-page-position">第 '+(index+1)+' / '+pages.length+' 页</span><button class="button secondary small" type="button" data-source-next '+(index===pages.length-1?'disabled':'')+'>下一页 →</button></div><div class="source-thumbs" aria-label="页面缩略图">'+thumbs+'</div></div></section>';
+      function goPage(next){updateProgress(document,next);renderSourceReader(document.id);}
+      Array.prototype.forEach.call(paper.querySelectorAll('[data-source-page]'),function(button){button.onclick=function(){goPage(Number(button.dataset.sourcePage));};});
+      var previous=q('[data-source-prev]',paper),next=q('[data-source-next]',paper);if(previous)previous.onclick=function(){goPage(index-1);};if(next)next.onclick=function(){goPage(index+1);};
+      var image=q('#sourcePageImage',paper);if(image)image.onerror=function(){var stage=image.parentNode;stage.innerHTML='<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>此图片格式无法由当前浏览器预览。</span><a href="'+escapeHtml(page.url)+'" target="_blank" rel="noopener">下载原页查看</a></div>';};
+    }
+    document.addEventListener('click',function(event){
+      var target=event.target&&event.target.closest?event.target.closest('#books .open'):null;if(!target)return;
+      var book=target.closest('.book'),title=book&&q('h3',book)?q('h3',book).textContent.trim():'';
+      var state=read(),document=(state.docs||[]).find(function(item){return item.title===title&&Array.isArray(item.sourcePages)&&item.sourcePages.length;});
+      if(document){setActive(document);setTimeout(function(){renderSourceReader(document.id);},0);}
+    },true);
+    document.addEventListener('click',function(event){
+      var target=event.target&&event.target.closest?event.target.closest('[data-view="reader"], [data-go="reader"]'):null;
+      if(target)setTimeout(function(){renderSourceReader();},0);
+    },true);
+    renderSourceReader();
   });
 })();
 </script></body></html>
