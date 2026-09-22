@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#17243e">
+  <title>Scribe · 手机直传</title>
+  <style>
+    :root{--ink:#17243e;--muted:#64718a;--line:#dfe6f1;--paper:#f5f7fb;--blue:#5572cf;--green:#21816a}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}.page{max-width:560px;margin:auto;padding:calc(28px + env(safe-area-inset-top)) 20px 38px}.brand{display:flex;align-items:center;gap:10px;margin-bottom:34px;font-family:Georgia,serif;font-size:22px}.mark{display:grid;place-items:center;width:34px;height:34px;border-radius:11px 11px 4px;background:#d69a50;color:#17243e;font-weight:bold}.eyebrow{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.1em}.card{padding:24px;margin:17px 0;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 10px 30px #17243e0c}h1{font:30px/1.18 Georgia,"Noto Serif SC",serif;margin:8px 0 11px}h2{font:20px Georgia,"Noto Serif SC",serif;margin:0 0 8px}.muted{color:var(--muted)}.choice{display:block;width:100%;margin:12px 0;padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff;text-align:left;color:var(--ink);font:inherit;font-weight:700}.choice small{display:block;margin-top:4px;color:var(--muted);font-weight:400}.choice:active{border-color:var(--blue);background:#f4f7ff}.choice input{display:none}.privacy{padding:14px;border-radius:12px;background:#eef6f3;color:#256858;font-size:14px}.status{display:none;margin-top:16px;padding:14px;border-radius:12px;background:#f3f6fc;color:#415172}.status.show{display:block}.progress{height:7px;overflow:hidden;margin-top:10px;border-radius:20px;background:#dfe6f1}.progress i{display:block;width:0;height:100%;border-radius:inherit;background:var(--blue);transition:width .2s}.files{display:grid;gap:8px;margin-top:14px}.file{display:flex;gap:10px;align-items:center;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:14px}.file b,.file span{display:block}.file span{color:var(--muted);font-size:12px}.expired{display:none;text-align:center;padding:70px 10px}.expired.show{display:block}.main.expired{display:none}
+  </style>
+</head>
+<body>
+  <main class="page main" id="main">
+    <div class="brand"><span class="mark">S</span> Scribe</div>
+    <div class="eyebrow">手机直传</div>
+    <h1>把文件直接送到电脑上的阅读项目</h1>
+    <p class="muted">选择相册书页，或从微信/手机文件中选择 PDF、Word 和图片。上传完成后，电脑端会立刻出现待导入文件。</p>
+    <section class="card">
+      <h2>选择来源</h2>
+      <label class="choice">相册或拍照<input id="images" type="file" accept="image/*,.heic,.heif" multiple><small>适合书页照片、截图与扫描件</small></label>
+      <label class="choice">微信或手机文件<input id="documents" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.heif" multiple><small>选择文献、讲义或从微信保存的文件</small></label>
+      <div class="status" id="status"><b id="statusTitle">准备上传</b><span id="statusText"></span><div class="progress"><i id="progress"></i></div></div>
+      <div class="files" id="files"></div>
+    </section>
+    <p class="privacy">文件仅通过当前 Wi‑Fi 传到这台电脑的本地学习空间；本次通道 15 分钟后自动失效。</p>
+  </main>
+  <section class="page expired" id="expired"><div class="brand"><span class="mark">S</span> Scribe</div><h1>此传输通道已失效</h1><p class="muted">请回到电脑端，重新生成一个二维码后再扫码。</p></section>
+  <script>
+    (function(){
+      var token='__SCRIBE_LINK_TOKEN__', status=document.querySelector('#status'), title=document.querySelector('#statusTitle'), text=document.querySelector('#statusText'), progress=document.querySelector('#progress'), files=document.querySelector('#files');
+      function show(message, detail){status.classList.add('show');title.textContent=message;text.textContent=detail||''}
+      function bytes(value){return value<1024*1024?(value/1024).toFixed(0)+' KB':(value/1024/1024).toFixed(1)+' MB'}
+      function fileNameHeader(name){return btoa(unescape(encodeURIComponent(name)))}
+      function unavailable(message){document.querySelector('#main').classList.add('expired');document.querySelector('#expired').classList.add('show');document.querySelector('#expired p').textContent=message}
+      function addFile(file){var item=document.createElement('div');item.className='file';item.innerHTML='<span>✓</span><div><b></b><span></span></div>';item.querySelector('b').textContent=file.name;item.querySelector('span:last-child').textContent=bytes(file.size)+' · 已送达电脑';files.prepend(item)}
+      function upload(file){return new Promise(function(resolve,reject){
+        var xhr=new XMLHttpRequest();xhr.open('POST','/api/mobile-links/'+token+'/files');xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');xhr.setRequestHeader('X-File-Name-B64',fileNameHeader(file.name));
+        xhr.upload.onprogress=function(event){if(event.lengthComputable){progress.style.width=Math.round(event.loaded/event.total*100)+'%';show('正在上传 '+file.name,Math.round(event.loaded/event.total*100)+'% · '+bytes(event.loaded)+' / '+bytes(event.total))}};
+        xhr.onload=function(){if(xhr.status>=200&&xhr.status<300)return resolve();var result={};try{result=JSON.parse(xhr.responseText)}catch{}if(xhr.status===410)unavailable(result.error||'此传输通道已失效。');reject(new Error(result.error||'上传失败，请重试。'))};
+        xhr.onerror=function(){reject(new Error('网络连接中断，请确认手机与电脑在同一 Wi‑Fi 下。'))};xhr.send(file);
+      })}
+      async function choose(event){var selected=Array.from(event.target.files||[]);if(!selected.length)return;event.target.value='';for(var index=0;index<selected.length;index++){var file=selected[index];progress.style.width='0%';show('准备上传 '+file.name,'文件 '+(index+1)+' / '+selected.length);try{await upload(file);addFile(file);progress.style.width='100%';show('已送达电脑','请回到电脑端选择“导入此文件”继续处理。')}catch(error){if(!document.querySelector('#expired').classList.contains('show'))show('上传未完成',error.message)}}}
+      document.querySelector('#images').addEventListener('change',choose);document.querySelector('#documents').addEventListener('change',choose);
+      fetch('/api/mobile-links/'+token).then(function(response){if(response.status===410)return unavailable('此传输通道已失效，请重新扫码。');if(!response.ok)throw new Error();}).catch(function(){if(!document.querySelector('#expired').classList.contains('show'))unavailable('无法连接到电脑。请确认手机与电脑在同一 Wi‑Fi 下。')});
+    })();
+  </script>
+</body>
+</html>

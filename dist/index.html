@@ -124,4 +124,44 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     setInterval(update,700);
   });
 })();
+</script>
+<script>
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var pollTimer=null, activeLink=null, seenFiles={};
+    var style=document.createElement('style');
+    style.textContent='.phone-bridge{margin-top:18px;padding:18px;border:1px solid #ccd9ef;border-radius:13px;background:linear-gradient(135deg,#f7f9ff,#f2fbf7)}.phone-bridge h3{margin:0;font:20px Georgia,"Noto Serif SC",serif}.phone-bridge p{margin:6px 0 0}.phone-bridge-head{display:flex;justify-content:space-between;align-items:start;gap:14px}.phone-link{display:none;grid-template-columns:148px 1fr;gap:18px;align-items:center;margin-top:17px;padding-top:17px;border-top:1px solid #d8e2ed}.phone-link.show{display:grid}.phone-qr{display:grid;place-items:center;padding:7px;border:1px solid var(--line);border-radius:11px;background:#fff}.phone-qr img{display:block;width:134px;height:134px}.phone-state{padding:11px 13px;margin-top:14px;border-radius:9px;background:#fff;color:#52617b;font-size:13px}.phone-files{display:grid;gap:8px;margin-top:12px}.phone-file{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #dfe6ef;border-radius:9px;background:#fff}.phone-file-copy{min-width:0;flex:1}.phone-file-copy b,.phone-file-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phone-file-copy small{color:var(--muted);font-size:12px}.phone-file .button{flex:none}.phone-note{margin-top:14px!important;color:#5c6d83;font-size:12px}@media(max-width:640px){.phone-bridge-head{display:block}.phone-bridge-head .button{margin-top:14px}.phone-link.show{grid-template-columns:1fr}.phone-qr{width:150px}.phone-file{align-items:start;flex-wrap:wrap}}';
+    document.head.appendChild(style);
+    function bytes(value){return value<1024*1024?(value/1024).toFixed(0)+' KB':(value/1024/1024).toFixed(1)+' MB';}
+    function escapeHtml(value){return String(value).replace(/[&<>'"]/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];});}
+    function showStatus(message){var state=document.querySelector('#phoneStatus');if(state)state.textContent=message;}
+    function mount(){
+      var panel=document.querySelector('#upload .upload-grid > article.card');if(!panel||document.querySelector('#phoneBridge'))return;
+      var bridge=document.createElement('section');bridge.id='phoneBridge';bridge.className='phone-bridge';
+      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机直传</div><h3>扫码，把手机文件直接送到这里</h3><p class="muted tiny">无需先发到电脑。手机与电脑在同一 Wi‑Fi 时，用微信扫码即可从相册或微信/手机文件中选择文献。</p></div><button class="button secondary small" id="createPhoneLink" type="button">生成扫码通道</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b>请用微信扫码</b><p class="muted tiny">手机端选好文件后会直接传到当前项目。通道仅限本次使用，15 分钟后自动失效。</p><div class="phone-state" id="phoneStatus">正在生成安全的本地二维码…</div><div class="phone-files" id="phoneFiles"></div><p class="phone-note">微信及手机系统不会允许网页自动读取相册或“文件传输助手”；扫码后由你在手机端选择文件，才能保护文件隐私。</p></div></div>';
+      panel.appendChild(bridge);document.querySelector('#createPhoneLink').addEventListener('click',createLink);
+    }
+    function renderFiles(files){
+      var list=document.querySelector('#phoneFiles');if(!list)return;
+      list.innerHTML=files.map(function(file){return '<div class="phone-file"><span class="badge">▤</span><div class="phone-file-copy"><b>'+escapeHtml(file.name)+'</b><small>'+bytes(file.size)+' · 已从手机收到</small></div><button class="button secondary small" type="button" data-mobile-file="'+file.id+'">导入此文件</button></div>';}).join('');
+      Array.prototype.forEach.call(list.querySelectorAll('[data-mobile-file]'),function(button){button.addEventListener('click',function(){importFile(button.dataset.mobileFile);});});
+    }
+    async function createLink(){
+      var button=document.querySelector('#createPhoneLink');button.disabled=true;button.textContent='正在生成…';
+      try{
+        var response=await fetch('/api/mobile-links',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法生成扫码通道。');
+        activeLink=result.id;seenFiles={};document.querySelector('#phoneQr').src=result.qrDataUrl;document.querySelector('#phoneLink').classList.add('show');showStatus('二维码已就绪，等待手机上传…');button.textContent='重新生成二维码';button.disabled=false;clearInterval(pollTimer);pollTimer=setInterval(checkLink,1500);checkLink();
+      }catch(error){showStatus(error.message+' 请通过 npm start 打开本地产品后重试。');document.querySelector('#phoneLink').classList.add('show');button.textContent='重新生成二维码';button.disabled=false;}
+    }
+    async function checkLink(){
+      if(!activeLink)return;try{var response=await fetch('/api/mobile-links/'+activeLink);var result=await response.json();if(response.status===410){clearInterval(pollTimer);showStatus('扫码通道已失效，请重新生成二维码。');return;}if(!response.ok)throw new Error();renderFiles(result.files||[]);var newCount=(result.files||[]).filter(function(file){if(seenFiles[file.id])return false;seenFiles[file.id]=true;return true;}).length;showStatus(result.files&&result.files.length?'已收到 '+result.files.length+' 个手机文件，选择“导入此文件”继续。':'二维码已就绪，等待手机上传…');if(newCount)document.querySelector('#phoneBridge').scrollIntoView({behavior:'smooth',block:'nearest'});}catch(error){showStatus('暂时无法获取手机上传状态。');}}
+    async function importFile(fileId){
+      if(!activeLink)return;var button=document.querySelector('[data-mobile-file="'+fileId+'"]');if(button){button.disabled=true;button.textContent='正在载入…';}
+      try{var response=await fetch('/api/mobile-links/'+activeLink+'/files/'+fileId);if(!response.ok)throw new Error('文件读取失败，请重新扫码上传。');var name=(button.closest('.phone-file').querySelector('b').textContent||'mobile-upload').trim();var blob=await response.blob(),file=new File([blob],name,{type:blob.type||'application/octet-stream'}),transfer=new DataTransfer(),input=document.querySelector('#fileInput');transfer.items.add(file);input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));showStatus('“'+name+'” 已放入电脑端导入队列，请继续开始本地处理。');if(button){button.textContent='已放入导入队列';}}
+      catch(error){showStatus(error.message);if(button){button.disabled=false;button.textContent='导入此文件';}}
+    }
+    mount();
+  });
+})();
 </script></body></html>
