@@ -164,4 +164,47 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     mount();
   });
 })();
+</script>
+<script>
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var activeLink=null,pollTimer=null,remoteFiles=[],batchComplete=false,processButton=document.querySelector('#process'),originalProcess=processButton&&processButton.onclick;
+    var style=document.createElement('style');
+    style.textContent='.phone-bridge{margin-top:18px;padding:18px;border:1px solid #ccd9ef;border-radius:13px;background:linear-gradient(135deg,#f7f9ff,#f2fbf7)}.phone-bridge h3{margin:0;font:20px Georgia,"Noto Serif SC",serif}.phone-bridge p{margin:6px 0 0}.phone-bridge-head{display:flex;justify-content:space-between;align-items:start;gap:14px}.phone-link{display:none;grid-template-columns:148px 1fr;gap:18px;align-items:center;margin-top:17px;padding-top:17px;border-top:1px solid #d8e2ed}.phone-link.show{display:grid}.phone-qr{display:grid;place-items:center;padding:7px;border:1px solid var(--line);border-radius:11px;background:#fff}.phone-qr img{display:block;width:134px;height:134px}.phone-state{padding:11px 13px;margin-top:14px;border-radius:9px;background:#fff;color:#52617b;font-size:13px}.phone-files{display:grid;gap:8px;margin-top:12px}.phone-file{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #dfe6ef;border-radius:9px;background:#fff}.phone-file-copy{min-width:0;flex:1}.phone-file-copy b,.phone-file-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phone-file-copy small{color:var(--muted);font-size:12px}.phone-order{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.phone-note{margin-top:14px!important;color:#5c6d83;font-size:12px}@media(max-width:640px){.phone-bridge-head{display:block}.phone-bridge-head .button{margin-top:14px}.phone-link.show{grid-template-columns:1fr}.phone-qr{width:150px}.phone-file{align-items:start;flex-wrap:wrap}}';
+    document.head.appendChild(style);
+    function q(selector,root){return (root||document).querySelector(selector);}
+    function bytes(value){return value<1024*1024?(value/1024).toFixed(0)+' KB':(value/1024/1024).toFixed(1)+' MB';}
+    function escapeHtml(value){return String(value).replace(/[&<>'"]/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];});}
+    function showStatus(message){var state=q('#phoneStatus');if(state)state.textContent=message;}
+    function restoreComputerProcess(){if(!processButton)return;processButton.onclick=originalProcess;processButton.textContent='开始本地处理';processButton.disabled=!q('#fileInput').files.length;}
+    function mount(){
+      var previous=q('#phoneBridge'),panel=q('#upload .upload-grid > article.card');if(!panel)return;
+      var bridge=document.createElement('section');bridge.id='phoneBridge';bridge.className='phone-bridge';
+      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机整组直传</div><h3>扫码后，把整篇书页按顺序送到这里</h3><p class="muted tiny">请用手机系统“相机扫码”打开二维码，能绕开微信的一次多图限制，直接从完整相册多选。手机端可调整顺序后一次上传。</p></div><button class="button secondary small" id="createPhoneLink" type="button">生成扫码通道</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b>请用系统相机扫码</b><p class="muted tiny">若用微信扫码，微信可能限制一次最多 9 张；同一二维码用系统相机/Safari/Chrome 打开即可一次选择全部书页。</p><div class="phone-state" id="phoneStatus">正在生成安全的本地二维码…</div><div class="phone-files" id="phoneFiles"></div><p class="phone-note">手机端会先锁定你安排的顺序，再依序上传。全部文件会自动加入下方“开始本地处理”的同一处理队列。</p></div></div>';
+      if(previous)previous.replaceWith(bridge);else panel.appendChild(bridge);
+      q('#createPhoneLink').addEventListener('click',createLink);
+    }
+    function renderQueue(){
+      var list=q('#phoneFiles');if(!list)return;
+      if(!remoteFiles.length){list.innerHTML='';restoreComputerProcess();return;}
+      list.innerHTML=remoteFiles.map(function(file,index){return '<div class="phone-file"><span class="phone-order">'+(index+1)+'</span><div class="phone-file-copy"><b>第 '+(index+1)+' 页 · '+escapeHtml(file.name)+'</b><small>'+bytes(file.size)+' · 已按手机端顺序加入处理队列</small></div></div>';}).join('');
+      if(!batchComplete){processButton.disabled=false;processButton.textContent='开始处理 '+remoteFiles.length+' 页';processButton.onclick=processBatch;}
+    }
+    async function createLink(){
+      var button=q('#createPhoneLink');button.disabled=true;button.textContent='正在生成…';clearInterval(pollTimer);remoteFiles=[];batchComplete=false;restoreComputerProcess();
+      try{var response=await fetch('/api/mobile-links',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法生成扫码通道。');activeLink=result.id;q('#phoneQr').src=result.qrDataUrl;q('#phoneLink').classList.add('show');showStatus('二维码已就绪，等待手机端整理并上传整组文件…');button.textContent='重新生成二维码';button.disabled=false;pollTimer=setInterval(checkLink,1200);checkLink();}
+      catch(error){showStatus(error.message+' 请通过 npm start 打开本地产品后重试。');q('#phoneLink').classList.add('show');button.textContent='重新生成二维码';button.disabled=false;}
+    }
+    async function checkLink(){
+      if(!activeLink)return;try{var response=await fetch('/api/mobile-links/'+activeLink),result=await response.json();if(response.status===410){clearInterval(pollTimer);showStatus('扫码通道已失效，请重新生成二维码。');return;}if(!response.ok)throw new Error();remoteFiles=(result.files||[]).slice().sort(function(left,right){return left.queueOrder-right.queueOrder||left.receivedOrder-right.receivedOrder;});renderQueue();showStatus(remoteFiles.length?'已收到 '+remoteFiles.length+' 页，已按手机端顺序进入同一处理队列。':'二维码已就绪，等待手机端整理并上传整组文件…');}
+      catch(error){showStatus('暂时无法获取手机上传状态。');}}
+    function setSteps(index){Array.prototype.forEach.call(document.querySelectorAll('#steps .step'),function(step,position){step.classList.remove('done','work');var mark=step.querySelector('.state');mark.textContent=position+1;if(position<index){step.classList.add('done');mark.textContent='✓';}else if(position===index){step.classList.add('work');}});}
+    function saveBatchDocument(){
+      var key='scribe-local-v1',state;try{state=JSON.parse(localStorage.getItem(key)||'{}')}catch(error){state={}};state.docs=Array.isArray(state.docs)?state.docs:[];state.docs.unshift({id:'m'+Date.now(),title:remoteFiles.length===1?remoteFiles[0].name.replace(/\.[^.]+$/,''):'手机扫描文献（'+remoteFiles.length+'页）',author:'手机直传',category:'图片文献',status:'reading',progress:0,pages:remoteFiles.length+' 页',time:'0 h',color:'new',sourcePages:remoteFiles.map(function(file,index){return {order:index+1,name:file.name,size:file.size}})});localStorage.setItem(key,JSON.stringify(state));}
+    function processBatch(){
+      if(!remoteFiles.length||batchComplete)return;processButton.disabled=true;var row=q('#fileRow');row.classList.add('show');q('#fileName').textContent='手机直传 · '+remoteFiles.length+' 页';q('#fileMeta').textContent='已按手机端顺序进入整组处理';showStatus('正在处理整组 '+remoteFiles.length+' 页，请等待…');var current=0;setSteps(current);var timer=setInterval(function(){current++;if(current>=7){clearInterval(timer);setSteps(7);saveBatchDocument();batchComplete=true;processButton.disabled=false;processButton.textContent='处理完成，打开精读 →';processButton.onclick=function(){var reader=q('.nav button[data-view="reader"]');if(reader)reader.click();};showStatus('已按既定顺序完成整组处理，可直接开始精读。');return;}setSteps(current);},420);}
+    mount();
+  });
+})();
 </script></body></html>

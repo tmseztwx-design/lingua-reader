@@ -55,7 +55,10 @@ function sessionFor(id) {
 }
 
 function sessionInfo(session) {
-  return { id: session.id, expiresAt: new Date(session.expiresAt).toISOString(), files: session.files.map(({ filePath, ...file }) => file) };
+  const files = [...session.files]
+    .sort((left, right) => left.queueOrder - right.queueOrder || left.receivedOrder - right.receivedOrder)
+    .map(({ filePath, ...file }) => file);
+  return { id: session.id, expiresAt: new Date(session.expiresAt).toISOString(), files };
 }
 
 function serveFile(res, target) {
@@ -74,7 +77,7 @@ async function makeSession(res) {
   const expiresAt = Date.now() + ttlMs;
   const mobileUrl = `${base}/mobile/${id}`;
   const qrDataUrl = await QRCode.toDataURL(mobileUrl, { width: 300, margin: 1, errorCorrectionLevel: 'M', color: { dark: '#17243e', light: '#ffffffff' } });
-  sessions.set(id, { id, expiresAt, files: [], directory: path.join(uploadRoot, id) });
+  sessions.set(id, { id, expiresAt, files: [], nextOrder: 0, directory: path.join(uploadRoot, id) });
   json(res, 201, { id, expiresAt: new Date(expiresAt).toISOString(), mobileUrl, qrDataUrl });
 }
 
@@ -88,7 +91,10 @@ function receiveFile(req, res, id) {
   if (declaredSize > maxBytes) return json(res, 413, { error: '单个文件不能超过 100 MB。' });
 
   fs.mkdirSync(session.directory, { recursive: true });
-  const file = { id: crypto.randomBytes(9).toString('base64url'), name, type: String(req.headers['content-type'] || 'application/octet-stream'), size: 0, uploadedAt: new Date().toISOString() };
+  const requestedOrder = Number(req.headers['x-queue-order']);
+  const queueOrder = Number.isInteger(requestedOrder) && requestedOrder >= 0 ? requestedOrder : session.nextOrder;
+  session.nextOrder = Math.max(session.nextOrder, queueOrder + 1);
+  const file = { id: crypto.randomBytes(9).toString('base64url'), name, type: String(req.headers['content-type'] || 'application/octet-stream'), size: 0, queueOrder, receivedOrder: session.files.length, uploadedAt: new Date().toISOString() };
   file.filePath = path.join(session.directory, `${file.id}-${name}`);
   const temporaryPath = `${file.filePath}.part`;
   const output = fs.createWriteStream(temporaryPath, { flags: 'wx' });
@@ -122,7 +128,7 @@ function receiveFile(req, res, id) {
       file.size = size;
       session.files.push(file);
       replied = true;
-      json(res, 201, { file: sessionInfo(session).files.at(-1) });
+      json(res, 201, { file: sessionInfo(session).files.find((item) => item.id === file.id) });
     });
   });
 }
