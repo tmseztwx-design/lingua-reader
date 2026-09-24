@@ -422,4 +422,83 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     renderSourceReader();
   });
 })();
+</script>
+<style>
+.books[hidden]{display:none!important}
+.book-actions{display:flex;align-items:center;gap:12px}
+.book-delete{border:0;background:transparent;color:#8b5260;cursor:pointer;font:inherit;font-size:14px;padding:8px 4px}
+.book-delete:hover,.book-delete:focus-visible{color:#ba344d;text-decoration:underline}
+.deleted-books{margin-top:28px}
+.deleted-empty{padding:52px 24px;text-align:center;color:#60708b;background:#fff;border:1px solid #dce4f2;border-radius:20px}
+.deleted-empty h3{margin:0 0 8px;color:#1d2941}
+.deleted-book{padding:24px;min-height:190px;display:flex;flex-direction:column;justify-content:space-between}
+.deleted-book h3{margin:8px 0;color:#1d2941;overflow-wrap:anywhere}
+.deleted-book p{margin:0;color:#60708b}
+.deleted-book .book-foot{margin-top:20px}
+</style>
+<script>
+(function(){
+  'use strict';
+  var key='scribe-local-v1',returnKey='scribe-library-return';
+  function read(){try{var value=JSON.parse(localStorage.getItem(key)||'{}');return value&&typeof value==='object'?value:{};}catch(error){return {};}}
+  function save(value){localStorage.setItem(key,JSON.stringify(value));}
+  function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(character){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];});}
+  function boot(){
+    var list=document.getElementById('books'),filters=document.querySelector('#library .filters');
+    if(!list||!filters)return;
+    var trashButton=document.createElement('button');trashButton.type='button';trashButton.className='pill';trashButton.id='deletedBooksTab';
+    var trash=document.createElement('div');trash.id='deletedBooks';trash.className='books deleted-books';trash.hidden=true;
+    list.insertAdjacentElement('afterend',trash);
+    var spacer=filters.querySelector('span[style]');filters.insertBefore(trashButton,spacer||null);
+    function updateCount(){var deleted=read().deletedDocs;trashButton.textContent='最近删除 '+(Array.isArray(deleted)?deleted.length:0);}
+    function visibleDocs(){var state=read(),docs=Array.isArray(state.docs)?state.docs:[];return docs.filter(function(item){return !state.filter||state.filter==='all'||item.status===state.filter;});}
+    function decorateBooks(){
+      var docs=visibleDocs();
+      Array.prototype.forEach.call(list.querySelectorAll('.book'),function(book,index){
+        var foot=book.querySelector('.book-foot'),open=foot&&foot.querySelector('.open'),doc=docs[index];
+        if(!foot||!open||!doc||foot.querySelector('.book-delete'))return;
+        var actions=document.createElement('div');actions.className='book-actions';
+        var button=document.createElement('button');button.type='button';button.className='book-delete';button.textContent='删除';
+        button.setAttribute('aria-label','删除《'+doc.title+'》');button.dataset.docId=String(doc.id);
+        actions.appendChild(button);actions.appendChild(open);foot.appendChild(actions);
+      });
+    }
+    function showTrash(){
+      var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[];
+      updateCount();list.hidden=true;trash.hidden=false;
+      Array.prototype.forEach.call(filters.querySelectorAll('button[data-filter]'),function(button){button.classList.remove('active');});
+      trashButton.classList.add('active');
+      trash.innerHTML=deleted.length?deleted.map(function(doc){return '<article class="card deleted-book"><div><div class="eyebrow">最近删除</div><h3>'+escapeHtml(doc.title)+'</h3><p>'+escapeHtml(doc.author||doc.source||'本地文献')+'</p></div><div class="book-foot"><span>可恢复到书库</span><button type="button" class="ghost small restore-book" data-doc-id="'+escapeHtml(doc.id)+'">恢复</button></div></article>';}).join(''):'<div class="deleted-empty"><h3>最近删除是空的</h3><p>从书库删除的文献会暂存在这里，方便恢复。</p></div>';
+    }
+    function showBooks(){list.hidden=false;trash.hidden=true;trashButton.classList.remove('active');decorateBooks();}
+    trashButton.onclick=showTrash;
+    filters.addEventListener('click',function(event){if(event.target.closest('button[data-filter]'))setTimeout(showBooks,0);});
+    list.addEventListener('click',function(event){
+      var button=event.target.closest('.book-delete');if(!button)return;
+      event.preventDefault();event.stopPropagation();
+      var state=read(),docs=Array.isArray(state.docs)?state.docs:[],index=docs.findIndex(function(doc){return String(doc.id)===button.dataset.docId;});
+      if(index<0)return;
+      var doc=docs[index];
+      if(!window.confirm('将《'+doc.title+'》移到最近删除？\n可以随时恢复，原图和学习卡不会清除。'))return;
+      var deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[];
+      deleted.unshift(Object.assign({},doc,{deletedAt:new Date().toISOString(),deletedIndex:index}));
+      docs.splice(index,1);state.docs=docs;state.deletedDocs=deleted;state.filter='all';
+      if(String(state.activeDocId)===String(doc.id))state.activeDocId=docs[0]?docs[0].id:null;
+      save(state);sessionStorage.setItem(returnKey,'books');window.location.reload();
+    });
+    trash.addEventListener('click',function(event){
+      var button=event.target.closest('.restore-book');if(!button)return;
+      var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[],index=deleted.findIndex(function(doc){return String(doc.id)===button.dataset.docId;});
+      if(index<0)return;
+      var doc=Object.assign({},deleted[index]);deleted.splice(index,1);
+      var place=Number.isInteger(doc.deletedIndex)?doc.deletedIndex:0;delete doc.deletedAt;delete doc.deletedIndex;
+      var docs=Array.isArray(state.docs)?state.docs:[];docs.splice(Math.min(Math.max(place,0),docs.length),0,doc);
+      state.docs=docs;state.deletedDocs=deleted;save(state);sessionStorage.setItem(returnKey,'trash');window.location.reload();
+    });
+    new MutationObserver(decorateBooks).observe(list,{childList:true});
+    updateCount();decorateBooks();
+    var returnView=sessionStorage.getItem(returnKey);if(returnView){sessionStorage.removeItem(returnKey);var nav=document.querySelector('[data-view="library"]');if(nav)nav.click();if(returnView==='trash')showTrash();else showBooks();}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
 </script></body></html>
