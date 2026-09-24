@@ -192,6 +192,20 @@ function commitRequest(req, res, id) {
 
 function routeDocument(req, res, pieces) {
   const id = pieces[2];
+  if (req.method === 'DELETE' && pieces.length === 3) {
+    const remote = req.socket.remoteAddress || '';
+    const loopback = remote === '::1' || remote === '127.0.0.1' || remote === '::ffff:127.0.0.1';
+    const host = String(req.headers.host || '');
+    const localHost = host === `localhost:${port}` || host === `127.0.0.1:${port}`;
+    const origin = req.headers.origin;
+    if (!loopback || !localHost || origin !== `http://${host}`) return json(res, 403, { error: '只能从本机书库清理原页。' });
+    if (!readDocument(id)) return json(res, 404, { error: '未找到已保存的文献页面。' });
+    return fs.rm(documentDirectory(id), { recursive: true, force: false }, (error) => {
+      if (error) return json(res, 500, { error: '原页清理失败，请稍后重试。' });
+      documents.delete(id);
+      json(res, 200, { deleted: true });
+    });
+  }
   const document = readDocument(id);
   if (!document) return json(res, 404, { error: '未找到已保存的文献页面。' });
   if (req.method === 'GET' && pieces.length === 3) return json(res, 200, documentInfo(document));

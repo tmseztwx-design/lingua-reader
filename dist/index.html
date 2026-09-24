@@ -429,6 +429,12 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
 .book-delete{border:0;background:transparent;color:#8b5260;cursor:pointer;font:inherit;font-size:14px;padding:8px 4px}
 .book-delete:hover,.book-delete:focus-visible{color:#ba344d;text-decoration:underline}
 .deleted-books{margin-top:28px}
+.deleted-toolbar[hidden]{display:none!important}
+.deleted-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:26px;flex-wrap:wrap}
+.deleted-toolbar p{margin:0;color:#60708b;font-size:14px}
+.empty-trash{border:1px solid #d5a6ae;background:#fff;color:#a63349;border-radius:12px;padding:10px 16px;font:inherit;cursor:pointer}
+.empty-trash:hover:not(:disabled),.empty-trash:focus-visible:not(:disabled){background:#fff0f2}
+.empty-trash:disabled{opacity:.5;cursor:not-allowed}
 .deleted-empty{padding:52px 24px;text-align:center;color:#60708b;background:#fff;border:1px solid #dce4f2;border-radius:20px}
 .deleted-empty h3{margin:0 0 8px;color:#1d2941}
 .deleted-book{padding:24px;min-height:190px;display:flex;flex-direction:column;justify-content:space-between}
@@ -439,19 +445,58 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
 <script>
 (function(){
   'use strict';
-  var key='scribe-local-v1',returnKey='scribe-library-return';
+  var key='scribe-local-v1',returnKey='scribe-library-return',messageKey='scribe-trash-message',retentionMs=30*24*60*60*1000;
   function read(){try{var value=JSON.parse(localStorage.getItem(key)||'{}');return value&&typeof value==='object'?value:{};}catch(error){return {};}}
   function save(value){localStorage.setItem(key,JSON.stringify(value));}
   function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(character){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];});}
+  function deletedKey(doc){return String(doc.id)+'|'+String(doc.deletedAt);}
+  function deletedAt(doc){return Date.parse(doc.deletedAt);}
+  function expiryLabel(doc){var time=deletedAt(doc);return Number.isFinite(time)?new Date(time+retentionMs).toLocaleString('zh-CN',{year:'numeric',month:'long',day:'numeric'}):'30 天后';}
   function boot(){
     var list=document.getElementById('books'),filters=document.querySelector('#library .filters');
     if(!list||!filters)return;
     var trashButton=document.createElement('button');trashButton.type='button';trashButton.className='pill';trashButton.id='deletedBooksTab';
+    var trashToolbar=document.createElement('div');trashToolbar.className='deleted-toolbar';trashToolbar.hidden=true;
+    trashToolbar.innerHTML='<p>删除后保留 30 天，过期自动永久清理。</p><button type="button" class="empty-trash" id="emptyDeletedBooks">清空最近删除</button>';
+    var clearButton=trashToolbar.querySelector('button');
     var trash=document.createElement('div');trash.id='deletedBooks';trash.className='books deleted-books';trash.hidden=true;
-    list.insertAdjacentElement('afterend',trash);
+    list.insertAdjacentElement('afterend',trashToolbar);trashToolbar.insertAdjacentElement('afterend',trash);
     var spacer=filters.querySelector('span[style]');filters.insertBefore(trashButton,spacer||null);
     function updateCount(){var deleted=read().deletedDocs;trashButton.textContent='最近删除 '+(Array.isArray(deleted)?deleted.length:0);}
     function visibleDocs(){var state=read(),docs=Array.isArray(state.docs)?state.docs:[];return docs.filter(function(item){return !state.filter||state.filter==='all'||item.status===state.filter;});}
+    function currentView(){var active=document.querySelector('.view.active');return active&&active.id==='library'?(trash.hidden?'books':'trash'):'view:'+(active?active.id:'dashboard');}
+    function reloadAt(view,message){sessionStorage.setItem(returnKey,view);if(message)sessionStorage.setItem(messageKey,message);window.location.reload();}
+    function migrateUndated(){
+      var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[],changed=false,now=new Date().toISOString();
+      deleted.forEach(function(doc){if(!Number.isFinite(deletedAt(doc))){doc.deletedAt=now;changed=true;}});
+      if(changed){state.deletedDocs=deleted;save(state);reloadAt(currentView());}
+      return changed;
+    }
+    var purging=false;
+    async function purgeDeleted(shouldPurge){
+      if(purging)return;
+      var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[],targets=deleted.filter(shouldPurge);
+      if(!targets.length)return;
+      purging=true;clearButton.disabled=true;
+      var keys=new Set(targets.map(deletedKey)),remaining=deleted.filter(function(doc){return !keys.has(deletedKey(doc));});
+      var referenced=new Set((Array.isArray(state.docs)?state.docs:[]).concat(remaining).map(function(doc){return doc.serverDocumentId;}).filter(Boolean));
+      var remoteIds=new Set(targets.map(function(doc){return doc.serverDocumentId;}).filter(function(id){return id&&!referenced.has(id);}));
+      var failed=new Set();
+      for(var id of remoteIds){
+        try{
+          var response=await fetch('/api/documents/'+encodeURIComponent(id),{method:'DELETE'});
+          if(!response.ok&&response.status!==404)failed.add(id);
+        }catch(error){failed.add(id);}
+      }
+      var removed=new Set(targets.filter(function(doc){return !doc.serverDocumentId||!failed.has(doc.serverDocumentId);}).map(deletedKey));
+      if(removed.size){
+        var fresh=read();fresh.deletedDocs=(Array.isArray(fresh.deletedDocs)?fresh.deletedDocs:[]).filter(function(doc){return !removed.has(deletedKey(doc));});save(fresh);
+        reloadAt(currentView(),failed.size?'部分原页未能清理，相关文献仍保留在最近删除中。':'');
+      }else if(failed.size){
+        clearButton.disabled=false;purging=false;window.alert('原页清理失败，文献仍保留在最近删除中。请稍后重试。');
+      }
+    }
+    function purgeExpired(){var now=Date.now();return purgeDeleted(function(doc){var time=deletedAt(doc);return Number.isFinite(time)&&time+retentionMs<=now;});}
     function decorateBooks(){
       var docs=visibleDocs();
       Array.prototype.forEach.call(list.querySelectorAll('.book'),function(book,index){
@@ -465,13 +510,19 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     }
     function showTrash(){
       var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[];
-      updateCount();list.hidden=true;trash.hidden=false;
+      updateCount();list.hidden=true;trash.hidden=false;trashToolbar.hidden=false;clearButton.disabled=!deleted.length||purging;
       Array.prototype.forEach.call(filters.querySelectorAll('button[data-filter]'),function(button){button.classList.remove('active');});
       trashButton.classList.add('active');
-      trash.innerHTML=deleted.length?deleted.map(function(doc){return '<article class="card deleted-book"><div><div class="eyebrow">最近删除</div><h3>'+escapeHtml(doc.title)+'</h3><p>'+escapeHtml(doc.author||doc.source||'本地文献')+'</p></div><div class="book-foot"><span>可恢复到书库</span><button type="button" class="ghost small restore-book" data-doc-id="'+escapeHtml(doc.id)+'">恢复</button></div></article>';}).join(''):'<div class="deleted-empty"><h3>最近删除是空的</h3><p>从书库删除的文献会暂存在这里，方便恢复。</p></div>';
+      trash.innerHTML=deleted.length?deleted.map(function(doc){return '<article class="card deleted-book"><div><div class="eyebrow">最近删除</div><h3>'+escapeHtml(doc.title)+'</h3><p>'+escapeHtml(doc.author||doc.source||'本地文献')+'</p><p>将于 '+escapeHtml(expiryLabel(doc))+' 自动永久删除</p></div><div class="book-foot"><span>保留期内可恢复</span><button type="button" class="ghost small restore-book" data-doc-id="'+escapeHtml(doc.id)+'">恢复</button></div></article>';}).join(''):'<div class="deleted-empty"><h3>最近删除是空的</h3><p>从书库删除的文献会在这里保留 30 天。</p></div>';
     }
-    function showBooks(){list.hidden=false;trash.hidden=true;trashButton.classList.remove('active');decorateBooks();}
+    function showBooks(){list.hidden=false;trash.hidden=true;trashToolbar.hidden=true;trashButton.classList.remove('active');decorateBooks();}
     trashButton.onclick=showTrash;
+    clearButton.onclick=function(){
+      var deleted=read().deletedDocs;
+      if(!Array.isArray(deleted)||!deleted.length)return;
+      if(!window.confirm('永久清空最近删除中的 '+deleted.length+' 本文献？\n清空后无法恢复；手机直传保存在本机服务端的原页也会删除。'))return;
+      purgeDeleted(function(){return true;});
+    };
     filters.addEventListener('click',function(event){if(event.target.closest('button[data-filter]'))setTimeout(showBooks,0);});
     list.addEventListener('click',function(event){
       var button=event.target.closest('.book-delete');if(!button)return;
@@ -484,7 +535,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       deleted.unshift(Object.assign({},doc,{deletedAt:new Date().toISOString(),deletedIndex:index}));
       docs.splice(index,1);state.docs=docs;state.deletedDocs=deleted;state.filter='all';
       if(String(state.activeDocId)===String(doc.id))state.activeDocId=docs[0]?docs[0].id:null;
-      save(state);sessionStorage.setItem(returnKey,'books');window.location.reload();
+      save(state);reloadAt('books');
     });
     trash.addEventListener('click',function(event){
       var button=event.target.closest('.restore-book');if(!button)return;
@@ -493,11 +544,19 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       var doc=Object.assign({},deleted[index]);deleted.splice(index,1);
       var place=Number.isInteger(doc.deletedIndex)?doc.deletedIndex:0;delete doc.deletedAt;delete doc.deletedIndex;
       var docs=Array.isArray(state.docs)?state.docs:[];docs.splice(Math.min(Math.max(place,0),docs.length),0,doc);
-      state.docs=docs;state.deletedDocs=deleted;save(state);sessionStorage.setItem(returnKey,'trash');window.location.reload();
+      state.docs=docs;state.deletedDocs=deleted;save(state);reloadAt('trash');
     });
     new MutationObserver(decorateBooks).observe(list,{childList:true});
+    if(migrateUndated())return;
     updateCount();decorateBooks();
-    var returnView=sessionStorage.getItem(returnKey);if(returnView){sessionStorage.removeItem(returnKey);var nav=document.querySelector('[data-view="library"]');if(nav)nav.click();if(returnView==='trash')showTrash();else showBooks();}
+    var returnView=sessionStorage.getItem(returnKey);
+    if(returnView){
+      sessionStorage.removeItem(returnKey);
+      var view=returnView.indexOf('view:')===0?returnView.slice(5):'library',nav=document.querySelector('[data-view="'+view+'"]');
+      if(nav)nav.click();if(returnView==='trash')showTrash();else if(returnView==='books')showBooks();
+    }
+    var message=sessionStorage.getItem(messageKey);if(message){sessionStorage.removeItem(messageKey);window.alert(message);}
+    purgeExpired();setInterval(purgeExpired,60*1000);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
