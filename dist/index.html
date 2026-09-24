@@ -32,6 +32,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     var state=JSON.parse(raw),changed=false;
     if(!state||typeof state!=='object')return;
     if(!Array.isArray(state.docs)){state.docs=[];changed=true;}
+    state.docs.forEach(function(item){if(Array.isArray(item.sourcePages)&&typeof item.pages==='string'&&/^\d+\s*页$/.test(item.pages)){item.pages=item.sourcePages.length;changed=true;}});
     if(!Array.isArray(state.cards)){state.cards=[];changed=true;}
     ['filter','tab','kind'].forEach(function(name){if(!state[name]){state[name]='all';changed=true;}});
     if(typeof state.minutes!=='number'){state.minutes=0;changed=true;}
@@ -219,7 +220,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       catch(error){showStatus('暂时无法获取手机上传状态。');}}
     function setSteps(index){Array.prototype.forEach.call(document.querySelectorAll('#steps .step'),function(step,position){step.classList.remove('done','work');var mark=step.querySelector('.state');mark.textContent=position+1;if(position<index){step.classList.add('done');mark.textContent='✓';}else if(position===index){step.classList.add('work');}});}
     function saveBatchDocument(savedDocument){
-      var key='scribe-local-v1',state;try{state=JSON.parse(localStorage.getItem(key)||'{}')}catch(error){state={}};state.docs=Array.isArray(state.docs)?state.docs:[];var pages=(savedDocument&&savedDocument.pages)||remoteFiles.map(function(file,index){return {order:index+1,name:file.name,size:file.size}}),documentId=savedDocument&&savedDocument.id,document={id:documentId?'mobile-'+documentId:'m'+Date.now(),serverDocumentId:documentId||'',title:remoteFiles.length===1?remoteFiles[0].name.replace(/\.[^.]+$/,''):'手机扫描文献（'+remoteFiles.length+'页）',author:'手机直传',category:'图片文献',status:'reading',progress:0,pages:pages.length+' 页',time:'0 h',color:'new',sourcePages:pages};state.docs.unshift(document);state.activeDocId=document.id;localStorage.setItem(key,JSON.stringify(state));return document;}
+      var key='scribe-local-v1',state;try{state=JSON.parse(localStorage.getItem(key)||'{}')}catch(error){state={}};state.docs=Array.isArray(state.docs)?state.docs:[];var pages=(savedDocument&&savedDocument.pages)||remoteFiles.map(function(file,index){return {order:index+1,name:file.name,size:file.size}}),documentId=savedDocument&&savedDocument.id,document={id:documentId?'mobile-'+documentId:'m'+Date.now(),serverDocumentId:documentId||'',title:remoteFiles.length===1?remoteFiles[0].name.replace(/\.[^.]+$/,''):'手机扫描文献（'+remoteFiles.length+'页）',author:'手机直传',category:'图片文献',status:'reading',progress:0,pages:pages.length,time:'0 h',color:'new',sourcePages:pages};state.docs.unshift(document);state.activeDocId=document.id;localStorage.setItem(key,JSON.stringify(state));return document;}
     async function commitBatch(){
       if(!activeLink)throw new Error('未找到本次手机上传，请重新生成扫码通道。');
       var response=await fetch('/api/mobile-links/'+activeLink+'/commit',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法保存原始页面。');return result;
@@ -351,13 +352,25 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     document.head.appendChild(style);
     function q(selector,root){return (root||document).querySelector(selector);}
     function escapeHtml(value){return String(value||'').replace(/[&<>'"]/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];});}
+    var originalPaper=q('#paper'),originalNodes=document.createDocumentFragment(),sourcePaperActive=false;
+    var originalChapter=q('#reader .chapter')?.textContent||'',originalProgress=q('#reader .readprog small')?.textContent||'',originalBar=q('#reader .readprog i')?.style.width||'';
+    function restoreOriginalReader(){
+      if(!sourcePaperActive)return;
+      var paper=q('#paper');paper.replaceChildren(originalNodes);paper.classList.remove('source-reader-paper');sourcePaperActive=false;
+      var chapter=q('#reader .chapter'),progress=q('#reader .readprog small'),bar=q('#reader .readprog i');
+      if(chapter)chapter.textContent=originalChapter;if(progress)progress.textContent=originalProgress;if(bar)bar.style.width=originalBar;
+    }
+    function preserveOriginalReader(){
+      if(sourcePaperActive)return;
+      var paper=q('#paper');while(paper.firstChild)originalNodes.appendChild(paper.firstChild);sourcePaperActive=true;
+    }
     function read(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(error){return {};}}
     function write(value){localStorage.setItem(key,JSON.stringify(value));}
     function isImage(page){return /^image\//.test(String(page.type||''))||/\.(jpe?g|png|heic|heif)$/i.test(String(page.name||''));}
     function sourceDocument(id){var state=read(),docs=Array.isArray(state.docs)?state.docs:[];return docs.find(function(document){return document.id===id&&Array.isArray(document.sourcePages)&&document.sourcePages.length;})||null;}
     function activeSourceDocument(){var state=read();return sourceDocument(state.activeDocId);}
     function setActive(document){var state=read();state.activeDocId=document.id;write(state);}
-    function setDocumentPages(id,saved){var state=read(),document=(state.docs||[]).find(function(item){return item.id===id;});if(!document)return null;document.serverDocumentId=saved.id;document.sourcePages=saved.pages||[];document.pages=(saved.pages||[]).length+' 页';document.lastPage=0;state.activeDocId=document.id;write(state);return document;}
+    function setDocumentPages(id,saved){var state=read(),document=(state.docs||[]).find(function(item){return item.id===id;});if(!document)return null;document.serverDocumentId=saved.id;document.sourcePages=saved.pages||[];document.pages=(saved.pages||[]).length;document.lastPage=0;write(state);return document;}
     function updateProgress(document,index){var state=read(),entry=(state.docs||[]).find(function(item){return item.id===document.id;});if(!entry)return;entry.lastPage=index;entry.progress=Math.max(Number(entry.progress)||0,Math.round((index+1)/Math.max(1,entry.sourcePages.length)*100));state.activeDocId=entry.id;write(state);}
     async function recoverSourceDocument(document){
       if(recovering[document.id]||document.serverDocumentId||!document.sourcePages.length)return;
@@ -366,20 +379,21 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         var names=document.sourcePages.map(function(page){return page.name;}),query='?count='+encodeURIComponent(document.sourcePages.length)+'&names='+encodeURIComponent(JSON.stringify(names));
         var response=await fetch('/api/mobile-links/recover'+query),session=await response.json();
         if(!response.ok)throw new Error(session.error||'未找到可恢复的原页。');
-        response=await fetch('/api/mobile-links/'+session.id+'/commit',{method:'POST'});var saved=await response.json();
+        response=await fetch('/api/mobile-links/'+session.id+'/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({names:names})});var saved=await response.json();
         if(!response.ok)throw new Error(saved.error||'原页恢复失败。');
-        var restored=setDocumentPages(document.id,saved);if(restored)renderSourceReader(restored.id);
+        var restored=setDocumentPages(document.id,saved);if(restored&&read().activeDocId===restored.id)renderSourceReader(restored.id);
       }catch(error){
-        var note=q('#sourceRestoreMessage');if(note)note.textContent='旧版导入未保存原图，且本次临时上传已过期。请重新扫描导入，新的导入会永久保留全部页面。';
+        var note=q('#sourceRestoreMessage');if(note)note.textContent='未能自动找回原图。书库记录和学习卡仍在；请保留原始图片，以便继续恢复。';
       }finally{delete recovering[document.id];}
     }
     function renderSourceReader(id){
-      var document=id?sourceDocument(id):activeSourceDocument();if(!document)return;
+      var document=id?sourceDocument(id):activeSourceDocument();if(!document){restoreOriginalReader();return;}
       var paper=q('#paper');if(!paper)return;
       var pages=(document.sourcePages||[]).slice().sort(function(left,right){return (left.order||0)-(right.order||0);});
-      if(!pages.length)return;
+      if(!pages.length){restoreOriginalReader();return;}
       var index=Math.max(0,Math.min(Number(document.lastPage)||0,pages.length-1)),page=pages[index];
-      var hasPageUrl=pages.some(function(item){return item.url;});
+      var availableCount=pages.filter(function(item){return item.url;}).length,hasPageUrl=availableCount>0;
+      preserveOriginalReader();
       paper.classList.add('source-reader-paper');
       var chapter=q('#reader .chapter');if(chapter)chapter.textContent='手机扫描文献 · '+document.title;
       var progress=q('#reader .readprog small'),bar=q('#reader .readprog i'),percent=Math.round((index+1)/pages.length*100);if(progress)progress.textContent='阅读进度 '+percent+'%';if(bar)bar.style.width=percent+'%';
@@ -387,9 +401,9 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         paper.innerHTML='<section class="source-unavailable"><div><div class="eyebrow">正在恢复原页</div><h2>正在寻找这 '+pages.length+' 页扫描件</h2><p id="sourceRestoreMessage">旧版本只保存了页数。若扫码通道仍有效，系统会自动把这批原页补回文献中。</p></div></section>';
         recoverSourceDocument(document);return;
       }
-      var body=isImage(page)?'<img src="'+escapeHtml(page.url)+'" alt="第 '+(index+1)+' 页：'+escapeHtml(page.name)+'" id="sourcePageImage">':'<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>该格式请下载后查看原文件。</span><a href="'+escapeHtml(page.url)+'" target="_blank" rel="noopener">打开第 '+(index+1)+' 页</a></div>';
-      var thumbs=pages.map(function(item,position){return '<button type="button" class="source-thumb '+(position===index?'active':'')+'" data-source-page="'+position+'" aria-label="查看第 '+(position+1)+' 页">'+(isImage(item)?'<img src="'+escapeHtml(item.url)+'" alt="">':'▤')+'<span>'+ (position+1)+'</span></button>';}).join('');
-      paper.innerHTML='<section class="source-reader"><header class="source-reader-head"><div><div class="eyebrow">已保存原始扫描件</div><h1>'+escapeHtml(document.title)+'</h1><p>按手机选择顺序阅读；每一页都已保存在当前文献中。</p></div><span class="source-page-count">共 '+pages.length+' 页</span></header><div class="source-viewer"><div class="source-page-stage">'+body+'</div><div class="source-page-tools"><button class="button secondary small" type="button" data-source-prev '+(index===0?'disabled':'')+'>← 上一页</button><span class="source-page-position">第 '+(index+1)+' / '+pages.length+' 页</span><button class="button secondary small" type="button" data-source-next '+(index===pages.length-1?'disabled':'')+'>下一页 →</button></div><div class="source-thumbs" aria-label="页面缩略图">'+thumbs+'</div></div></section>';
+      var body=!page.url?'<div class="source-file-fallback"><b>第 '+(index+1)+' 页原图暂缺</b><span>'+escapeHtml(page.name)+' 尚未在本机找到；其他已恢复的页面可以继续阅读。</span></div>':isImage(page)?'<img src="'+escapeHtml(page.url)+'" alt="第 '+(index+1)+' 页：'+escapeHtml(page.name)+'" id="sourcePageImage">':'<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>该格式请下载后查看原文件。</span><a href="'+escapeHtml(page.url)+'" target="_blank" rel="noopener">打开第 '+(index+1)+' 页</a></div>';
+      var thumbs=pages.map(function(item,position){return '<button type="button" class="source-thumb '+(position===index?'active':'')+'" data-source-page="'+position+'" aria-label="查看第 '+(position+1)+' 页">'+(!item.url?'待补':isImage(item)?'<img src="'+escapeHtml(item.url)+'" alt="">':'▤')+'<span>'+ (position+1)+'</span></button>';}).join('');
+      paper.innerHTML='<section class="source-reader"><header class="source-reader-head"><div><div class="eyebrow">扫描原页</div><h1>'+escapeHtml(document.title)+'</h1><p>按手机选择顺序阅读；已找回 '+availableCount+' / '+pages.length+' 页。</p></div><span class="source-page-count">共 '+pages.length+' 页</span></header><div class="source-viewer"><div class="source-page-stage">'+body+'</div><div class="source-page-tools"><button class="button secondary small" type="button" data-source-prev '+(index===0?'disabled':'')+'>← 上一页</button><span class="source-page-position">第 '+(index+1)+' / '+pages.length+' 页</span><button class="button secondary small" type="button" data-source-next '+(index===pages.length-1?'disabled':'')+'>下一页 →</button></div><div class="source-thumbs" aria-label="页面缩略图">'+thumbs+'</div></div></section>';
       function goPage(next){updateProgress(document,next);renderSourceReader(document.id);}
       Array.prototype.forEach.call(paper.querySelectorAll('[data-source-page]'),function(button){button.onclick=function(){goPage(Number(button.dataset.sourcePage));};});
       var previous=q('[data-source-prev]',paper),next=q('[data-source-next]',paper);if(previous)previous.onclick=function(){goPage(index-1);};if(next)next.onclick=function(){goPage(index+1);};
@@ -398,7 +412,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     document.addEventListener('click',function(event){
       var target=event.target&&event.target.closest?event.target.closest('#books .open'):null;if(!target)return;
       var book=target.closest('.book'),title=book&&q('h3',book)?q('h3',book).textContent.trim():'';
-      var state=read(),document=(state.docs||[]).find(function(item){return item.title===title&&Array.isArray(item.sourcePages)&&item.sourcePages.length;});
+      var state=read(),document=(state.docs||[]).find(function(item){return item.title===title;});
       if(document){setActive(document);setTimeout(function(){renderSourceReader(document.id);},0);}
     },true);
     document.addEventListener('click',function(event){
