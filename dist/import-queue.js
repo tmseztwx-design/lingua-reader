@@ -11,6 +11,17 @@
     var row = document.querySelector('#fileRow');
     if (!input || !drop || !button || !row) return;
 
+    if (sessionStorage.getItem('scribe-open-import-reader') === '1') {
+      sessionStorage.removeItem('scribe-open-import-reader');
+      var readerNav = window.document.querySelector('.nav button[data-view="reader"]');
+      if (readerNav) readerNav.click();
+    }
+    new MutationObserver(function () {
+      if (!/处理完成/.test(button.textContent)) return;
+      sessionStorage.setItem('scribe-open-import-reader', '1');
+      setTimeout(function () { window.location.reload(); }, 350);
+    }).observe(button, { childList: true, characterData: true, subtree: true });
+
     var queue = [];
     var working = false;
     var locked = false;
