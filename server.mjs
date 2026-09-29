@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -13,14 +14,15 @@ const documentRoot = path.join(uploadRoot, 'documents');
 const port = Number(process.env.PORT || 4174);
 const ttlMs = 15 * 60 * 1000;
 const maxBytes = 100 * 1024 * 1024;
-const allowedExtensions = new Set(['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.heic', '.heif']);
+const allowedExtensions = new Set(['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.heic', '.heif', '.txt']);
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg', '.ico': 'image/x-icon'
+  '.jpeg': 'image/jpeg', '.heic': 'image/heic', '.heif': 'image/heif', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.ico': 'image/x-icon'
 };
 const sessions = new Map();
 const documents = new Map();
+const processingJobs = new Map();
 
 function json(res, status, value) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -64,7 +66,7 @@ function sessionInfo(session) {
   const files = [...session.files]
     .sort((left, right) => left.queueOrder - right.queueOrder || left.receivedOrder - right.receivedOrder)
     .map(({ filePath, ...file }) => file);
-  return { id: session.id, expiresAt: new Date(session.expiresAt).toISOString(), files };
+  return { id: session.id, expiresAt: new Date(session.expiresAt).toISOString(), files, completed: session.completed === true };
 }
 
 function recoverSessionFromDisk(names) {
@@ -137,6 +139,7 @@ function documentInfo(document) {
 function commitSession(res, id, requestedNames) {
   const session = sessionFor(id);
   if (!session) return json(res, 410, { error: '此扫码通道已过期，请重新上传。' });
+  if (!session.completed) return json(res, 409, { error: '请等全部文件上传完成后再开始处理。' });
   const sourceFiles = [...session.files].sort((left, right) => left.queueOrder - right.queueOrder || left.receivedOrder - right.receivedOrder);
   if (!sourceFiles.length) return json(res, 409, { error: '还没有收到可保存的页面。' });
   if (requestedNames && (!Array.isArray(requestedNames) || requestedNames.length > 500 || requestedNames.some((name) => typeof name !== 'string' || name.length > 200))) {
@@ -208,6 +211,17 @@ function routeDocument(req, res, pieces) {
   }
   const document = readDocument(id);
   if (!document) return json(res, 404, { error: '未找到已保存的文献页面。' });
+  if (pieces.length === 4 && pieces[3] === 'process') {
+    if (req.method === 'POST') {
+      const job = processDocument(id);
+      return json(res, job.status === 'error' ? 503 : 202, { status: job.status, completed: job.completed, total: job.total, message: job.message, error: job.error });
+    }
+    if (req.method === 'GET') {
+      const job = processingJobs.get(id);
+      if (!job) return json(res, 404, { error: '尚未开始识别。' });
+      return json(res, job.status === 'error' ? 500 : 200, { status: job.status, completed: job.completed, total: job.total, message: job.message, error: job.error, pages: job.status === 'complete' ? document.readingPages : undefined });
+    }
+  }
   if (req.method === 'GET' && pieces.length === 3) return json(res, 200, documentInfo(document));
   if (req.method === 'GET' && pieces.length === 5 && pieces[3] === 'pages') {
     const page = document.pages.find((item) => item.id === pieces[4]);
@@ -233,8 +247,8 @@ function serveFile(res, target) {
   });
 }
 
-async function makeSession(res) {
-  const base = publicBase();
+async function makeSession(res, localOnly = false) {
+  const base = localOnly ? `http://localhost:${port}` : publicBase();
   if (!base) return json(res, 503, { error: '未找到可供手机访问的局域网地址。请确认电脑已连接 Wi‑Fi。' });
   const id = crypto.randomBytes(18).toString('base64url');
   const expiresAt = Date.now() + ttlMs;
@@ -247,6 +261,7 @@ async function makeSession(res) {
 function receiveFile(req, res, id) {
   const session = sessionFor(id);
   if (!session) return json(res, 410, { error: '此扫码通道已过期，请在电脑端重新生成二维码。' });
+  if (session.completed) return json(res, 409, { error: '这批文件已经锁定，无法继续添加。' });
   const name = decodeFileName(req.headers);
   const extension = path.extname(name).toLowerCase();
   const declaredSize = Number(req.headers['content-length'] || 0);
@@ -257,7 +272,8 @@ function receiveFile(req, res, id) {
   const requestedOrder = Number(req.headers['x-queue-order']);
   const queueOrder = Number.isInteger(requestedOrder) && requestedOrder >= 0 ? requestedOrder : session.nextOrder;
   session.nextOrder = Math.max(session.nextOrder, queueOrder + 1);
-  const file = { id: crypto.randomBytes(9).toString('base64url'), name, type: String(req.headers['content-type'] || 'application/octet-stream'), size: 0, queueOrder, receivedOrder: session.files.length, uploadedAt: new Date().toISOString() };
+  const requestedType = String(req.headers['content-type'] || 'application/octet-stream');
+  const file = { id: crypto.randomBytes(9).toString('base64url'), name, type: requestedType === 'application/octet-stream' ? mimeForName(name) : requestedType, size: 0, queueOrder, receivedOrder: session.files.length, uploadedAt: new Date().toISOString() };
   file.filePath = path.join(session.directory, `${file.id}-${name}`);
   const temporaryPath = `${file.filePath}.part`;
   const output = fs.createWriteStream(temporaryPath, { flags: 'wx' });
@@ -296,9 +312,95 @@ function receiveFile(req, res, id) {
   });
 }
 
+function processDocument(id) {
+  const existing = processingJobs.get(id);
+  if (existing && (existing.status === 'processing' || existing.status === 'complete')) return existing;
+  const document = readDocument(id);
+  if (!document) return null;
+  if (process.platform !== 'darwin') {
+    const job = { status: 'error', completed: 0, total: document.pages.length, error: '本机文字识别目前需要 macOS 的 Vision OCR。' };
+    processingJobs.set(id, job);
+    return job;
+  }
+  const sources = document.pages.filter((page) => page.storedName).map((page) => ({
+    id: page.id,
+    name: page.name,
+    path: path.join(documentDirectory(id), page.storedName),
+    type: page.type || mimeForName(page.name)
+  }));
+  if (!sources.length) {
+    const job = { status: 'error', completed: 0, total: 0, error: '没有找到可处理的文件。' };
+    processingJobs.set(id, job);
+    return job;
+  }
+  const job = { status: 'processing', completed: 0, total: sources.length, pages: [], message: '正在启动本机文字识别…' };
+  processingJobs.set(id, job);
+  const moduleCache = path.join(os.tmpdir(), 'scribe-swift-module-cache');
+  fs.mkdirSync(moduleCache, { recursive: true });
+  const child = spawn('swift', ['-module-cache-path', moduleCache, path.join(root, 'ocr.swift')], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk;
+    let boundary;
+    while ((boundary = stdout.indexOf('\n')) >= 0) {
+      const line = stdout.slice(0, boundary).trim();
+      stdout = stdout.slice(boundary + 1);
+      if (!line) continue;
+      try {
+        const result = JSON.parse(line);
+        if (result.kind === 'page') {
+          job.pages.push(result);
+          job.completed = job.pages.length;
+          job.total = Math.max(job.total, job.completed);
+          job.message = '已识别 '+job.completed+' 页';
+        } else if (result.kind === 'fatal') job.error = result.error;
+      } catch {}
+    }
+  });
+  child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000); });
+  child.on('error', (error) => { job.status = 'error'; job.error = error.message; });
+  child.on('close', (code) => {
+    if (stdout.trim()) {
+      try {
+        const result = JSON.parse(stdout.trim());
+        if (result.kind === 'page') job.pages.push(result);
+        else if (result.kind === 'fatal') job.error = result.error;
+      } catch {}
+    }
+    if (code !== 0 || job.error || !job.pages.length) {
+      job.status = 'error';
+      job.error = job.error || stderr || '本机文字识别没有完成。';
+      return;
+    }
+    job.pages.forEach((page, index) => {
+      const source = document.pages.find((item) => item.id === page.fileId);
+      page.order = index + 1;
+      page.sourceType = source ? source.type : '';
+      page.sourceUrl = source && source.storedName ? `/api/documents/${id}/pages/${source.id}` : '';
+    });
+    document.readingPages = job.pages;
+    document.processing = { completedAt: new Date().toISOString(), pageCount: job.pages.length };
+    try {
+      fs.writeFileSync(documentManifest(id), JSON.stringify(document));
+      documents.set(id, document);
+      job.status = 'complete';
+      job.total = job.pages.length;
+      job.message = '文字识别完成';
+    } catch (error) {
+      job.status = 'error';
+      job.error = '识别结果无法保存：'+error.message;
+    }
+  });
+  child.stdin.end(JSON.stringify(sources));
+  return job;
+}
+
 function routeApi(req, res, url) {
   const pieces = url.pathname.split('/').filter(Boolean);
-  if (req.method === 'POST' && url.pathname === '/api/mobile-links') return makeSession(res).catch(() => json(res, 500, { error: '二维码生成失败，请重试。' }));
+  if (req.method === 'POST' && url.pathname === '/api/mobile-links') return makeSession(res, url.searchParams.get('local') === '1').catch(() => json(res, 500, { error: '上传通道生成失败，请重试。' }));
   if (pieces[0] === 'api' && pieces[1] === 'documents' && pieces[2]) return routeDocument(req, res, pieces);
   if (req.method === 'GET' && url.pathname === '/api/mobile-links/recover') {
     const count = Number(url.searchParams.get('count'));
@@ -321,6 +423,11 @@ function routeApi(req, res, url) {
   const session = sessionFor(id);
   if (!session) return json(res, 410, { error: '此扫码通道已过期，请回到电脑端重新生成。' });
   if (req.method === 'GET' && pieces.length === 3) return json(res, 200, sessionInfo(session));
+  if (req.method === 'POST' && pieces.length === 4 && pieces[3] === 'complete') {
+    if (!session.files.length) return json(res, 409, { error: '还没有收到可保存的文件。' });
+    session.completed = true;
+    return json(res, 200, sessionInfo(session));
+  }
   if (req.method === 'POST' && pieces.length === 4 && pieces[3] === 'commit') return commitRequest(req, res, id);
   if (req.method === 'POST' && pieces.length === 4 && pieces[3] === 'files') return receiveFile(req, res, id);
   if (req.method === 'GET' && pieces.length === 5 && pieces[3] === 'files') {
