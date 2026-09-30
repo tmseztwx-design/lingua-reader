@@ -15,7 +15,7 @@
     <div class="eyebrow">手机直传</div>
     <h1>选好全部页面，再一次送到电脑</h1>
     <p class="muted">先在手机端确认页面顺序，再开始上传。桌面端会自动形成一个完整处理队列，不需要逐张导入。</p>
-    <div class="warning" id="wechatWarning"><b>微信通常会限制一次选择的图片数量。</b><br>请使用手机系统「相机扫码」打开同一二维码，或复制下面的链接到 Safari/Chrome 后再选图，即可直接从完整相册多选。<br><button type="button" id="copyLink">复制直传链接</button></div>
+    <div class="warning" id="wechatWarning"><b>你已在微信中打开上传页，无需切换到系统相机。</b><br>可从相册、微信可访问的文件或“拍照加入书页”选择内容。如果微信相册单次最多选 9 张，可再选择一批加入同一个队列；全部选好后统一检查顺序，再一次上传。请确认手机与电脑连接同一个 Wi‑Fi，电脑上的本地服务保持运行（不需要梯子）。<br><button type="button" id="copyLink">复制备用链接（无法加载时使用）</button></div>
     <section class="card">
       <h2>选择文件</h2>
       <label class="choice">从手机相册选择全部书页<input id="images" type="file" accept="image/*,.heic,.heif" multiple><small>推荐用系统浏览器打开，支持一次多选后调整顺序</small></label>
@@ -25,7 +25,7 @@
       <div class="action-row"><button class="primary" id="uploadAll" type="button" disabled>按当前顺序上传</button><button class="secondary" id="clearQueue" type="button" hidden>清空</button></div>
       <div class="status" id="status"><b id="statusTitle">准备上传</b><span id="statusText"></span><div class="progress"><i id="progress"></i></div></div>
     </section>
-    <p class="privacy">文件仅通过当前 Wi‑Fi 传到这台电脑的本地学习空间；本次通道 15 分钟后自动失效。</p>
+    <p class="privacy">文件仅通过当前 Wi‑Fi 传到这台电脑的本地学习空间；通道在上传页保持连接时续期，最长一小时无活动后失效。</p>
   </main>
   <section class="page expired" id="expired"><div class="brand"><span class="mark">S</span> Scribe</div><h1>此传输通道已失效</h1><p class="muted">请回到电脑端，重新生成一个二维码后再扫码。</p></section>
   <script>

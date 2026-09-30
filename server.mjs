@@ -12,7 +12,7 @@ const dist = path.join(root, 'dist');
 const uploadRoot = path.join(root, 'uploads');
 const documentRoot = path.join(uploadRoot, 'documents');
 const port = Number(process.env.PORT || 4174);
-const ttlMs = 15 * 60 * 1000;
+const ttlMs = 60 * 60 * 1000;
 const maxBytes = 100 * 1024 * 1024;
 const allowedExtensions = new Set(['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.heic', '.heif', '.txt']);
 const mimeTypes = {
@@ -30,7 +30,16 @@ function json(res, status, value) {
 }
 
 function localAddress() {
-  const candidates = Object.values(os.networkInterfaces()).flat().filter((item) => item && item.family === 'IPv4' && !item.internal);
+  const interfaces = os.networkInterfaces();
+  const isUsable = (item) => item && item.family === 'IPv4' && !item.internal;
+  // macOS VPN interfaces (utun*) may appear before the Wi‑Fi interface and
+  // produce QR URLs that phones on the same Wi‑Fi cannot reach. Prefer en0.
+  const wifi = (interfaces.en0 || []).find(isUsable);
+  if (wifi) return wifi.address;
+  const candidates = Object.entries(interfaces)
+    .filter(([name]) => !/^(lo|utun|awdl|llw|bridge|gif|stf)/i.test(name))
+    .flatMap(([, addresses]) => addresses || [])
+    .filter(isUsable);
   const privateAddress = candidates.find((item) => /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(item.address));
   return (privateAddress || candidates[0] || {}).address || null;
 }
@@ -422,7 +431,10 @@ function routeApi(req, res, url) {
   const id = pieces[2];
   const session = sessionFor(id);
   if (!session) return json(res, 410, { error: '此扫码通道已过期，请回到电脑端重新生成。' });
-  if (req.method === 'GET' && pieces.length === 3) return json(res, 200, sessionInfo(session));
+  if (req.method === 'GET' && pieces.length === 3) {
+    session.expiresAt = Date.now() + ttlMs;
+    return json(res, 200, sessionInfo(session));
+  }
   if (req.method === 'POST' && pieces.length === 4 && pieces[3] === 'complete') {
     if (!session.files.length) return json(res, 409, { error: '还没有收到可保存的文件。' });
     session.completed = true;
