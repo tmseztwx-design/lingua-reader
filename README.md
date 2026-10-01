@@ -2,14 +2,30 @@
 
 一个以英语专业文献深度阅读为核心的本地 MVP。它把文献项目、双语精读、语境词卡、笔记、间隔复习、学习计时、数据分析和本地数据导出连接在一个浏览器工作区中。
 
+## 项目结构
+
+- `index.html`：精读主应用入口（单页，原生 JS + 内联样式）
+- `public/`：静态资源（`mobile.html` 手机直传页、`import-queue.js`、`favicon.svg`）
+- `vite.config.ts`：开发服务器配置（Vite，端口 8080，含 Enter 平台插件）
+- `server.mjs`：本机服务（二维码扫码通道、原页存取、OCR 调度），端口 4174
+- `ocr.swift`：调用 macOS Vision 的逐页文字识别脚本
+- `dist/`：构建产物，由 `pnpm build` 从 `index.html` 与 `public/` 生成（已加入 `.gitignore`）
+
 ## 本地运行
 
-在项目根目录安装依赖并启动本地服务：
+### 1. 网页预览与开发（工作区预览用的就是这个）
 
-    npm install
-    npm start
+    pnpm install
+    pnpm dev
 
-然后打开 http://localhost:4174。手机直传和原页清理需要此本地服务，不要只用静态文件服务器打开 `dist`。
+打开 http://localhost:8080。此模式由 Vite 提供静态页面，不含本机 OCR 与手机直传接口，其余书库、精读、学习卡、复习、数据等功能全部可用。
+
+### 2. 完整本机能力（OCR 与手机直传）
+
+    pnpm build
+    pnpm start
+
+打开 http://localhost:4174。手机直传、原页清理和本机 OCR 需要此本地服务，不要只用静态文件服务器打开 `dist`。
 
 ## 已实现的本地闭环
 
