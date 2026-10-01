@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && python3 -m py_compile ocr_worker.py",
+    "test": "node test/server-smoke.mjs"
   },
   "dependencies": {
     "qrcode": "1.5.4"

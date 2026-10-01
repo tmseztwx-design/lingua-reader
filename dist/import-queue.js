@@ -36,7 +36,7 @@
     var hint = input.parentElement.querySelector('.tiny.muted');
     if (hint) hint.textContent = '支持电脑多选、拖入多个文件；可先调整顺序，再一次性进入本机识别队列。手机端也可拍照或相册多选。';
     var notice = document.querySelector('#upload .notice');
-    if (notice) notice.innerHTML = '<b>本机处理说明：</b>图片、扫描 PDF 会逐页进行文字识别；可提取文字的 PDF 和 Word 会保留页序并进入精读。原文件留在这台电脑，无法识别的页也会保留并明确标出。';
+    if (notice) notice.innerHTML = '<b>文献处理说明：</b>图片、扫描 PDF 会逐页进行文字识别；可提取文字的 PDF 和 Word 会保留页序并进入精读。原文件会安全保存在当前服务中，无法识别的页也会保留并明确标出。';
     var labels = document.querySelectorAll('#steps .step');
     ['保存原件与顺序', '读取文档页面', '识别图片文字', '整理可读文本', '生成互动精读页', '保留原文与页码', '加入书库和学习区'].forEach(function (label, index) {
       if (labels[index]) labels[index].lastChild.textContent = label;
@@ -177,7 +177,7 @@
     async function postJson(url) {
       var response = await fetch(url, { method: 'POST' });
       var result = await response.json();
-      if (!response.ok) throw new Error(result.error || '本机处理请求失败。');
+      if (!response.ok) throw new Error(result.error || '文献处理请求失败。');
       return result;
     }
     function saveDocument(saved, pages, failure) {
@@ -195,7 +195,7 @@
       var names = queue.map(function (item) { return item.file.name; });
       var title = names.length === 1 ? names[0].replace(/\.[^.]+$/, '') : '本地导入文献（' + names.length + ' 个文件）';
       var document = existing || { id: id };
-      Object.assign(document, { serverDocumentId: saved.id, title: title, author: '本地电脑导入', category: '本地文献', status: 'reading', progress: Number(document.progress) || 0, pages: sourcePages.length, time: document.time || '0 h', color: 'new', sourcePages: sourcePages, processingState: failure ? 'partial' : 'ready', processingError: failure || '' });
+      Object.assign(document, { serverDocumentId: saved.id, title: title, author: '网页导入', category: '本地文献', status: 'reading', progress: Number(document.progress) || 0, pages: sourcePages.length, time: document.time || '0 h', color: 'new', sourcePages: sourcePages, processingState: failure ? 'partial' : 'ready', processingError: failure || '' });
       if (!existing) state.docs.unshift(document);
       state.activeDocId = document.id;
       localStorage.setItem(key, JSON.stringify(state));
@@ -206,7 +206,7 @@
       var base = '/api/documents/' + encodeURIComponent(saved.id) + '/process';
       var response = await fetch(base, { method: 'POST' });
       var job = await response.json();
-      if (!response.ok && job.status !== 'processing') throw new Error(job.error || '本机文字识别无法启动。');
+      if (!response.ok && job.status !== 'processing') throw new Error(job.error || '文字识别无法启动。');
       while (job.status === 'processing') {
         hintText.innerHTML = '<span class="import-wait">正在逐页识别与整理 · ' + job.completed + ' / ' + job.total + '</span>';
         var steps = document.querySelectorAll('#steps .step');
@@ -261,7 +261,7 @@
         var saved = await postJson('/api/mobile-links/' + encodeURIComponent(sessionId) + '/commit');
         serverDocument = saved;
         saveDocument(saved, [], '');
-        hintText.innerHTML = '<span class="import-wait">原件已保存；本机正在识别整批页面，文件较多时请稍候</span>';
+        hintText.innerHTML = '<span class="import-wait">原件已安全保存；正在识别整批页面，文件较多时请稍候</span>';
         var pages = await recognize(saved);
         var failed = pages.filter(function (page) { return !page.text; }).length;
         saveDocument(saved, pages, failed ? '有 ' + failed + ' 页未能识别，请检查原图。' : '');

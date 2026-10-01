@@ -157,7 +157,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     function mount(){
       var panel=document.querySelector('#upload .upload-grid > article.card');if(!panel||document.querySelector('#phoneBridge'))return;
       var bridge=document.createElement('section');bridge.id='phoneBridge';bridge.className='phone-bridge';
-      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机直传</div><h3>微信扫码，把手机文件直接送到这里</h3><p class="muted tiny">电脑与手机连接同一个 Wi‑Fi 后，直接用微信扫码即可打开上传页，不需要 VPN/梯子。可从相册或手机/微信可访问的文件中选择；如果微信相册每次限选 9 张，可以分批加入，最后统一排序并一次上传处理。</p></div><button class="button secondary small" id="createPhoneLink" type="button">生成扫码通道</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b>请用微信扫码</b><p class="muted tiny">当前二维码只连到本机局域网地址；通道在手机上传页保持连接时续期，无活动一小时后过期。</p><div class="phone-state" id="phoneStatus">正在生成本地二维码…</div><div class="phone-files" id="phoneFiles"></div><p class="phone-note">可从微信相册/文件选择器分多次加入同一个队列，之后调整顺序。点击上传后，整批文件自动进入识别处理。</p></div></div>';
+      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机直传</div><h3>微信扫码，把手机文件直接送到这里</h3><p class="muted tiny">手机与电脑无需连接同一 Wi‑Fi；用微信扫码打开上传页，从相册或微信可访问的文件中选择。如果微信相册每次限选 9 张，可以分批加入、统一排序后一次上传处理。</p></div><button class="button secondary small" id="createPhoneLink" type="button">生成扫码通道</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b>请用微信扫码</b><p class="muted tiny">二维码使用当前网站的公网 HTTPS 地址；通道无活动一小时后过期。</p><div class="phone-state" id="phoneStatus">正在生成扫码通道…</div><div class="phone-files" id="phoneFiles"></div><p class="phone-note">可从微信相册/文件选择器分多次加入同一个队列，之后调整顺序。点击上传后，整批文件自动进入识别处理。</p></div></div>';
       panel.appendChild(bridge);document.querySelector('#createPhoneLink').addEventListener('click',createLink);
     }
     function renderFiles(files){
@@ -200,7 +200,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     function mount(){
       var previous=q('#phoneBridge'),panel=q('#upload .upload-grid > article.card');if(!panel)return;
       var bridge=document.createElement('section');bridge.id='phoneBridge';bridge.className='phone-bridge';
-      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机整组直传</div><h3>微信扫码，把手机文件直接送到这里</h3><p class="muted tiny">电脑与手机连接同一个 Wi‑Fi 后，直接用微信扫码即可打开上传页，不需要 VPN/梯子。可从相册或手机/微信可访问的文件中选择；如果微信相册每次限选 9 张，可以分批加入，最后统一排序并一次上传处理。</p></div><button class="button secondary small" id="createPhoneLink" type="button">生成扫码通道</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b>请用微信扫码</b><p class="muted tiny">此二维码连接当前电脑的局域网地址；手机和电脑须在同一 Wi‑Fi，且电脑本地服务保持运行。全程不需要梯子或外网服务。</p><div class="phone-state" id="phoneStatus">正在生成本地二维码…</div><div class="phone-files" id="phoneFiles"></div><p class="phone-note">可以多次从相册/文件选择器加入项目；队列会保留加入顺序，也可上移下移调整。点击手机页上传后，整批文件自动进入识别处理。</p></div></div>';
+      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机整组直传</div><h3>微信扫码，把手机文件直接送到这里</h3><p class="muted tiny">手机与电脑无需连接同一 Wi‑Fi；用微信扫码打开上传页，从相册或手机可访问的文件中选择。如果微信相册每次限选 9 张，可以分批加入、最后统一排序并一次上传处理。</p></div><button class="button secondary small" id="createPhoneLink" type="button">生成扫码通道</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b>请用微信扫码</b><p class="muted tiny">二维码使用当前网站的公网 HTTPS 地址；通道无活动一小时后过期。</p><div class="phone-state" id="phoneStatus">正在生成扫码通道…</div><div class="phone-files" id="phoneFiles"></div><p class="phone-note">可以多次从相册/文件选择器加入项目；队列会保留加入顺序，也可上移下移调整。点击手机页上传后，整批文件自动进入识别处理。</p></div></div>';
       if(previous)previous.replaceWith(bridge);else panel.appendChild(bridge);
       q('#createPhoneLink').addEventListener('click',createLink);
     }
@@ -213,7 +213,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     async function createLink(){
       var button=q('#createPhoneLink');button.disabled=true;button.textContent='正在生成…';clearInterval(pollTimer);remoteFiles=[];batchComplete=false;batchProcessing=false;savedBatchDocument=null;window.__scribePhoneComplete=false;restoreComputerProcess();
       try{var response=await fetch('/api/mobile-links',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法生成扫码通道。');activeLink=result.id;q('#phoneQr').src=result.qrDataUrl;q('#phoneLink').classList.add('show');showStatus('二维码已就绪，等待手机端整理并上传整组文件…');button.textContent='重新生成二维码';button.disabled=false;pollTimer=setInterval(checkLink,1200);checkLink();}
-      catch(error){showStatus(error.message+' 请通过 npm start 打开本地产品后重试。');q('#phoneLink').classList.add('show');button.textContent='重新生成二维码';button.disabled=false;}
+      catch(error){showStatus(error.message+' 请检查服务器环境变量和公网 HTTPS 地址。');q('#phoneLink').classList.add('show');button.textContent='重新生成二维码';button.disabled=false;}
     }
     async function checkLink(){
       if(!activeLink)return;try{var response=await fetch('/api/mobile-links/'+activeLink),result=await response.json();if(response.status===410){clearInterval(pollTimer);showStatus('扫码通道已失效，请重新生成二维码。');return;}if(!response.ok)throw new Error();remoteFiles=(result.files||[]).slice().sort(function(left,right){return left.queueOrder-right.queueOrder||left.receivedOrder-right.receivedOrder;});window.__scribePhoneComplete=result.completed===true;renderQueue();if(result.completed&&remoteFiles.length&&!batchComplete&&!batchProcessing){showStatus('手机端顺序已确认，整批文件已进入处理区，正在逐页识别…');processBatch();return;}showStatus(!remoteFiles.length?'二维码已就绪，等待手机端整理并上传整组文件…':result.completed?'已收到并锁定 '+remoteFiles.length+' 个文件，顺序与手机队列一致。正在后台逐页识别。':'正在接收 '+remoteFiles.length+' 个文件；全部送达并确认后才会启用处理。');}
@@ -226,9 +226,9 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       var response=await fetch('/api/mobile-links/'+activeLink+'/commit',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法保存原始页面。');return result;
     }
     async function recognizeBatch(savedDocument){
-      var base='/api/documents/'+encodeURIComponent(savedDocument.id)+'/process',response=await fetch(base,{method:'POST'}),job=await response.json();if(!response.ok&&job.status!=='processing')throw new Error(job.error||'本机文字识别无法启动。');
+      var base='/api/documents/'+encodeURIComponent(savedDocument.id)+'/process',response=await fetch(base,{method:'POST'}),job=await response.json();if(!response.ok&&job.status!=='processing')throw new Error(job.error||'文字识别无法启动。');
       while(job.status==='processing'){
-        showStatus('本机正在逐页识别 '+job.completed+' / '+job.total+' 页，请稍候…');setSteps(Math.min(6,2+Math.floor(4*job.completed/Math.max(1,job.total))));
+        showStatus('正在逐页识别 '+job.completed+' / '+job.total+' 页，请稍候…');setSteps(Math.min(6,2+Math.floor(4*job.completed/Math.max(1,job.total))));
         await new Promise(function(resolve){setTimeout(resolve,900)});response=await fetch(base);job=await response.json();
       }
       if(job.status!=='complete')throw new Error(job.error||'文字识别未完成。');return job.pages||[];
@@ -240,7 +240,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     }
     async function processBatch(){
       if(!remoteFiles.length||batchComplete||batchProcessing||!window.__scribePhoneComplete)return;batchProcessing=true;processButton.disabled=true;var row=q('#fileRow');row.classList.add('show');q('#fileName').textContent='手机直传 · '+remoteFiles.length+' 个文件';q('#fileMeta').textContent='原始文件将按手机设定顺序保存并逐页识别';showStatus('正在保存整批原件…');setSteps(0);
-      try{savedBatchDocument=await commitBatch();clearInterval(pollTimer);batchComplete=true;saveBatchDocument(savedBatchDocument,[]);showStatus('原件已安全保存，正在启动本机文字识别…');var recognized=await recognizeBatch(savedBatchDocument),failed=recognized.filter(function(page){return !page.text;}).length;saveBatchDocument(savedBatchDocument,recognized,failed?'有 '+failed+' 页未能识别，请检查原图。':'');processButton.disabled=false;processButton.textContent='处理完成，打开精读 →';processButton.onclick=function(){var reader=q('.nav button[data-view="reader"]');if(reader)reader.click();};showStatus('已处理 '+recognized.length+' 页，可在精读区点词收藏、划选短语和句子。'+(failed?' 有 '+failed+' 页需要核对原图。':''));setSteps(7);}
+      try{savedBatchDocument=await commitBatch();clearInterval(pollTimer);batchComplete=true;saveBatchDocument(savedBatchDocument,[]);showStatus('原件已安全保存，正在启动文字识别…');var recognized=await recognizeBatch(savedBatchDocument),failed=recognized.filter(function(page){return !page.text;}).length;saveBatchDocument(savedBatchDocument,recognized,failed?'有 '+failed+' 页未能识别，请检查原图。':'');processButton.disabled=false;processButton.textContent='处理完成，打开精读 →';processButton.onclick=function(){var reader=q('.nav button[data-view="reader"]');if(reader)reader.click();};showStatus('已处理 '+recognized.length+' 页，可在精读区点词收藏、划选短语和句子。'+(failed?' 有 '+failed+' 页需要核对原图。':''));setSteps(7);}
       catch(error){processButton.disabled=false;processButton.textContent=savedBatchDocument?'重试文字识别':'保存失败，重试处理';processButton.onclick=savedBatchDocument?retryRecognition:processBatch;showStatus(error.message);}finally{batchProcessing=false;}
     }
     mount();
@@ -539,7 +539,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     clearButton.onclick=function(){
       var deleted=read().deletedDocs;
       if(!Array.isArray(deleted)||!deleted.length)return;
-      if(!window.confirm('永久清空最近删除中的 '+deleted.length+' 本文献？\n清空后无法恢复；手机直传保存在本机服务端的原页也会删除。'))return;
+      if(!window.confirm('永久清空最近删除中的 '+deleted.length+' 本文献？\n清空后无法恢复；上传服务保存的原页也会删除。'))return;
       purgeDeleted(function(){return true;});
     };
     filters.addEventListener('click',function(event){if(event.target.closest('button[data-filter]'))setTimeout(showBooks,0);});
