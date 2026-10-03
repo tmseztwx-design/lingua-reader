@@ -3,17 +3,23 @@
   "version": "1.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
     "qrcode": "1.5.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "jsdom": "^29.1.1",
     "vite": "^7.1.4",
     "vite-plugin-enter-dev": "^0.0.16"
   }

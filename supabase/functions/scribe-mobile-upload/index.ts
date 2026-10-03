@@ -1,6 +1,7 @@
 // 手机跨网络上传中转：手机（任意网络）→ Enter 云私有桶，电脑/任意设备凭 token 取回。
 // 所有动作都由 token 鉴权；数据库对客户端默认拒绝，只有本函数（服务角色）可以读写。
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {database, libraryFor, wakeQueue} from "../_shared/cloud.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +12,7 @@ const corsHeaders = {
 const BUCKET = "scribe-pages";
 const LINK_TTL_MS = 24 * 60 * 60 * 1000;
 const SHORT_URL_TTL = 60 * 60;
-const PAGE_URL_TTL = 60 * 60 * 24 * 365;
+const PAGE_URL_TTL = 60 * 60;
 const MAX_FILES = 100;
 const MAX_BYTES = 100 * 1024 * 1024;
 const MAX_OPEN_SESSIONS = 20;
@@ -58,15 +59,15 @@ function makeToken() {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-async function sessionByToken(db: ReturnType<typeof createClient>, token: unknown) {
+async function sessionByToken(db: ReturnType<typeof database>, token: unknown) {
   if (typeof token !== "string" || token.length < 10) return null;
   const { data } = await db.from("scribe_cloud_sessions").select("*").eq("token", token).maybeSingle();
   if (!data) return null;
-  if (new Date(String((data as Row).expires_at)).getTime() <= Date.now()) return null;
+  if (!data.completed_at && new Date(String((data as Row).expires_at)).getTime() <= Date.now()) return null;
   return data as Row;
 }
 
-async function filesOf(db: ReturnType<typeof createClient>, sessionId: string) {
+async function filesOf(db: ReturnType<typeof database>, sessionId: string) {
   const { data } = await db
     .from("scribe_cloud_files")
     .select("id, queue_order, name, size, mime, ocr_status, ocr_error, page_count, uploaded_at")
@@ -103,22 +104,25 @@ function sessionInfo(session: Row, files: Row[]) {
   };
 }
 
-async function refreshCounts(db: ReturnType<typeof createClient>, session: Row) {
+async function refreshCounts(db: ReturnType<typeof database>, session: Row) {
   const files = await filesOf(db, String(session.id));
   const uploaded = files.filter((file) => file.uploaded_at);
   await db.from("scribe_cloud_sessions").update({ file_count: uploaded.length }).eq("id", session.id);
   return files;
 }
 
-async function createSession(db: ReturnType<typeof createClient>, body: Row) {
+async function createSession(db: ReturnType<typeof database>, body: Row) {
+  const library = await libraryFor(db,body.libraryKey);
+  if(!library) return fail("请先连接云端书库。",401);
   const now = Date.now();
   const { data: open } = await db
     .from("scribe_cloud_sessions")
     .select("id")
     .gt("expires_at", new Date(now).toISOString())
     .is("completed_at", null)
+    .eq("library_id",library.id)
     .limit(MAX_OPEN_SESSIONS + 1);
-  if ((open || []).length > MAX_OPEN_SESSIONS) {
+  if ((open || []).length >= MAX_OPEN_SESSIONS) {
     return json({ error: "云端待上传的通道过多，请先完成或删除旧通道。" }, 429);
   }
   const token = makeToken();
@@ -126,23 +130,33 @@ async function createSession(db: ReturnType<typeof createClient>, body: Row) {
   const title = typeof body.title === "string" ? cleanName(body.title).slice(0, 120) : null;
   const { data, error } = await db
     .from("scribe_cloud_sessions")
-    .insert({ token, expires_at: expiresAt, title })
+    .insert({ token, expires_at: expiresAt, title, library_id:library.id })
     .select("*")
     .single();
   if (error || !data) throw new Error(error?.message || "无法建立云端上传通道。");
   return json({ token, sessionId: data.id, expiresAt });
 }
 
-async function signUpload(db: ReturnType<typeof createClient>, session: Row, body: Row) {
+async function signUpload(db: ReturnType<typeof database>, session: Row, body: Row) {
+  if(session.completed_at || new Date(String(session.expires_at)).getTime()<=Date.now()) return fail("上传窗口已结束，请创建新批次。",410);
   const name = cleanName(body.name);
   const extension = extensionOf(name);
   if (!allowedExtensions.has(extension)) return fail("仅支持 PDF、DOC、DOCX、JPG、PNG、HEIC 或 HEIF 文件。", 415);
   const size = Number(body.size);
+  if(!Number.isSafeInteger(size) || size<=0) return fail("文件为空或大小不正确，请重新选择。",400);
   if (Number.isFinite(size) && size > MAX_BYTES) return fail("单个文件不能超过 100 MB。", 413);
   const files = await filesOf(db, String(session.id));
+  const order = body.order===undefined?files.length:Number(body.order);
+  if(!Number.isSafeInteger(order) || order<0 || order>=MAX_FILES) return fail("文件顺序不正确，请重新确认队列。",400);
+  const {data:previous}=await db.from("scribe_cloud_files").select("*").eq("session_id",session.id).eq("queue_order",order).maybeSingle();
+  if(previous){
+    if(previous.name!==name || Number(previous.size)!==size) return fail("这个队列位置已有其他文件，请重新建立批次。",409);
+    if(previous.uploaded_at) return json({fileId:previous.id,alreadyUploaded:true});
+    const {data:signed,error}=await db.storage.from(BUCKET).createSignedUploadUrl(previous.storage_path,{upsert:true});
+    if(error||!signed) throw new Error(error?.message||"无法重试上传。");
+    return json({fileId:previous.id,path:previous.storage_path,uploadUrl:signed.signedUrl});
+  }
   if (files.length >= MAX_FILES) return fail(`单批最多 ${MAX_FILES} 个文件。`, 413);
-
-  const order = Number.isInteger(Number(body.order)) && Number(body.order) >= 0 ? Number(body.order) : files.length;
   const fileId = crypto.randomUUID();
   const storagePath = `${session.id}/${String(order + 1).padStart(4, "0")}-${fileId}${extension}`;
   const mime = typeof body.mime === "string" && body.mime ? body.mime : mimeByExtension[extension] || "application/octet-stream";
@@ -166,9 +180,15 @@ async function signUpload(db: ReturnType<typeof createClient>, session: Row, bod
   return json({ fileId, path: storagePath, uploadUrl: signed.signedUrl });
 }
 
-async function registerUpload(db: ReturnType<typeof createClient>, session: Row, body: Row) {
+async function registerUpload(db: ReturnType<typeof database>, session: Row, body: Row) {
+  if(session.completed_at || new Date(String(session.expires_at)).getTime()<=Date.now()) return fail("上传窗口已结束。",410);
   const fileId = String(body.fileId || "");
   if (!fileId) return fail("缺少文件标识。");
+  const {data:file}=await db.from("scribe_cloud_files").select("*").eq("id",fileId).eq("session_id",session.id).maybeSingle();
+  if(!file) return fail("未找到该文件。",404);
+  const {data:objects,error:objectError}=await db.storage.from(BUCKET).list(String(session.id),{search:String(file.storage_path).split('/').pop(),limit:100});
+  const object=objects?.find(item=>item.name===String(file.storage_path).split('/').pop());
+  if(objectError || !object || Number(object.metadata?.size)!==Number(file.size)) return fail("原件尚未完整送达，请重试上传。",409);
   const size = Number(body.size);
   if (Number.isFinite(size) && size > MAX_BYTES) {
     await db.from("scribe_cloud_files").delete().eq("id", fileId).eq("session_id", session.id);
@@ -178,8 +198,7 @@ async function registerUpload(db: ReturnType<typeof createClient>, session: Row,
     .from("scribe_cloud_files")
     .update({
       uploaded_at: new Date().toISOString(),
-      size: Number.isFinite(size) ? size : 0,
-      ...(typeof body.mime === "string" && body.mime ? { mime: body.mime } : {}),
+      size: Number(file.size),
     })
     .eq("id", fileId)
     .eq("session_id", session.id);
@@ -188,20 +207,24 @@ async function registerUpload(db: ReturnType<typeof createClient>, session: Row,
   return json({ ok: true, fileId });
 }
 
-async function completeSession(db: ReturnType<typeof createClient>, session: Row) {
+async function completeSession(db: ReturnType<typeof database>, session: Row) {
+  if(session.completed_at){await wakeQueue(db);return json({ok:true,fileCount:session.file_count,queued:true});}
+  if(new Date(String(session.expires_at)).getTime()<=Date.now()) return fail("上传通道已过期。",410);
   const files = await refreshCounts(db, session);
   const uploaded = files.filter((file) => file.uploaded_at);
   if (!uploaded.length) return fail("还没有收到可识别的页面。", 409);
+  if(uploaded.length!==files.length) return fail("仍有文件未完整上传，确认全部送达后再提交。",409);
   const { error } = await db
     .from("scribe_cloud_sessions")
-    .update({ completed_at: new Date().toISOString(), file_count: uploaded.length })
+    .update({ completed_at: new Date().toISOString(), file_count: uploaded.length,ocr_status:"processing" })
     .eq("id", session.id);
   if (error) throw new Error(error.message);
+  await wakeQueue(db);
   console.log("[scribe-mobile-upload] complete", session.id, uploaded.length);
   return json({ ok: true, fileCount: uploaded.length, expiresAt: session.expires_at });
 }
 
-async function signedUrls(db: ReturnType<typeof createClient>, session: Row, ttl: number, onlyFileId?: string) {
+async function signedUrls(db: ReturnType<typeof database>, session: Row, ttl: number, onlyFileId?: string) {
   const files = await filesOf(db, String(session.id));
   const targets = onlyFileId ? files.filter((file) => file.id === onlyFileId) : files;
   const results: Row[] = [];
@@ -221,7 +244,7 @@ async function signedUrls(db: ReturnType<typeof createClient>, session: Row, ttl
   return results;
 }
 
-async function resultsOf(db: ReturnType<typeof createClient>, session: Row) {
+async function resultsOf(db: ReturnType<typeof database>, session: Row) {
   const { data } = await db
     .from("scribe_cloud_files")
     .select("id, queue_order, name, mime, ocr_text, ocr_status, ocr_error")
@@ -238,10 +261,14 @@ async function resultsOf(db: ReturnType<typeof createClient>, session: Row) {
   }));
 }
 
-async function removeSession(db: ReturnType<typeof createClient>, session: Row) {
+async function removeSession(db: ReturnType<typeof database>, session: Row) {
+  if(session.library_id){
+    const {data:entry}=await db.from('scribe_library_entries').select('revision').eq('library_id',session.library_id).eq('kind','doc').eq('entry_id','cloud-'+session.id).maybeSingle();
+    if(entry)await db.rpc('scribe_write_entry',{p_library:session.library_id,p_kind:'doc',p_id:'cloud-'+session.id,p_value:null,p_deleted:true,p_revision:entry.revision});
+  }
   const { data: listed } = await db.storage.from(BUCKET).list(String(session.id), { limit: 1000 });
   const paths = (listed || []).map((item) => `${session.id}/${item.name}`);
-  if (paths.length) await db.storage.from(BUCKET).remove(paths);
+  if (paths.length){const {error}=await db.storage.from(BUCKET).remove(paths);if(error)throw new Error(error.message);}
   const { error } = await db.from("scribe_cloud_sessions").delete().eq("id", session.id);
   if (error) throw new Error(error.message);
   console.log("[scribe-mobile-upload] remove", session.id, paths.length);

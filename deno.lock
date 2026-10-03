@@ -1,0 +1,21 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.117.2"
+  },
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.117.2": "6da4477d96ad4392b5a8be8f423384a3812cdd651df483e433ba422a69ff879b"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@electric-sql/pglite@~0.5.8",
+        "npm:@supabase/supabase-js@^2.117.2",
+        "npm:jsdom@^29.1.1",
+        "npm:qrcode@1.5.4",
+        "npm:vite-plugin-enter-dev@^0.0.16",
+        "npm:vite@^7.1.4"
+      ]
+    }
+  }
+}
