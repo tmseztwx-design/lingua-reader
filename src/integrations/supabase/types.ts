@@ -3360,7 +3360,100 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      scribe_cloud_files: {
+        Row: {
+          created_at: string
+          id: string
+          mime: string | null
+          name: string
+          ocr_completed_at: string | null
+          ocr_error: string | null
+          ocr_status: string
+          ocr_text: string | null
+          page_count: number | null
+          queue_order: number
+          session_id: string
+          size: number
+          storage_path: string | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mime?: string | null
+          name: string
+          ocr_completed_at?: string | null
+          ocr_error?: string | null
+          ocr_status?: string
+          ocr_text?: string | null
+          page_count?: number | null
+          queue_order?: number
+          session_id: string
+          size?: number
+          storage_path?: string | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mime?: string | null
+          name?: string
+          ocr_completed_at?: string | null
+          ocr_error?: string | null
+          ocr_status?: string
+          ocr_text?: string | null
+          page_count?: number | null
+          queue_order?: number
+          session_id?: string
+          size?: number
+          storage_path?: string | null
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_cloud_files_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "scribe_cloud_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scribe_cloud_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          file_count: number
+          id: string
+          ocr_completed_at: string | null
+          ocr_status: string
+          title: string | null
+          token: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          expires_at: string
+          file_count?: number
+          id?: string
+          ocr_completed_at?: string | null
+          ocr_status?: string
+          title?: string | null
+          token: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          file_count?: number
+          id?: string
+          ocr_completed_at?: string | null
+          ocr_status?: string
+          title?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -3543,6 +3636,39 @@ export type Database = {
         Relationships: []
       }
       messages_2026_10_05: {
+        Row: {
+          event: string | null
+          extension: string
+          id: string
+          inserted_at: string
+          payload: Json | null
+          private: boolean | null
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          event?: string | null
+          extension: string
+          id?: string
+          inserted_at?: string
+          payload?: Json | null
+          private?: boolean | null
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          event?: string | null
+          extension?: string
+          id?: string
+          inserted_at?: string
+          payload?: Json | null
+          private?: boolean | null
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      messages_2026_10_06: {
         Row: {
           event: string | null
           extension: string

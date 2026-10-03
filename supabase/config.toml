@@ -1,1 +1,7 @@
 project_id = "spb-t4nu9v7279pycm5l"
+
+[functions.scribe-mobile-upload]
+verify_jwt = false
+
+[functions.scribe-ocr]
+verify_jwt = false

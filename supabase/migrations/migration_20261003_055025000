@@ -1,0 +1,38 @@
+create table if not exists public.scribe_cloud_sessions (
+  id uuid primary key default gen_random_uuid(),
+  token text not null unique,
+  title text,
+  file_count integer not null default 0,
+  ocr_status text not null default 'pending',
+  ocr_completed_at timestamptz,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+
+create table if not exists public.scribe_cloud_files (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.scribe_cloud_sessions(id) on delete cascade,
+  queue_order integer not null default 0,
+  name text not null,
+  size bigint not null default 0,
+  mime text,
+  storage_path text,
+  uploaded_at timestamptz,
+  ocr_status text not null default 'pending',
+  ocr_text text,
+  ocr_error text,
+  page_count integer,
+  ocr_completed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists scribe_cloud_sessions_token_idx on public.scribe_cloud_sessions (token);
+create index if not exists scribe_cloud_files_session_order_idx on public.scribe_cloud_files (session_id, queue_order);
+
+alter table public.scribe_cloud_sessions enable row level security;
+alter table public.scribe_cloud_files enable row level security;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('scribe-pages','scribe-pages', false, 104857600, array['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','image/jpeg','image/png','image/heic','image/heif','text/plain']::text[])
+on conflict (id) do nothing;

@@ -453,7 +453,20 @@ function routeApi(req, res, url) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-  if (url.pathname.startsWith('/api/')) return routeApi(req, res, url);
+  if (url.pathname.startsWith('/api/')) {
+    // 应用可能从公网站点打开，再访问 http://localhost:4174 的本机接口，需要放行跨域。
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Headers', 'content-type, x-file-name, x-file-name-b64, x-queue-order');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Max-Age', '600');
+    res.setHeader('Vary', 'Origin');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+    return routeApi(req, res, url);
+  }
   const mobileMatch = url.pathname.match(/^\/mobile\/([A-Za-z0-9_-]+)$/);
   if (mobileMatch) {
     if (!sessionFor(mobileMatch[1])) return json(res, 410, { error: '此扫码通道已过期，请回到电脑端重新生成二维码。' });
