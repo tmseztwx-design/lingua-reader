@@ -2,6 +2,7 @@
 // 页面里的 src/integrations/supabase/client.ts 由框架生成，这里只读取、不修改。
 import { supabase } from "./integrations/supabase/client";
 import QRCode from "qrcode";
+import {installLibrary} from "./cloud-library.js";
 
 async function callFunction(name, body) {
   const { data, error } = await supabase.functions.invoke(name, { body });
@@ -36,4 +37,5 @@ async function qrDataUrl(text) {
 }
 
 window.__scribeCloud = { callFunction, qrDataUrl };
+if(document.querySelector('#settings')) installLibrary(window.__scribeCloud);
 window.dispatchEvent(new Event("scribe-cloud-ready"));
