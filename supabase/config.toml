@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.scribe-ocr]
 verify_jwt = false
+
+[functions.scribe-queue]
+verify_jwt = false
+
+[functions.scribe-library]
+verify_jwt = false

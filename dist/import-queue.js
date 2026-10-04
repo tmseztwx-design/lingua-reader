@@ -34,9 +34,9 @@
     input.multiple = true;
     input.accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.heif,.txt';
     var hint = input.parentElement.querySelector('.tiny.muted');
-    if (hint) hint.textContent = '支持电脑多选、拖入多个文件；可先调整顺序，再一次性进入本机识别队列。手机端也可拍照或相册多选。';
+    if (hint) hint.textContent = '支持多选和拖入文件。确认顺序后整批上传云端，后台识别时可关闭页面，稍后在书库查看。';
     var notice = document.querySelector('#upload .notice');
-    if (notice) notice.innerHTML = '<b>本机处理说明：</b>图片、扫描 PDF 会逐页进行文字识别；可提取文字的 PDF 和 Word 会保留页序并进入精读。原文件留在这台电脑，无法识别的页也会保留并明确标出。';
+    if (notice) notice.innerHTML = '<b>云端处理：</b>原件按确认顺序上传并保存；整批送达后由后台逐页识别。失败页保留原件，可重试。识别消耗项目 AI 额度。';
     var labels = document.querySelectorAll('#steps .step');
     ['保存原件与顺序', '读取文档页面', '识别图片文字', '整理可读文本', '生成互动精读页', '保留原文与页码', '加入书库和学习区'].forEach(function (label, index) {
       if (labels[index]) labels[index].lastChild.textContent = label;
@@ -93,7 +93,7 @@
       clearButton.disabled = locked || working || !queue.length;
       input.disabled = locked || working;
       button.disabled = !queue.length || working || (!locked && !queue.length);
-      if (!locked && !working) button.textContent = queue.length ? '上传并处理全部 ' + queue.length + ' 个文件' : '开始本地处理';
+      if (!locked && !working) button.textContent = queue.length ? '确认顺序，上传全部 ' + queue.length + ' 个文件' : '开始云端处理';
       if (queue.length && !locked && !working) hintText.textContent = '拖动以外也可用 ↑ ↓ 排序；上传开始后顺序锁定';
     }
     function move(index, delta) {
@@ -221,6 +221,7 @@
     }
     async function processAll() {
       if (!queue.length || working || button.dataset.completed === 'true') return;
+      if(localStorage.getItem('scribe-upload-channel')!=='local') return processCloud();
       working = true;
       locked = true;
       button.disabled = true;
@@ -284,6 +285,35 @@
         render();
         if (button.dataset.completed === 'true') button.disabled = false;
       }
+    }
+    var cloudSession = null;
+    async function processCloud() {
+      working=true;locked=true;button.disabled=true;render();
+      try {
+        var cloud=window.__scribeCloud;
+        if(!cloud || !cloud.library) throw new Error('云端组件尚未加载，请稍后重试。');
+        if(!cloudSession) cloudSession=await cloud.library.createSession({title:queue.length===1?queue[0].file.name.replace(/\.[^.]+$/,''):'电脑上传文献（'+queue.length+' 个文件）'});
+        for(var index=0;index<queue.length;index++){
+          var item=queue[index];if(item.state==='uploaded')continue;
+          item.state='uploading';render();
+          try {
+            await cloud.library.upload(cloudSession.token,item.file,index,function(percent){hintText.textContent='云端上传 '+(index+1)+' / '+queue.length+' · '+percent+'%';});
+            item.state='uploaded';render();
+          }catch(error){item.state='error';throw error;}
+        }
+        await cloud.callFunction('scribe-mobile-upload',{action:'complete',token:cloudSession.token});
+        await cloud.library.sync();
+        hintText.innerHTML='<span class="import-wait">全部原件已保存，云端后台正在处理；可以关闭页面，稍后在书库查看</span>';
+        await cloud.library.awaitBatch(cloudSession.token,function(status){
+          var done=status.files.filter(function(file){return file.ocrStatus==='complete'||file.ocrStatus==='error';}).length;
+          hintText.innerHTML='<span class="import-wait">云端后台识别 · '+done+' / '+status.files.length+'；关闭页面也会继续</span>';
+        });
+        button.dataset.completed='true';button.textContent='处理完成，打开精读 →';
+        var state=JSON.parse(localStorage.getItem('scribe-local-v1')||'{}');state.activeDocId='cloud-'+cloudSession.sessionId;
+        localStorage.setItem('scribe-local-v1',JSON.stringify(state));await cloud.library.sync();
+        sessionStorage.setItem('scribe-open-import-reader','1');location.reload();
+      }catch(error){hintText.textContent=error.message;button.textContent='重试云端上传与处理';}
+      finally{working=false;render();button.disabled=false;}
     }
     button.addEventListener('click', function (event) {
       if (!queue.length) return;

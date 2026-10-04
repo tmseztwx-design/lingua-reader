@@ -146,6 +146,7 @@ function createCloudTransport(token) {
         size: file.size,
         mime: file.type || "",
       });
+      if(signed.alreadyUploaded) return;
       await xhrRequest("PUT", signed.uploadUrl, file, { "Content-Type": file.type || "application/octet-stream" }, onProgress);
       await callCloud("scribe-mobile-upload", {
         action: "register",
