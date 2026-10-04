@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "bundle:functions": "node scripts/bundle-functions.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

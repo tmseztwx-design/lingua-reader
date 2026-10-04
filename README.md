@@ -35,7 +35,7 @@
 ## Enter 部署顺序
 
 1. 在已连接的 Enter Cloud 上执行迁移 `supabase/migrations/20261003090000_cloud_library_queue.sql`。原来的两张表和私有存储桶保留；新增私密书库、版本记录、工作租约与服务端调度。要求云数据库支持 `pg_cron`、`pg_net`。
-2. 部署 `scribe-queue`、`scribe-library`、`scribe-mobile-upload` 和 `scribe-ocr` 四个函数，以及 `_shared` 依赖。按照 `supabase/config.toml` 设置；保持现有 AI 服务端密钥。不要把服务角色或 AI 密钥写入前端。
+2. 生成并部署四个函数：先运行 `npm run bundle:functions`，再把 `supabase/functions/<name>/index.ts` 逐个部署。**平台只部署这一份入口文件**，同目录与上层的其它 .ts 都不会被带上，所以仓库把可读源放在 `supabase/functions/src/*.ts` 与 `_shared/*.ts`，由脚本内联成自包含的单文件。按照 `supabase/config.toml` 设置；保持现有 AI 服务端密钥。不要把服务角色或 AI 密钥写入前端。每次改动源文件后都要重新生成再部署。
 3. 确认 `cron.job` 中 `scribe-background-ocr` 已启用，指向此 Cloud 的 `scribe-queue`。调度凭证生成并保存在 RLS 默认拒绝的表中，仅服务端可读取。
 4. 执行 `npm test`、Deno 类型检查和 `npm run build`；执行 `node test/cloud-live.mjs` 验证真实云端（仅创建合成测试文本，不使用用户文件）。
 5. 同步 Enter 项目的代码版本并正式发布。在发布后的 HTTPS 地址生成二维码，再用手机关闭 Wi-Fi、通过微信和移动网络实测。预览环境的访问限制不能代替正式发布验收。
@@ -46,7 +46,7 @@
 
     npm test
     npm run build
-    deno check supabase/functions/scribe-queue/index.ts supabase/functions/scribe-library/index.ts supabase/functions/scribe-mobile-upload/index.ts supabase/functions/scribe-ocr/index.ts
+    npm run bundle:functions   # 由 src/ 与 _shared/ 生成可部署的单文件入口
 
 - `index.html`、`mobile.html`：主应用、手机页。
 - `src/cloud-library.js`、`src/sync-state.js`：书库同步与设备连接。
@@ -55,6 +55,6 @@
 - `scribe-queue`：服务器后台领取、识别、重试与到期清理。
 - `scribe-library`：私密书库、版本同步、原页更新。
 - `scribe-ocr`：兼容入口，仅入队/重试，不再由浏览器逐页执行识别。
-- `_shared/ocr-core.ts`：复用已配置的 Enter 视觉模型与文档读取逻辑。
+- `supabase/functions/src/*.ts` 与 `supabase/functions/_shared/*.ts`：四个函数的可读源；`<name>/index.ts` 是脚本生成的可部署单文件。
 
 云识别消耗项目 AI 额度。当前支持 JPG/PNG、TXT、DOCX 和 PDF；旧版 DOC、HEIC 仍有格式限制，失败会显示原因并保留原件。单批最多 100 个文件、单文件 100 MB；PDF 模型输入目前限 8 MB，PDF 转录仍以文件为一个阅读单元。OCR 准确度取决于清晰度和版式，不能承诺每页零错误。

@@ -3362,8 +3362,11 @@ export type Database = {
     Tables: {
       scribe_cloud_files: {
         Row: {
+          attempts: number
           created_at: string
           id: string
+          lease_id: string | null
+          lease_until: string | null
           mime: string | null
           name: string
           ocr_completed_at: string | null
@@ -3372,14 +3375,18 @@ export type Database = {
           ocr_text: string | null
           page_count: number | null
           queue_order: number
+          retry_at: string | null
           session_id: string
           size: number
           storage_path: string | null
           uploaded_at: string | null
         }
         Insert: {
+          attempts?: number
           created_at?: string
           id?: string
+          lease_id?: string | null
+          lease_until?: string | null
           mime?: string | null
           name: string
           ocr_completed_at?: string | null
@@ -3388,14 +3395,18 @@ export type Database = {
           ocr_text?: string | null
           page_count?: number | null
           queue_order?: number
+          retry_at?: string | null
           session_id: string
           size?: number
           storage_path?: string | null
           uploaded_at?: string | null
         }
         Update: {
+          attempts?: number
           created_at?: string
           id?: string
+          lease_id?: string | null
+          lease_until?: string | null
           mime?: string | null
           name?: string
           ocr_completed_at?: string | null
@@ -3404,6 +3415,7 @@ export type Database = {
           ocr_text?: string | null
           page_count?: number | null
           queue_order?: number
+          retry_at?: string | null
           session_id?: string
           size?: number
           storage_path?: string | null
@@ -3422,9 +3434,11 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string
+          deleted_at: string | null
           expires_at: string
           file_count: number
           id: string
+          library_id: string | null
           ocr_completed_at: string | null
           ocr_status: string
           title: string | null
@@ -3433,9 +3447,11 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           created_at?: string
+          deleted_at?: string | null
           expires_at: string
           file_count?: number
           id?: string
+          library_id?: string | null
           ocr_completed_at?: string | null
           ocr_status?: string
           title?: string | null
@@ -3444,13 +3460,92 @@ export type Database = {
         Update: {
           completed_at?: string | null
           created_at?: string
+          deleted_at?: string | null
           expires_at?: string
           file_count?: number
           id?: string
+          library_id?: string | null
           ocr_completed_at?: string | null
           ocr_status?: string
           title?: string | null
           token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_cloud_sessions_library_id_fkey"
+            columns: ["library_id"]
+            referencedRelation: "scribe_libraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scribe_libraries: {
+        Row: {
+          access_hash: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          access_hash: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          access_hash?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      scribe_library_entries: {
+        Row: {
+          deleted: boolean
+          entry_id: string
+          kind: string
+          library_id: string
+          revision: number
+          updated_at: string
+          value: Json | null
+        }
+        Insert: {
+          deleted?: boolean
+          entry_id: string
+          kind: string
+          library_id: string
+          revision?: number
+          updated_at?: string
+          value?: Json | null
+        }
+        Update: {
+          deleted?: boolean
+          entry_id?: string
+          kind?: string
+          library_id?: string
+          revision?: number
+          updated_at?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_library_entries_library_id_fkey"
+            columns: ["library_id"]
+            referencedRelation: "scribe_libraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scribe_runtime_settings: {
+        Row: {
+          id: boolean
+          worker_secret: string
+        }
+        Insert: {
+          id?: boolean
+          worker_secret?: string
+        }
+        Update: {
+          id?: boolean
+          worker_secret?: string
         }
         Relationships: []
       }
@@ -3459,7 +3554,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      scribe_claim_page: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      scribe_cleanup_candidates: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          completed_at: string | null
+          created_at: string
+          deleted_at: string | null
+          expires_at: string
+          file_count: number
+          id: string
+          library_id: string | null
+          ocr_completed_at: string | null
+          ocr_status: string
+          title: string | null
+          token: string
+        }[]
+      }
+      scribe_finish_page: {
+        Args: { p_error: string; p_id: string; p_lease: string; p_text: string }
+        Returns: boolean
+      }
+      scribe_write_entry: {
+        Args: {
+          p_deleted: boolean
+          p_id: string
+          p_kind: string
+          p_library: string
+          p_revision: number
+          p_value: Json
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

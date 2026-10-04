@@ -1,6 +1,6 @@
 // 云端逐页识别：每次只处理一个文件，避免函数超时；由前端按顺序调用，失败可单页重试。
 // 图片与 PDF 交给 GPT 视觉模型直接读取；docx 用内置解压提取文本。结果写回数据库，任何设备都能读取。
-import {database} from "./cloud.ts";
+import {database, BUCKET} from "./cloud.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,7 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const BUCKET = "scribe-pages";
 const AI_BASE_URL = "https://api.enter.pro";
 const AI_TOKEN_SECRET = "AI_API_TOKEN_3ef6055a44e1";
 const PROJECT_ID = "3ef6055a44e1ce0572332c487d8ffbb4";
