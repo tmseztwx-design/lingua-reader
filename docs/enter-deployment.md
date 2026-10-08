@@ -19,7 +19,7 @@
 
 - 唯一可读源：`supabase/functions/src/<name>.ts` 与 `supabase/functions/_shared/*.ts`
 - 生成物：`supabase/functions/<name>/index.ts`（自包含单文件，直接部署这一份）
-- 生成命令：`npm run bundle:functions`
+- 生成命令：`pnpm bundle:functions`
 
 改完源文件后必须重新生成再部署，否则部署的还是旧代码。
 
@@ -31,15 +31,15 @@
 
 1. 通过平台连接 Cloud，并确认 `pg_cron`、`pg_net` 可用。
 2. 执行 `supabase/migrations/20261003090000_cloud_library_queue.sql`。
-3. 运行 `npm run bundle:functions`，逐个部署四个函数的 `index.ts`。
+3. 运行 `pnpm bundle:functions`，逐个部署四个函数的 `index.ts`。
 4. 检查 `cron.job` 中 `scribe-background-ocr` 为 active，且 `cron.job_run_details` 有成功记录。
-5. 运行 `npm test` 与 `npm run build`。
+5. 运行 `pnpm test` 与 `pnpm build`。
 6. 运行 `node test/cloud-live.mjs`：只创建合成 TXT 批量与独立书库，不使用用户文件，结束时软删除自己的批次。
 
 ## 四、验收证据（本次实测）
 
 - `node test/cloud-live.mjs` → PASS：私密上传、页序（倒序完成仍按确认顺序）、**无浏览器参与的后台自动识别**、跨设备同步、worker 鉴权
-- `npm test` → 7 项通过
+- `pnpm test` → 7 项通过
 - 界面实测（jsdom 驱动真实页面 + 真实云函数）：生成云端二维码不再出现 `Function not found`，状态显示「云端通道已就绪」，随后后台队列自动完成识别
 - 函数探针：`scribe-mobile-upload` 410、`scribe-ocr` 410、`scribe-library` 401、`scribe-queue` 403（均为业务级应答，说明函数已正常启动）
 

@@ -22,31 +22,35 @@
 
 要求 Node.js 22 或更新版本。
 
-    npm ci
-    npm run dev
+    pnpm install
+    pnpm dev
 
 开发预览默认端口 8080。云端能力需要先完成下述部署。本机通道可在导入区切换；它仍要求电脑和手机在同一 Wi-Fi，并运行本机服务：
 
-    npm run build
-    npm start
+    pnpm build
+    pnpm start
 
 本机服务端口 4174，OCR 依赖 macOS Vision。纯静态服务器不包含本机接口。
 
 ## Enter 部署顺序
 
 1. 在已连接的 Enter Cloud 上执行迁移 `supabase/migrations/20261003090000_cloud_library_queue.sql`。原来的两张表和私有存储桶保留；新增私密书库、版本记录、工作租约与服务端调度。要求云数据库支持 `pg_cron`、`pg_net`。
-2. 生成并部署四个函数：先运行 `npm run bundle:functions`，再把 `supabase/functions/<name>/index.ts` 逐个部署。**平台只部署这一份入口文件**，同目录与上层的其它 .ts 都不会被带上，所以仓库把可读源放在 `supabase/functions/src/*.ts` 与 `_shared/*.ts`，由脚本内联成自包含的单文件。按照 `supabase/config.toml` 设置；保持现有 AI 服务端密钥。不要把服务角色或 AI 密钥写入前端。每次改动源文件后都要重新生成再部署。
+2. 生成并部署四个函数：先运行 `pnpm bundle:functions`，再把 `supabase/functions/<name>/index.ts` 逐个部署。**平台只部署这一份入口文件**，同目录与上层的其它 .ts 都不会被带上，所以仓库把可读源放在 `supabase/functions/src/*.ts` 与 `_shared/*.ts`，由脚本内联成自包含的单文件。按照 `supabase/config.toml` 设置；保持现有 AI 服务端密钥。不要把服务角色或 AI 密钥写入前端。每次改动源文件后都要重新生成再部署。
 3. 确认 `cron.job` 中 `scribe-background-ocr` 已启用，指向此 Cloud 的 `scribe-queue`。调度凭证生成并保存在 RLS 默认拒绝的表中，仅服务端可读取。
-4. 执行 `npm test`、Deno 类型检查和 `npm run build`；执行 `node test/cloud-live.mjs` 验证真实云端（仅创建合成测试文本，不使用用户文件）。
+4. 执行 `pnpm test`、`pnpm build` 与 `node test/cloud-live.mjs` 验证真实云端（仅创建合成测试文本，不使用用户文件）。
 5. 同步 Enter 项目的代码版本并正式发布。在发布后的 HTTPS 地址生成二维码，再用手机关闭 Wi-Fi、通过微信和移动网络实测。预览环境的访问限制不能代替正式发布验收。
 
-本仓库已连接的 Cloud 是 `spb-t4nu9v7279pycm5l`。换 Cloud 时须更新生成的客户端配置、迁移里的调度地址和既有 AI 项目绑定。
+本仓库已连接的 Enter Cloud 已配置完成；若要更换后端，需要同步更新生成的客户端配置、迁移里的后台调度地址，以及已绑定的 AI 项目，并重新部署四个函数。
+
+## 发布
+
+后端就绪后再发布前端：在项目页右上角点「Publish」，构建通过后会得到一个免费的 Enter 域名（可在设置 → 域名里改名）。手机扫码请使用发布后的地址；预览地址会变化，不能用于长期分享。
 
 ## 验证与结构
 
-    npm test
-    npm run build
-    npm run bundle:functions   # 由 src/ 与 _shared/ 生成可部署的单文件入口
+    pnpm test
+    pnpm build
+    pnpm bundle:functions   # 由 src/ 与 _shared/ 生成可部署的单文件入口
 
 - `index.html`、`mobile.html`：主应用、手机页。
 - `src/cloud-library.js`、`src/sync-state.js`：书库同步与设备连接。
