@@ -154,7 +154,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
   ready(function(){
     var activeLink=null,pollTimer=null,remoteFiles=[],batchComplete=false,batchProcessing=false,savedBatchDocument=null,processButton=document.querySelector('#process'),originalProcess=processButton&&processButton.onclick;
     var style=document.createElement('style');
-    style.textContent='.phone-bridge{margin-top:18px;padding:18px;border:1px solid #ccd9ef;border-radius:13px;background:linear-gradient(135deg,#f7f9ff,#f2fbf7)}.phone-bridge h3{margin:0;font:20px Georgia,"Noto Serif SC",serif}.phone-bridge p{margin:6px 0 0}.phone-bridge-head{display:flex;justify-content:space-between;align-items:start;gap:14px}.phone-link{display:none;grid-template-columns:148px 1fr;gap:18px;align-items:center;margin-top:17px;padding-top:17px;border-top:1px solid #d8e2ed}.phone-link.show{display:grid}.phone-qr{display:grid;place-items:center;padding:7px;border:1px solid var(--line);border-radius:11px;background:#fff}.phone-qr img{display:block;width:134px;height:134px}.phone-state{padding:11px 13px;margin-top:14px;border-radius:9px;background:#fff;color:#52617b;font-size:13px}.phone-files{display:grid;gap:8px;margin-top:12px}.phone-file{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #dfe6ef;border-radius:9px;background:#fff}.phone-file-copy{min-width:0;flex:1}.phone-file-copy b,.phone-file-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phone-file-copy small{color:var(--muted);font-size:12px}.phone-order{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.phone-note{margin-top:14px!important;color:#5c6d83;font-size:12px}@media(max-width:640px){.phone-bridge-head{display:block}.phone-bridge-head .button{margin-top:14px}.phone-link.show{grid-template-columns:1fr}.phone-qr{width:150px}.phone-file{align-items:start;flex-wrap:wrap}}.channel-switch{display:inline-flex;gap:5px;margin-top:12px;padding:4px;border:1px solid #d5e0ef;border-radius:11px;background:#fff}.channel-switch button{border:0;border-radius:8px;padding:7px 11px;background:none;color:#5b6b85;font:600 12px var(--sans);cursor:pointer}.channel-switch button.active{background:#2f4d8a;color:#fff}.phone-order{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.phone-url{display:none;margin-top:8px;color:#355da9;font-size:12px;word-break:break-all}.phone-url.show{display:block}.cloud-batches{display:grid;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #d8e2ed}.cloud-batches:empty{display:none}.cloud-batch{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid #dfe6ef;border-radius:10px;background:#fff}.cloud-batch-copy{flex:1;min-width:0}.cloud-batch-copy b{display:block;font-size:13px}.cloud-batch-copy small{color:var(--muted);font-size:12px}.cloud-batch-actions{display:flex;gap:6px;flex-wrap:wrap}.cloud-batch-actions .button{flex:none}';
+    style.textContent='.phone-bridge{margin-top:18px;padding:18px;border:1px solid #ccd9ef;border-radius:13px;background:linear-gradient(135deg,#f7f9ff,#f2fbf7)}.phone-bridge h3{margin:0;font:20px Georgia,"Noto Serif SC",serif}.phone-bridge p{margin:6px 0 0}.phone-bridge-head{display:flex;justify-content:space-between;align-items:start;gap:14px}.phone-link{display:none;grid-template-columns:148px 1fr;gap:18px;align-items:center;margin-top:17px;padding-top:17px;border-top:1px solid #d8e2ed}.phone-link.show{display:grid}.phone-qr{display:grid;place-items:center;padding:7px;border:1px solid var(--line);border-radius:11px;background:#fff}.phone-qr img{display:block;width:134px;height:134px}.phone-state{padding:11px 13px;margin-top:14px;border-radius:9px;background:#fff;color:#52617b;font-size:13px}.phone-files{display:grid;gap:8px;margin-top:12px}.phone-file{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #dfe6ef;border-radius:9px;background:#fff}.phone-file-copy{min-width:0;flex:1}.phone-file-copy b,.phone-file-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phone-file-copy small{color:var(--muted);font-size:12px}.phone-order{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.phone-note{margin-top:14px!important;color:#5c6d83;font-size:12px}@media(max-width:640px){.phone-bridge-head{display:block}.phone-bridge-head .button{margin-top:14px}.phone-link.show{grid-template-columns:1fr}.phone-qr{width:150px}.phone-file{align-items:start;flex-wrap:wrap}}.channel-switch{display:inline-flex;gap:5px;margin-top:12px;padding:4px;border:1px solid #d5e0ef;border-radius:11px;background:#fff}.channel-switch button{border:0;border-radius:8px;padding:7px 11px;background:none;color:#5b6b85;font:600 12px var(--sans);cursor:pointer}.channel-switch button.active{background:#2f4d8a;color:#fff}.phone-order{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.phone-url{display:none;margin-top:8px;color:#355da9;font-size:12px;word-break:break-all}.phone-warn{display:none;margin-top:9px!important;padding:9px 11px;border-radius:9px;background:#fff4df;color:#745726;font-size:12px}.phone-url.show{display:block}.cloud-batches{display:grid;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #d8e2ed}.cloud-batches:empty{display:none}.cloud-batch{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid #dfe6ef;border-radius:10px;background:#fff}.cloud-batch-copy{flex:1;min-width:0}.cloud-batch-copy b{display:block;font-size:13px}.cloud-batch-copy small{color:var(--muted);font-size:12px}.cloud-batch-actions{display:flex;gap:6px;flex-wrap:wrap}.cloud-batch-actions .button{flex:none}';
     document.head.appendChild(style);
     var responsiveStyle=document.createElement('style');responsiveStyle.textContent='@media(max-width:1120px){.capture-groups{grid-template-columns:1fr!important}}';document.head.appendChild(responsiveStyle);
     function q(selector,root){return (root||document).querySelector(selector);}
@@ -165,7 +165,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     function mount(){
       var previous=q('#phoneBridge'),panel=q('#upload .upload-grid > article.card');if(!panel)return;
       var bridge=document.createElement('section');bridge.id='phoneBridge';bridge.className='phone-bridge';
-      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机传书页</div><h3 id="phoneTitle">微信扫码，把手机书页送到这里</h3><p class="muted tiny" id="phoneHint"></p><div class="channel-switch" id="channelSwitch"><button type="button" data-channel="cloud">云端中转 · 任意网络</button><button type="button" data-channel="local">本机直连 · 同一 Wi‑Fi</button></div></div><button class="button secondary small" id="createPhoneLink" type="button">生成二维码</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b id="phoneScanHint"></b><p class="muted tiny" id="phoneQrNote"></p><div class="phone-state" id="phoneStatus">正在准备…</div><a class="phone-url" id="phoneUrl" target="_blank" rel="noreferrer"></a><div class="phone-files" id="phoneFiles"></div><p class="phone-note" id="phoneNote"></p></div></div><div class="cloud-batches" id="cloudBatches"></div>';
+      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机传书页</div><h3 id="phoneTitle">微信扫码，把手机书页送到这里</h3><p class="muted tiny" id="phoneHint"></p><div class="channel-switch" id="channelSwitch"><button type="button" data-channel="cloud">云端中转 · 任意网络</button><button type="button" data-channel="local">本机直连 · 同一 Wi‑Fi</button></div></div><button class="button secondary small" id="createPhoneLink" type="button">生成二维码</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b id="phoneScanHint"></b><p class="muted tiny" id="phoneQrNote"></p><div class="phone-state" id="phoneStatus">正在准备…</div><a class="phone-url" id="phoneUrl" target="_blank" rel="noreferrer"></a><p class="phone-warn" id="phoneWarn"></p><div class="phone-files" id="phoneFiles"></div><p class="phone-note" id="phoneNote"></p></div></div><div class="cloud-batches" id="cloudBatches"></div>';
       if(previous)previous.replaceWith(bridge);else panel.appendChild(bridge);
       q('#createPhoneLink').addEventListener('click',createLink);bindChannel();paintChannel();if(channel==='cloud')refreshCloudBatches();
     }
@@ -212,7 +212,8 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     }
     // ---------- 云端中转通道（手机任意网络上传，识别在云端完成） ----------
     var channel=localStorage.getItem('scribe-upload-channel')==='local'?'local':'cloud';
-    var activeCloudToken=null,cloudFiles=[],cloudBusy=false;
+    var activeCloudToken=null,cloudFiles=[],cloudBusy=false,mobileWarning='';
+    function renderMobileWarning(){var el=q('#phoneWarn');if(!el)return;el.textContent=mobileWarning;el.style.display=mobileWarning?'block':'none';}
     var CHANNEL_COPY={
       cloud:{title:'扫码上传书页，识别在云端完成',hint:'手机不必和电脑连同一个 Wi‑Fi，用移动网络也能上传。全部送达后云端会用 GPT 逐页识别，任何设备打开应用都能读。原页长期保留在云端，识别会消耗项目的 AI 额度。',scan:'请用手机相机或微信扫码',qr:'云端通道对任意网络开放，24 小时内有效；识别由云端完成，不需要电脑开机。',note:'可以从相册或文件里分多次加入；在手机端调整顺序后一次上传，随后云端自动逐页识别。',ready:'正在准备云端通道…'},
       local:{title:'微信扫码，把手机文件直接送到这里',hint:'电脑与手机连接同一个 Wi‑Fi 后，直接用微信扫码即可打开上传页，不需要 VPN/梯子。可从相册或手机/微信可访问的文件中选择；如果微信相册每次限选 9 张，可以分批加入，最后统一排序并一次上传处理。',scan:'请用微信扫码',qr:'此二维码连接当前电脑的局域网地址；手机和电脑须在同一 Wi‑Fi，且电脑本地服务保持运行。',note:'可以多次从相册/文件选择器加入项目；队列会保留加入顺序，也可上移下移调整。点击手机页上传后，整批文件自动进入识别处理。',ready:'正在生成本地二维码…'}
@@ -235,6 +236,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       if(q('#phoneLink'))q('#phoneLink').classList.remove('show');
       if(q('#phoneFiles'))q('#phoneFiles').innerHTML='';
       if(q('#phoneUrl')){q('#phoneUrl').classList.remove('show');q('#phoneUrl').textContent='';}
+      mobileWarning='';renderMobileWarning();
       restoreComputerProcess();paintChannel();
       if(channel==='cloud')refreshCloudBatches();
     }
@@ -258,6 +260,19 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         return '<div class="phone-file"><span class="phone-order">'+(index+1)+'</span><div class="phone-file-copy"><b>第 '+(index+1)+' 页 · '+escapeHtml(file.name)+'</b><small>'+bytes(file.size)+' · '+state+'</small></div></div>';
       }).join('');
     }
+    // 手机要能打开二维码里的地址：本地地址、预览地址、未发布或已下线的站点都会让扫码失败，先在电脑端自检一次。
+    async function mobileReachability(url){
+      var host=location.hostname;
+      if(host==='localhost'||host==='127.0.0.1')return {ok:false,reason:'当前是电脑本地地址'};
+      if(/live-preview|preview\.enter/i.test(host))return {ok:false,reason:'当前是预览地址，不适合长期分享'};
+      try{
+        var response=await fetch(url,{method:'GET',cache:'no-store'});
+        if(!response.ok)return {ok:false,reason:'站点返回 '+response.status+'，可能尚未发布或已下线'};
+        var body=await response.text();
+        if(body.indexOf('pageTitle')<0)return {ok:false,reason:'返回的不是手机上传页'};
+        return {ok:true};
+      }catch(error){return {ok:false,reason:'网络无法连接'};}
+    }
     async function createCloudLink(){
       var button=q('#createPhoneLink');button.disabled=true;button.textContent='正在生成…';clearInterval(pollTimer);
       try{
@@ -268,7 +283,10 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         q('#phoneQr').src=await cloud.qrDataUrl(url);
         q('#phoneUrl').textContent=url;q('#phoneUrl').href=url;q('#phoneUrl').classList.add('show');
         q('#phoneLink').classList.add('show');renderCloudFiles([]);
-        showStatus('云端通道已就绪，等待手机上传…');
+        var reachable=await mobileReachability(url);
+        mobileWarning=reachable.ok?'':'注意：手机可能打不开这个地址（'+reachable.reason+'）。请先发布站点或把站点恢复上线，再重新生成二维码。';
+        renderMobileWarning();
+        showStatus(reachable.ok?'云端通道已就绪，等待手机上传…':'注意：手机可能打不开这个地址（'+reachable.reason+'）。');
         button.textContent='重新生成二维码';button.disabled=false;
         pollTimer=setInterval(checkCloud,2500);checkCloud();
       }catch(error){
