@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.mjs",
-    "test": "node --test test/*.test.mjs",
+    "check": "node --check server.mjs && python3 -c \"import ast, pathlib; ast.parse(pathlib.Path('ocr_worker.py').read_text(encoding='utf-8'))\"",
+    "test": "node --test test/*.test.mjs && node test/server-smoke.mjs",
     "bundle:functions": "node scripts/bundle-functions.mjs"
   },
   "dependencies": {

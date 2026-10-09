@@ -163,7 +163,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       var bridge=document.createElement('section');bridge.id='phoneBridge';bridge.className='phone-bridge';
       bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机传书页</div><h3 id="phoneTitle">微信扫码，把手机书页送到这里</h3><p class="muted tiny" id="phoneHint"></p><div class="channel-switch" id="channelSwitch"><button type="button" data-channel="cloud">云端中转 · 任意网络</button><button type="button" data-channel="local">本机直连 · 同一 Wi‑Fi</button></div></div><button class="button secondary small" id="createPhoneLink" type="button">生成二维码</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b id="phoneScanHint"></b><p class="muted tiny" id="phoneQrNote"></p><div class="phone-state" id="phoneStatus">正在准备…</div><a class="phone-url" id="phoneUrl" target="_blank" rel="noreferrer"></a><p class="phone-warn" id="phoneWarn"></p><div class="phone-files" id="phoneFiles"></div><p class="phone-note" id="phoneNote"></p></div></div><div class="cloud-batches" id="cloudBatches"></div>';
       if(previous)previous.replaceWith(bridge);else panel.appendChild(bridge);
-      q('#createPhoneLink').addEventListener('click',createLink);bindChannel();paintChannel();if(channel==='cloud')refreshCloudBatches();
+      q('#createPhoneLink').addEventListener('click',createLink);bindChannel();paintChannel();detectSelfHosted();if(channel==='cloud')refreshCloudBatches();
     }
     function renderQueue(){
       var list=q('#phoneFiles');if(!list)return;
@@ -173,10 +173,10 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     }
     async function createLink(){
       if(channel==='cloud')return createCloudLink();
-      if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){showStatus('本机直连通道需要从 http://localhost:4174 打开应用：先执行 pnpm build && pnpm start，再用该地址打开。');return;}
+      if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&!selfHosted){showStatus('此通道需要从 http://localhost:4174 或已配置的私人 Docker 服务打开应用。');return;}
       var button=q('#createPhoneLink');button.disabled=true;button.textContent='正在生成…';clearInterval(pollTimer);remoteFiles=[];batchComplete=false;batchProcessing=false;savedBatchDocument=null;window.__scribePhoneComplete=false;restoreComputerProcess();
       try{var response=await fetch('/api/mobile-links',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法生成扫码通道。');activeLink=result.id;q('#phoneQr').src=result.qrDataUrl;q('#phoneLink').classList.add('show');showStatus('二维码已就绪，等待手机端整理并上传整组文件…');button.textContent='重新生成二维码';button.disabled=false;pollTimer=setInterval(checkLink,1200);checkLink();}
-      catch(error){showStatus(error.message+' 请在本机执行 pnpm build && pnpm start 后重试。');q('#phoneLink').classList.add('show');button.textContent='重新生成二维码';button.disabled=false;}
+      catch(error){showStatus(error.message+' 请检查本机服务或私人 Docker 服务的地址与 HTTPS 配置。');q('#phoneLink').classList.add('show');button.textContent='重新生成二维码';button.disabled=false;}
     }
     async function checkLink(){
       if(!activeLink)return;try{var response=await fetch('/api/mobile-links/'+activeLink),result=await response.json();if(response.status===410){clearInterval(pollTimer);showStatus('扫码通道已失效，请重新生成二维码。');return;}if(!response.ok)throw new Error();remoteFiles=(result.files||[]).slice().sort(function(left,right){return left.queueOrder-right.queueOrder||left.receivedOrder-right.receivedOrder;});window.__scribePhoneComplete=result.completed===true;renderQueue();if(result.completed&&remoteFiles.length&&!batchComplete&&!batchProcessing){showStatus('手机端顺序已确认，整批文件已进入处理区，正在逐页识别…');processBatch();return;}showStatus(!remoteFiles.length?'二维码已就绪，等待手机端整理并上传整组文件…':result.completed?'已收到并锁定 '+remoteFiles.length+' 个文件，顺序与手机队列一致。正在后台逐页识别。':'正在接收 '+remoteFiles.length+' 个文件；全部送达并确认后才会启用处理。');}
@@ -208,12 +208,25 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     }
     // ---------- 云端中转通道（手机任意网络上传，识别在云端完成） ----------
     var channel=localStorage.getItem('scribe-upload-channel')==='local'?'local':'cloud';
+    var selfHosted=false;
     var activeCloudToken=null,cloudFiles=[],cloudBusy=false,mobileWarning='';
     function renderMobileWarning(){var el=q('#phoneWarn');if(!el)return;el.textContent=mobileWarning;el.style.display=mobileWarning?'block':'none';}
     var CHANNEL_COPY={
       cloud:{title:'扫码上传书页，识别在云端完成',hint:'手机不必和电脑连同一个 Wi‑Fi，用移动网络也能上传。全部送达后云端会用 GPT 逐页识别，任何设备打开应用都能读。原页长期保留在云端，识别会消耗项目的 AI 额度。',scan:'请用手机相机或微信扫码',qr:'云端通道对任意网络开放，24 小时内有效；识别由云端完成，不需要电脑开机。',note:'可以从相册或文件里分多次加入；在手机端调整顺序后一次上传，随后云端自动逐页识别。',ready:'正在准备云端通道…'},
       local:{title:'微信扫码，把手机文件直接送到这里',hint:'电脑与手机连接同一个 Wi‑Fi 后，直接用微信扫码即可打开上传页，不需要 VPN/梯子。可从相册或手机/微信可访问的文件中选择；如果微信相册每次限选 9 张，可以分批加入，最后统一排序并一次上传处理。',scan:'请用微信扫码',qr:'此二维码连接当前电脑的局域网地址；手机和电脑须在同一 Wi‑Fi，且电脑本地服务保持运行。',note:'可以多次从相册/文件选择器加入项目；队列会保留加入顺序，也可上移下移调整。点击手机页上传后，整批文件自动进入识别处理。',ready:'正在生成本地二维码…'}
     };
+    async function detectSelfHosted(){
+      try{
+        var response=await fetch('/api/health',{cache:'no-store'}),info=await response.json();
+        if(!response.ok||info.service!=='scribe-local')return;
+        selfHosted=true;
+        if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))return;
+        CHANNEL_COPY.local={title:'微信扫码，直传你的独立服务器',hint:'手机和电脑可使用不同网络。文件由当前私人服务器接收并识别；此模式不提供 Enter 云端跨设备书库同步。',scan:'请用微信扫码',qr:'二维码指向当前服务器的公网 HTTPS 地址；服务器须持续运行并由你控制访问权限。',note:'可多次从相册/文件选择器加入，确认顺序后整批上传到当前服务器。',ready:'正在生成独立服务器二维码…'};
+        var button=q('[data-channel="local"]');if(button)button.textContent='独立服务器 · 任意网络';
+        if(!localStorage.getItem('scribe-upload-channel'))channel='local';
+        paintChannel();
+      }catch(error){}
+    }
     function paintChannel(){
       var copy=CHANNEL_COPY[channel],switchEl=q('#channelSwitch');
       if(q('#phoneTitle'))q('#phoneTitle').textContent=copy.title;
@@ -223,7 +236,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       if(q('#phoneNote'))q('#phoneNote').textContent=copy.note;
       if(q('#phoneStatus')&&/^正在/.test(q('#phoneStatus').textContent||''))showStatus(copy.ready);
       if(q('#cloudBatches'))q('#cloudBatches').style.display=channel==='cloud'?'grid':'none';
-      if(q('#createPhoneLink'))q('#createPhoneLink').textContent=channel==='cloud'?'生成云端二维码':'生成局域网二维码';
+      if(q('#createPhoneLink'))q('#createPhoneLink').textContent=channel==='cloud'?'生成云端二维码':selfHosted&&!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'生成服务器二维码':'生成局域网二维码';
       if(switchEl)Array.prototype.forEach.call(switchEl.querySelectorAll('[data-channel]'),function(button){button.classList.toggle('active',button.dataset.channel===channel);});
     }
     function setChannel(next){
