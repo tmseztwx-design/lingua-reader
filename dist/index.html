@@ -582,6 +582,29 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         if(target){delete target.lookupPending;write(current);render();}
       }
     }
+    // 存量短语/句子卡补齐译文：打开对应分类页签时批量生成一次；失败标记防止反复请求。
+    var healingExpressions=false;
+    function healExpressionCards(shown){
+      if(healingExpressions)return;
+      var targets=(shown||[]).filter(function(card){return card.type!=='word'&&!card.explainFailed&&!card.lookupPending&&!cleanStoredDetail(card.translation)&&!translatedExpression(card.term,card.context);}).slice(0,12);
+      if(!targets.length)return;
+      healingExpressions=true;
+      cloudStudyCall({action:'explain',items:targets.map(function(card){return {term:card.term,kind:card.type,sentence:sourceContextFor(card)};})}).then(function(result){
+        var items=result.items||[],changed=false,current=read();
+        targets.forEach(function(card,index){
+          var target=(current.cards||[]).find(function(item){return item.id===card.id;});
+          if(!target)return;
+          var found=items[index];
+          if(found&&found.translation){target.translation=found.translation;delete target.lookupPending;changed=true;}
+          else target.explainFailed=true;
+        });
+        if(changed){write(current);render();}
+      }).catch(function(){
+        var current=read();
+        targets.forEach(function(card){var target=(current.cards||[]).find(function(item){return item.id===card.id;});if(target){target.explainFailed=true;delete target.lookupPending;}});
+        write(current);
+      }).finally(function(){healingExpressions=false;});
+    }
     function addCard(type,term,meaning,context){var current=read(),all=Array.isArray(current.cards)?current.cards:[],normalized=term.trim().toLowerCase(),detail=type==='word'?wordDetail(term):null;var existing=all.find(function(card){return card&&card.type===type&&String(card.term||'').trim().toLowerCase()===normalized;});if(existing){activeKind=type;focusCardId=existing.id;render();return false;}var id='collect-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),card={id:id,type:type,term:term.trim(),meaning:detail&&detail.translation?detail.translation:(meaning||'来自当前阅读'),phonetic:detail?detail.phonetic:'',translation:detail?detail.translation:'',context:context||'当前阅读段落',articleInfo:detail?articleInfo(context):'',example:detail?exampleFor(term,context):'',source:'The Sociology of Education · Chapter 3',note:'',due:true};if(type==='word'&&!card.translation)card.meaning='正在查询音标与语境释义…';all.push(card);current.cards=all;write(current);activeKind=type;focusCardId=id;render();return true;}
     function removeCard(id){var current=read();current.cards=(current.cards||[]).filter(function(card){return card.id!==id;});write(current);render();}
     function makeWordsClickable(){
@@ -610,7 +633,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       qa('[data-remove-card]',panel).forEach(function(button){button.onclick=function(){removeCard(button.dataset.removeCard);};});
       if(focusCardId){var focusTarget=panel.querySelector('[data-card-id="'+focusCardId+'"]');if(focusTarget){if(typeof focusTarget.scrollIntoView==='function')focusTarget.scrollIntoView({block:'nearest',behavior:'smooth'});focusTarget.classList.add('card-flash');setTimeout(function(){focusTarget.classList.remove('card-flash');},1600);}focusCardId=null;}
       markWords();
-      if(activeKind==='word')healWordCards(shown);
+      if(activeKind==='word')healWordCards(shown);else healExpressionCards(shown);
     }
     function countWords(text){var words=text.match(/[A-Za-z]+(?:[’'-][A-Za-z]+)*/g);return words?words.length:Math.max(1,text.trim().split(/\s+/).length);}
     function hideClassifier(){qa('.classify-menu').forEach(function(item){item.remove();});if(selectionMenu)selectionMenu.remove();selectionMenu=null;var old=q('#selmenu');if(old)old.classList.remove('show');}
