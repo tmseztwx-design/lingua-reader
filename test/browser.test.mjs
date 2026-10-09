@@ -30,6 +30,23 @@ test('the existing app renders and accepts cloud library updates without losing 
   assert.equal(w.document.querySelector('#docCount').textContent,'1');
   dom.window.close();
 });
+test('a same-origin private server exposes the independent upload channel without replacing cloud mode',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://reader.example.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;
+  w.fetch=async(url)=>url==='/api/health'
+    ?{ok:true,json:async()=>({status:'ok',service:'scribe-local'})}
+    :new Promise(()=>{});
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await tick();await tick();
+  assert.match(w.document.querySelector('[data-channel="local"]').textContent,/独立服务器/);
+  assert.equal(w.document.querySelector('[data-channel="local"]').classList.contains('active'),true);
+  assert.match(w.document.querySelector('#phoneHint').textContent,/不同网络/);
+  w.document.querySelector('[data-channel="cloud"]').click();
+  assert.equal(w.document.querySelector('[data-channel="cloud"]').classList.contains('active'),true);
+  dom.window.close();
+});
 test('library sync preserves edits made during a request and backs up stale-device conflicts',async()=>{
   const dom=new JSDOM('<div id="settings"><div class="settings-grid"></div></div><div class="topbar"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.structuredClone=structuredClone;w.setTimeout=()=>0;w.setInterval=()=>0;

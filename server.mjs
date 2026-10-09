@@ -9,7 +9,7 @@ import QRCode from 'qrcode';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(root, 'dist');
-const uploadRoot = path.join(root, 'uploads');
+const uploadRoot = path.resolve(process.env.SCRIBE_DATA_DIR || path.join(root, 'uploads'));
 const documentRoot = path.join(uploadRoot, 'documents');
 const port = Number(process.env.PORT || 4174);
 const ttlMs = 60 * 60 * 1000;
@@ -46,8 +46,49 @@ function localAddress() {
 
 function publicBase() {
   if (process.env.SCRIBE_PUBLIC_URL) return process.env.SCRIBE_PUBLIC_URL.replace(/\/$/, '');
+  if (process.env.NODE_ENV === 'production') return null;
   const address = localAddress();
   return address ? `http://${address}:${port}` : null;
+}
+
+function sessionManifest(session) {
+  return path.join(session.directory, 'session.json');
+}
+
+function persistSession(session) {
+  fs.mkdirSync(session.directory, { recursive: true });
+  const { id, expiresAt, completed, nextOrder } = session;
+  const files = session.files.map(({ filePath, ...file }) => file);
+  fs.writeFileSync(sessionManifest(session), JSON.stringify({ id, expiresAt, completed: completed === true, nextOrder, files }));
+}
+
+function restoreSessions() {
+  if (!fs.existsSync(uploadRoot)) return;
+  for (const entry of fs.readdirSync(uploadRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === 'documents' || !validId(entry.name)) continue;
+    const directory = path.join(uploadRoot, entry.name);
+    let saved;
+    try { saved = JSON.parse(fs.readFileSync(path.join(directory, 'session.json'), 'utf8')); } catch { continue; }
+    if (!saved || saved.id !== entry.name || !Array.isArray(saved.files) || Number(saved.expiresAt) <= Date.now()) {
+      fs.rm(directory, { recursive: true, force: true }, () => {});
+      continue;
+    }
+    const files = saved.files.flatMap((file) => {
+      if (!file || !validId(file.id) || typeof file.name !== 'string') return [];
+      const name = cleanName(file.name);
+      const filePath = path.join(directory, `${file.id}-${name}`);
+      try { if (!fs.statSync(filePath).isFile()) return []; } catch { return []; }
+      return [{ ...file, name, filePath }];
+    });
+    sessions.set(entry.name, {
+      id: entry.name,
+      expiresAt: Number(saved.expiresAt),
+      completed: saved.completed === true,
+      files,
+      nextOrder: Number(saved.nextOrder) || files.length,
+      directory
+    });
+  }
 }
 
 function cleanName(value) {
@@ -151,7 +192,7 @@ function commitSession(res, id, requestedNames) {
   if (!session.completed) return json(res, 409, { error: '请等全部文件上传完成后再开始处理。' });
   const sourceFiles = [...session.files].sort((left, right) => left.queueOrder - right.queueOrder || left.receivedOrder - right.receivedOrder);
   if (!sourceFiles.length) return json(res, 409, { error: '还没有收到可保存的页面。' });
-  if (requestedNames && (!Array.isArray(requestedNames) || requestedNames.length > 500 || requestedNames.some((name) => typeof name !== 'string' || name.length > 200))) {
+  if (requestedNames && (!Array.isArray(requestedNames) || requestedNames.length > 5000 || requestedNames.some((name) => typeof name !== 'string' || name.length > 200))) {
     return json(res, 400, { error: '页面清单格式不正确。' });
   }
   const ordered = requestedNames && requestedNames.length
@@ -193,7 +234,7 @@ function commitRequest(req, res, id) {
   let body = '';
   req.on('data', (chunk) => {
     body += chunk.toString();
-    if (body.length > 100_000) req.destroy();
+    if (body.length > 2_000_000) req.destroy();
   });
   req.on('end', () => {
     let input = {};
@@ -205,12 +246,18 @@ function commitRequest(req, res, id) {
 function routeDocument(req, res, pieces) {
   const id = pieces[2];
   if (req.method === 'DELETE' && pieces.length === 3) {
+    const host = String(req.headers.host || '');
+    const origin = req.headers.origin;
     const remote = req.socket.remoteAddress || '';
     const loopback = remote === '::1' || remote === '127.0.0.1' || remote === '::ffff:127.0.0.1';
-    const host = String(req.headers.host || '');
     const localHost = host === `localhost:${port}` || host === `127.0.0.1:${port}`;
-    const origin = req.headers.origin;
-    if (!loopback || !localHost || origin !== `http://${host}`) return json(res, 403, { error: '只能从本机书库清理原页。' });
+    let allowedOrigin = `http://${host}`;
+    if (process.env.SCRIBE_PUBLIC_URL) {
+      try { allowedOrigin = new URL(process.env.SCRIBE_PUBLIC_URL).origin; } catch {}
+    } else if (!loopback || !localHost) {
+      return json(res, 403, { error: '只能从本机书库清理原页。' });
+    }
+    if (!origin || origin !== allowedOrigin) return json(res, 403, { error: '只能从当前网站安全清理原页。' });
     if (!readDocument(id)) return json(res, 404, { error: '未找到已保存的文献页面。' });
     return fs.rm(documentDirectory(id), { recursive: true, force: false }, (error) => {
       if (error) return json(res, 500, { error: '原页清理失败，请稍后重试。' });
@@ -258,12 +305,19 @@ function serveFile(res, target) {
 
 async function makeSession(res, localOnly = false) {
   const base = localOnly ? `http://localhost:${port}` : publicBase();
-  if (!base) return json(res, 503, { error: '未找到可供手机访问的局域网地址。请确认电脑已连接 Wi‑Fi。' });
+  if (!base) return json(res, 503, { error: '没有可供手机访问的公网地址。请设置 SCRIBE_PUBLIC_URL 为部署后的 HTTPS 网址。' });
+  if (!localOnly && process.env.NODE_ENV === 'production') {
+    try {
+      if (new URL(base).protocol !== 'https:') return json(res, 503, { error: '公网手机上传需要 HTTPS。请将 SCRIBE_PUBLIC_URL 设置为 https:// 开头的网址。' });
+    } catch { return json(res, 503, { error: 'SCRIBE_PUBLIC_URL 不是有效的网址。' }); }
+  }
   const id = crypto.randomBytes(18).toString('base64url');
   const expiresAt = Date.now() + ttlMs;
   const mobileUrl = `${base}/mobile/${id}`;
   const qrDataUrl = await QRCode.toDataURL(mobileUrl, { width: 300, margin: 1, errorCorrectionLevel: 'M', color: { dark: '#17243e', light: '#ffffffff' } });
-  sessions.set(id, { id, expiresAt, files: [], nextOrder: 0, directory: path.join(uploadRoot, id) });
+  const session = { id, expiresAt, files: [], nextOrder: 0, directory: path.join(uploadRoot, id) };
+  persistSession(session);
+  sessions.set(id, session);
   json(res, 201, { id, expiresAt: new Date(expiresAt).toISOString(), mobileUrl, qrDataUrl });
 }
 
@@ -315,6 +369,11 @@ function receiveFile(req, res, id) {
       if (error) return fail(500, '无法完成文件保存。');
       file.size = size;
       session.files.push(file);
+      try { persistSession(session); } catch {
+        session.files.pop();
+        fs.rm(file.filePath, { force: true }, () => {});
+        return fail(500, '文件已接收，但上传清单无法保存，请重试。');
+      }
       replied = true;
       json(res, 201, { file: sessionInfo(session).files.find((item) => item.id === file.id) });
     });
@@ -326,11 +385,6 @@ function processDocument(id) {
   if (existing && (existing.status === 'processing' || existing.status === 'complete')) return existing;
   const document = readDocument(id);
   if (!document) return null;
-  if (process.platform !== 'darwin') {
-    const job = { status: 'error', completed: 0, total: document.pages.length, error: '本机文字识别目前需要 macOS 的 Vision OCR。' };
-    processingJobs.set(id, job);
-    return job;
-  }
   const sources = document.pages.filter((page) => page.storedName).map((page) => ({
     id: page.id,
     name: page.name,
@@ -342,11 +396,15 @@ function processDocument(id) {
     processingJobs.set(id, job);
     return job;
   }
-  const job = { status: 'processing', completed: 0, total: sources.length, pages: [], message: '正在启动本机文字识别…' };
+  const useVision = process.platform === 'darwin' && process.env.SCRIBE_OCR_ENGINE !== 'paddle';
+  const job = { status: 'processing', completed: 0, total: sources.length, pages: [], message: useVision ? '正在启动 macOS 文字识别…' : '正在启动 Linux OCR 处理…' };
   processingJobs.set(id, job);
-  const moduleCache = path.join(os.tmpdir(), 'scribe-swift-module-cache');
-  fs.mkdirSync(moduleCache, { recursive: true });
-  const child = spawn('swift', ['-module-cache-path', moduleCache, path.join(root, 'ocr.swift')], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const executable = useVision ? 'swift' : (process.env.PYTHON || 'python3');
+  const args = useVision
+    ? ['-module-cache-path', path.join(os.tmpdir(), 'scribe-swift-module-cache'), path.join(root, 'ocr.swift')]
+    : [path.join(root, 'ocr_worker.py')];
+  if (useVision) fs.mkdirSync(path.join(os.tmpdir(), 'scribe-swift-module-cache'), { recursive: true });
+  const child = spawn(executable, args, { stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   child.stdout.setEncoding('utf8');
@@ -370,7 +428,7 @@ function processDocument(id) {
     }
   });
   child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000); });
-  child.on('error', (error) => { job.status = 'error'; job.error = error.message; });
+  child.on('error', (error) => { job.status = 'error'; job.error = useVision ? error.message : `无法启动 OCR 服务。请按部署说明安装 Python OCR 依赖。(${error.message})`; });
   child.on('close', (code) => {
     if (stdout.trim()) {
       try {
@@ -381,7 +439,7 @@ function processDocument(id) {
     }
     if (code !== 0 || job.error || !job.pages.length) {
       job.status = 'error';
-      job.error = job.error || stderr || '本机文字识别没有完成。';
+      job.error = job.error || stderr || '文字识别没有完成。';
       return;
     }
     job.pages.forEach((page, index) => {
@@ -410,6 +468,7 @@ function processDocument(id) {
 function routeApi(req, res, url) {
   const pieces = url.pathname.split('/').filter(Boolean);
   if (req.method === 'GET' && url.pathname === '/api/lan-base') return json(res, 200, { base: publicBase() });
+  if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { status: 'ok', service: 'scribe-local', ocr: process.platform === 'darwin' && process.env.SCRIBE_OCR_ENGINE !== 'paddle' ? 'vision' : 'paddle' });
   if (req.method === 'POST' && url.pathname === '/api/mobile-links') return makeSession(res, url.searchParams.get('local') === '1').catch(() => json(res, 500, { error: '上传通道生成失败，请重试。' }));
   if (pieces[0] === 'api' && pieces[1] === 'documents' && pieces[2]) return routeDocument(req, res, pieces);
   if (req.method === 'GET' && url.pathname === '/api/mobile-links/recover') {
@@ -434,11 +493,13 @@ function routeApi(req, res, url) {
   if (!session) return json(res, 410, { error: '此扫码通道已过期，请回到电脑端重新生成。' });
   if (req.method === 'GET' && pieces.length === 3) {
     session.expiresAt = Date.now() + ttlMs;
+    try { persistSession(session); } catch {}
     return json(res, 200, sessionInfo(session));
   }
   if (req.method === 'POST' && pieces.length === 4 && pieces[3] === 'complete') {
     if (!session.files.length) return json(res, 409, { error: '还没有收到可保存的文件。' });
     session.completed = true;
+    try { persistSession(session); } catch { return json(res, 500, { error: '无法保存上传完成状态，请稍后重试。' }); }
     return json(res, 200, sessionInfo(session));
   }
   if (req.method === 'POST' && pieces.length === 4 && pieces[3] === 'commit') return commitRequest(req, res, id);
@@ -493,8 +554,11 @@ setInterval(() => {
   }
 }, 60_000).unref();
 
+restoreSessions();
+
 server.listen(port, '0.0.0.0', () => {
   const base = publicBase();
   console.log(`Scribe is running at http://localhost:${port}`);
-  if (base) console.log(`Phone upload is available on ${base}`);
+  if (process.env.SCRIBE_PUBLIC_URL) console.log(`Phone upload is available on ${process.env.SCRIBE_PUBLIC_URL.replace(/\/$/, '')}`);
+  else if (base) console.log(`Phone upload is available on ${base} (LAN only; set SCRIBE_PUBLIC_URL for public hosting)`);
 });
