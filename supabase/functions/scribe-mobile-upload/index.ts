@@ -314,6 +314,40 @@ async function resultsOf(db: ReturnType<typeof database>, session: Row) {
   }));
 }
 
+// 阅读区调序：已识别文献的最后一重纠错。按书库凭证鉴权，直接改写 queue_order；
+// 识别文本随文件行走，不受影响；书库同步按 queue_order 重建页序，各设备一致。
+async function reorderSession(db: ReturnType<typeof database>, body: Row) {
+  const library = await libraryFor(db, body.libraryKey);
+  if (!library) return fail("请先连接云端书库。", 401);
+  const sessionId = String(body.sessionId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return fail("缺少文献标识。", 400);
+  const { data: session, error } = await db
+    .from("scribe_cloud_sessions")
+    .select("id, library_id, deleted_at")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!session || session.library_id !== library.id || session.deleted_at) return fail("未找到该文献。", 404);
+
+  const files = await filesOf(db, sessionId);
+  if (!files.length) return fail("该文献没有页面。", 409);
+  const order = Array.isArray(body.order) ? body.order.map(String) : [];
+  const known = new Map(files.map((file) => [String(file.id), file]));
+  if (order.length !== files.length || order.some((id) => !known.has(id))) {
+    return fail("页面顺序与文献不一致，请刷新后重试。", 409);
+  }
+  for (let index = 0; index < order.length; index += 1) {
+    const { error: updateError } = await db
+      .from("scribe_cloud_files")
+      .update({ queue_order: index })
+      .eq("id", order[index])
+      .eq("session_id", sessionId);
+    if (updateError) throw new Error(updateError.message);
+  }
+  console.log("[scribe-mobile-upload] reorder", sessionId, order.length, "pages");
+  return json({ ok: true, pages: order.length });
+}
+
 async function removeSession(db: ReturnType<typeof database>, session: Row) {
   if(session.library_id){
     const {data:entry}=await db.from('scribe_library_entries').select('revision').eq('library_id',session.library_id).eq('kind','doc').eq('entry_id','cloud-'+session.id).maybeSingle();
@@ -326,6 +360,74 @@ async function removeSession(db: ReturnType<typeof database>, session: Row) {
   if (error) throw new Error(error.message);
   console.log("[scribe-mobile-upload] remove", session.id, paths.length);
   return json({ ok: true, removedFiles: paths.length });
+}
+
+// 续传：把已完成识别的新批次并入已有文献（目标会话），页码接在原有页面之后。
+// 文件行改挂到目标会话（storage_path 仍指向原对象，读取时按行内路径签发，不受影响）；
+// 新会话删除前写入文献墓碑，避免书库同步把它再生成一本新书。
+async function absorbSession(db: ReturnType<typeof database>, session: Row, body: Row) {
+  const library = await libraryFor(db, body.libraryKey);
+  if (!library) return fail("请先连接云端书库。", 401);
+  if (!session.library_id || session.library_id !== library.id) return fail("这一批不属于当前书库。", 403);
+  if (!session.completed_at || session.deleted_at) return fail("这一批还没有完成识别，暂时不能合并。", 409);
+
+  const targetId = String(body.into || "");
+  if (!/^[0-9a-f-]{36}$/i.test(targetId)) return fail("缺少目标文献标识。", 400);
+  if (targetId === session.id) return fail("不能合并到同一批。", 400);
+  const { data: target, error: targetError } = await db
+    .from("scribe_cloud_sessions")
+    .select("*")
+    .eq("id", targetId)
+    .eq("library_id", library.id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (targetError) throw new Error(targetError.message);
+  if (!target) return fail("目标文献不存在或已删除。", 404);
+  if (!target.completed_at) return fail("目标文献还没有完成识别，暂时不能合并。", 409);
+
+  const incoming = (await filesOf(db, String(session.id))).filter((file) => file.uploaded_at);
+  if (!incoming.length) return fail("这一批没有已送达的页面。", 409);
+  const existing = (await filesOf(db, String(target.id))).filter((file) => file.uploaded_at);
+  const baseOrder = existing.reduce((max, file) => Math.max(max, Number(file.queue_order)), -1) + 1;
+  if (existing.length + incoming.length > MAX_FILES) return fail(`合并后超过单批 ${MAX_FILES} 页上限，请拆分。`, 413);
+
+  for (const file of incoming) {
+    const { error } = await db
+      .from("scribe_cloud_files")
+      .update({ session_id: target.id, queue_order: baseOrder + Number(file.queue_order) })
+      .eq("id", file.id)
+      .eq("session_id", session.id);
+    if (error) throw new Error(error.message);
+  }
+
+  const all = [...existing, ...incoming];
+  const failed = all.filter((file) => file.ocr_status === "error").length;
+  const finished = all.filter((file) => file.ocr_status === "complete" || file.ocr_status === "error").length;
+  const ocrStatus = finished < all.length ? "processing" : failed ? "partial" : "complete";
+  const { error: updateError } = await db
+    .from("scribe_cloud_sessions")
+    .update({
+      file_count: all.length,
+      ocr_status: ocrStatus,
+      ocr_completed_at: ocrStatus === "processing" ? null : new Date().toISOString(),
+    })
+    .eq("id", target.id);
+  if (updateError) throw new Error(updateError.message);
+
+  const { data: entry } = await db
+    .from("scribe_library_entries")
+    .select("revision")
+    .eq("library_id", library.id)
+    .eq("kind", "doc")
+    .eq("entry_id", "cloud-" + session.id)
+    .maybeSingle();
+  if (entry) {
+    await db.rpc("scribe_write_entry", { p_library: library.id, p_kind: "doc", p_id: "cloud-" + session.id, p_value: null, p_deleted: true, p_revision: entry.revision });
+  }
+  const { error: deleteError } = await db.from("scribe_cloud_sessions").delete().eq("id", session.id);
+  if (deleteError) throw new Error(deleteError.message);
+  console.log("[scribe-mobile-upload] absorb", session.id, "->", target.id, incoming.length, "pages");
+  return json({ ok: true, into: target.id, pages: all.length, added: incoming.length });
 }
 
 Deno.serve(async (req) => {
@@ -350,6 +452,7 @@ Deno.serve(async (req) => {
   const action = String(body.action || "");
   try {
     if (action === "create") return await createSession(db, body);
+    if (action === "reorder") return await reorderSession(db, body);
 
     const session = await sessionByToken(db, body.token);
     if (!session) return json({ error: "此上传通道已失效，请重新生成二维码。" }, 410);
@@ -373,6 +476,8 @@ Deno.serve(async (req) => {
         return json({ files: await signedUrls(db, session, PAGE_URL_TTL, body.fileId ? String(body.fileId) : undefined) });
       case "remove":
         return await removeSession(db, session);
+      case "absorb":
+        return await absorbSession(db, session, body);
       default:
         return fail("不支持的操作。");
     }

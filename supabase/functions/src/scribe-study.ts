@@ -3,10 +3,12 @@
 //   translate 为还没有译文的页面补齐逐段中文译文（旧文献与识别时翻译失败的页面都走这里）。
 // 数据访问只经由本函数（服务角色），数据库对客户端默认拒绝。
 import {database, json, libraryFor} from "../_shared/cloud.ts";
-import {defineWords, translateParagraphs} from "../_shared/ocr-core.ts";
+import {defineWords, explainExpressions, translateParagraphs} from "../_shared/ocr-core.ts";
 
 const MAX_WORDS = 24;
+const MAX_EXPLAIN = 12;
 const MAX_SENTENCE = 400;
+const MAX_TERM = 300;
 
 type Row = Record<string, any>;
 
@@ -27,7 +29,7 @@ async function defineAction(db: ReturnType<typeof database>, libraryId: string, 
   const keys = items.map((item: { word: string; sentence: string }) => cacheKey(item.word, item.sentence));
   const { data: cached, error: cacheError } = await db
     .from("scribe_word_cache")
-    .select("cache_key, phonetic, meaning")
+    .select("cache_key, phonetic, gloss, meaning")
     .in("cache_key", keys);
   if (cacheError) throw new Error(cacheError.message);
   const known = new Map<string, Row>(((cached || []) as Row[]).map((row) => [String(row.cache_key), row]));
@@ -39,16 +41,17 @@ async function defineAction(db: ReturnType<typeof database>, libraryId: string, 
       .map((entry, index) => ({
         cache_key: cacheKey(missing[index].word, missing[index].sentence),
         phonetic: entry.phonetic,
+        gloss: entry.gloss,
         meaning: entry.meaning,
         updated_at: new Date().toISOString(),
       }))
-      .filter((row) => row.meaning || row.phonetic);
+      .filter((row) => row.meaning || row.phonetic || row.gloss);
     if (rows.length) {
       const { error } = await db.from("scribe_word_cache").upsert(rows, { onConflict: "cache_key" });
       if (error) throw new Error(error.message);
     }
     fresh.forEach((entry, index) => {
-      if (!entry.phonetic && !entry.meaning) return;
+      if (!entry.phonetic && !entry.meaning && !entry.gloss) return;
       known.set(cacheKey(missing[index].word, missing[index].sentence), { ...entry });
     });
   }
@@ -56,9 +59,22 @@ async function defineAction(db: ReturnType<typeof database>, libraryId: string, 
   return json({
     words: items.map((item: { word: string }, index: number) => {
       const row = known.get(keys[index]);
-      return { word: item.word, phonetic: row?.phonetic || "", meaning: row?.meaning || "" };
+      return { word: item.word, phonetic: row?.phonetic || "", gloss: row?.gloss || "", meaning: row?.meaning || "" };
     }),
   });
+}
+
+async function explainAction(libraryId: string, body: Row) {
+  const raw = Array.isArray(body.items) ? body.items.slice(0, MAX_EXPLAIN) : [];
+  const items = raw
+    .map((item: Row) => ({
+      term: String(item?.term || "").replace(/\s+/g, " ").trim().slice(0, MAX_TERM),
+      sentence: String(item?.sentence || "").replace(/\s+/g, " ").trim().slice(0, MAX_SENTENCE),
+    }))
+    .filter((item: { term: string }) => /[A-Za-z]/.test(item.term));
+  if (!items.length) return json({ items: [] });
+  const explained = await explainExpressions(items, libraryId);
+  return json({ items: explained });
 }
 
 async function translateAction(db: ReturnType<typeof database>, libraryId: string, body: Row) {
@@ -100,6 +116,7 @@ Deno.serve(async (req) => {
     const library = await libraryFor(db, body.libraryKey);
     if (!library) return json({ error: "书库同步码无效，请核对后重新连接。" }, 401);
     if (body.action === "define") return await defineAction(db, String(library.id), body);
+    if (body.action === "explain") return await explainAction(String(library.id), body);
     if (body.action === "translate") return await translateAction(db, String(library.id), body);
     return json({ error: "不支持的操作。" }, 400);
   } catch (error) {

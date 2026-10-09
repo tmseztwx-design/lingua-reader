@@ -28,7 +28,7 @@
     var currentDocument = null;
     var serverDocument = null;
     var style = document.createElement('style');
-    style.textContent = '.computer-queue{display:grid;gap:8px;margin-top:14px}.computer-queue:empty{display:none}.computer-queue-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}.computer-queue-item[draggable="true"]{cursor:grab}.computer-queue-item.dragging{opacity:.45}.computer-queue-item.drop-target{border-color:#6d8bce;box-shadow:0 -2px 0 #6d8bce}.computer-queue-number{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.computer-queue-copy{min-width:0}.computer-queue-copy b,.computer-queue-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.computer-queue-copy small{color:var(--muted);font-size:12px}.computer-queue-actions{display:flex;gap:5px}.computer-queue-actions button{width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}.computer-queue-actions button:disabled{opacity:.35}.computer-queue-item.uploading{border-color:#aebee7;background:#f5f8ff}.computer-queue-item.uploaded{border-color:#b5dacd;background:#f3faf7}.computer-queue-item.error{border-color:#e5b7ae;background:#fff7f5}.computer-queue-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px;flex-wrap:wrap}.computer-queue-tools button{border:0;background:none;color:#8b5260;font:inherit;cursor:pointer}.computer-queue-sort{display:flex;align-items:center;gap:6px}.computer-queue-sort button{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:4px 9px;font-size:12px;cursor:pointer}.computer-queue-sort button:disabled{opacity:.35;cursor:not-allowed}.computer-queue-sort button:hover:not(:disabled){border-color:#9fb3ea;color:#3857a8}.import-wait{display:inline-flex;align-items:center;gap:8px}.import-wait:before{content:"";width:14px;height:14px;border:2px solid #9eadd4;border-top-color:#4f6fca;border-radius:50%;animation:import-spin .8s linear infinite}@keyframes import-spin{to{transform:rotate(360deg)}}.source-reading-text{width:min(100%,960px);align-self:stretch;justify-self:center;padding:clamp(22px,5vw,64px);background:#fff;color:#253047;border-radius:9px;font:clamp(19px,2vw,27px)/1.8 Georgia,"Noto Serif SC",serif;white-space:pre-wrap;overflow-wrap:anywhere}.source-reading-text .word{cursor:pointer;border-radius:3px}.source-reading-text .word:hover{background:#edf3ff}.source-reading-text .word.captured{background:#dce8ff;box-shadow:inset 0 -2px #5b79ce}.source-original-label{justify-self:start;margin:8px 0 0;color:var(--muted);font-size:12px}@media(max-width:680px){.computer-queue-item{grid-template-columns:27px minmax(0,1fr) auto;padding:9px}.computer-queue-actions{gap:2px}.computer-queue-actions button{width:27px;height:27px}}';
+    style.textContent = '.computer-queue{display:grid;gap:8px;margin-top:14px}.computer-queue:empty{display:none}.computer-queue-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}.computer-queue-item[draggable="true"]{cursor:grab}.computer-queue-item.dragging{opacity:.45}.computer-queue-item.drop-target{border-color:#6d8bce;box-shadow:0 -2px 0 #6d8bce}.computer-queue-number{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.computer-queue-copy{min-width:0}.computer-queue-copy b,.computer-queue-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.computer-queue-copy small{color:var(--muted);font-size:12px}.computer-queue-actions{display:flex;gap:5px}.computer-queue-actions button{width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}.computer-queue-actions button:disabled{opacity:.35}.computer-queue-item.uploading{border-color:#aebee7;background:#f5f8ff}.computer-queue-item.uploaded{border-color:#b5dacd;background:#f3faf7}.computer-queue-item.error{border-color:#e5b7ae;background:#fff7f5}.computer-queue-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px;flex-wrap:wrap}.append-banner{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding:10px 13px;border:1px solid #d8c9a5;border-radius:10px;background:#fdf7e8;color:#6d5725;font-size:13px}.append-banner button{border:0;background:none;color:#8a6a2c;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline}.computer-queue-tools button{border:0;background:none;color:#8b5260;font:inherit;cursor:pointer}.computer-queue-sort{display:flex;align-items:center;gap:6px}.computer-queue-sort button{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:4px 9px;font-size:12px;cursor:pointer}.computer-queue-sort button:disabled{opacity:.35;cursor:not-allowed}.computer-queue-sort button:hover:not(:disabled){border-color:#9fb3ea;color:#3857a8}.import-wait{display:inline-flex;align-items:center;gap:8px}.import-wait:before{content:"";width:14px;height:14px;border:2px solid #9eadd4;border-top-color:#4f6fca;border-radius:50%;animation:import-spin .8s linear infinite}@keyframes import-spin{to{transform:rotate(360deg)}}.source-reading-text{width:min(100%,960px);align-self:stretch;justify-self:center;padding:clamp(22px,5vw,64px);background:#fff;color:#253047;border-radius:9px;font:clamp(19px,2vw,27px)/1.8 Georgia,"Noto Serif SC",serif;white-space:pre-wrap;overflow-wrap:anywhere}.source-reading-text .word{cursor:pointer;border-radius:3px}.source-reading-text .word:hover{background:#edf3ff}.source-reading-text .word.captured{background:#dce8ff;box-shadow:inset 0 -2px #5b79ce}.source-original-label{justify-self:start;margin:8px 0 0;color:var(--muted);font-size:12px}@media(max-width:680px){.computer-queue-item{grid-template-columns:27px minmax(0,1fr) auto;padding:9px}.computer-queue-actions{gap:2px}.computer-queue-actions button{width:27px;height:27px}}';
     document.head.appendChild(style);
 
     input.multiple = true;
@@ -52,6 +52,24 @@
     list.insertAdjacentElement('afterend', tools);
     var hintText = tools.querySelector('#computerQueueHint');
     var clearButton = tools.querySelector('#clearComputerQueue');
+    // 续传模式：从精读页「＋ 添加页面」进入，本批识别完成后并入该文献末尾，不再生成新书。
+    var appendInfo = null;
+    try { appendInfo = JSON.parse(sessionStorage.getItem('scribe-append-into') || 'null'); } catch (error) {}
+    if (appendInfo && appendInfo.title) {
+      var appendBanner = document.createElement('div');
+      appendBanner.className = 'append-banner';
+      var bannerText = document.createElement('span');
+      bannerText.textContent = '续传模式：本次上传的页面将追加到《' + appendInfo.title + '》末尾。';
+      var bannerCancel = document.createElement('button');
+      bannerCancel.type = 'button';
+      bannerCancel.textContent = '取消续传';
+      bannerCancel.addEventListener('click', function () {
+        sessionStorage.removeItem('scribe-append-into');
+        appendBanner.remove();
+      });
+      appendBanner.append(bannerText, bannerCancel);
+      row.insertAdjacentElement('beforebegin', appendBanner);
+    }
     var sortNameButton = tools.querySelector('#sortQueueByName');
     var sortTimeButton = tools.querySelector('#sortQueueByTime');
     var addSequence = 0;
@@ -360,6 +378,14 @@
           var done=status.files.filter(function(file){return file.ocrStatus==='complete'||file.ocrStatus==='error';}).length;
           hintText.innerHTML='<span class="import-wait">云端后台识别 · '+done+' / '+status.files.length+'；关闭页面也会继续</span>';
         });
+        var appendInto=null;try{appendInto=JSON.parse(sessionStorage.getItem('scribe-append-into')||'null');}catch(error){}
+        if(appendInto&&appendInto.sessionId){
+          hintText.innerHTML='<span class="import-wait">识别完成，正在并入《'+appendInto.title+'》…</span>';
+          await cloud.callFunction('scribe-mobile-upload',{action:'absorb',token:cloudSession.token,into:appendInto.sessionId,libraryKey:localStorage.getItem('scribe-library-key')});
+          sessionStorage.removeItem('scribe-append-into');
+          await cloud.library.sync();
+          sessionStorage.setItem('scribe-open-import-reader','1');location.reload();return;
+        }
         button.dataset.completed='true';button.textContent='处理完成，打开精读 →';
         var state=JSON.parse(localStorage.getItem('scribe-local-v1')||'{}');state.activeDocId='cloud-'+cloudSession.sessionId;
         localStorage.setItem('scribe-local-v1',JSON.stringify(state));await cloud.library.sync();

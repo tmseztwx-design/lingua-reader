@@ -71,8 +71,8 @@ const __shared = (() => {
   const PROMPT = [
     "你是专业文献的页面转录引擎。请把内容中的文字逐字转录为纯文本，规则：",
     "1. 只输出原文，不要翻译、不要总结、不要解释、不要添加任何说明或标题。",
-    "2. 保留原有标点、大小写与拼写，包括原文中的错误；段落之间用一个空行分隔。",
-    "3. 不要输出 <br> 或任何 HTML 标签、Markdown 标记，只输出纯文本。",
+    "2. 严格遵循原文的段落分布：章标题、小节标题、列表项、引文块各自单独成段；正文段落之间用一个空行分隔；不要把不同的段落合并成一段。",
+    "3. 同一段落内仅因页面宽度被折断的句子，合并为连续文本；不要输出 <br> 或任何 HTML 标签、Markdown 标记，只输出纯文本。",
     "4. 页眉、页脚、页码、脚注按出现顺序照常转录，可在行首用 [页眉]/[页脚]/[脚注] 标注。",
     "5. 无法辨认的字用 ␗ 代替，不要猜测或补全。",
     "6. 如果内容中确实没有文字，只输出：NO_TEXT",
@@ -82,7 +82,7 @@ const __shared = (() => {
     "你是文献转录的审校员。给你同一份页面内容和一份初步转录稿。请对照原图逐行审查并输出最终文本：",
     "1. 补全遗漏的文字、行与段落；修正认错、漏掉或明显不通顺、缺词漏词的地方，一律以原图为准。",
     "2. 不要臆造页面上没有的内容；仍无法辨认的字保留 ␗。",
-    "3. 把被硬换行拆开的句子合并成通顺的连续文本，段落之间用一个空行分隔。",
+    "3. 按原文的段落分布输出：标题、列表项、引文各自单独成段，段落之间用一个空行分隔；同一段落内被硬换行拆开的句子合并成通顺的连续文本；不要把不同段落堆在一起。",
     "4. 不要输出 <br> 或任何 HTML 标签、Markdown 标记；不要翻译、总结或评论。",
     "5. 只输出审校后的原文。初步转录稿如下：",
   ].join(NL);
@@ -334,9 +334,10 @@ const __shared = (() => {
   const DEFINE_PROMPT = [
     "你是英语学习词典的编辑。请根据每个单词下面给出的所在句子，判断它在该语境中的含义，规则：",
     "1. phonetic 用国际音标 IPA 并用斜杠包裹，例如 /ˈeɪdʒənsi/，以英式读音为准。",
-    "2. meaning 只解释该词在本句中的含义，必要时说明词性与常见搭配，20-40 个汉字。",
-    "3. 若该词在句中是专有名词、缩写或非常用写法，含义直接说明它在句中的所指。",
-    "4. 只输出一个 JSON 数组，元素顺序与输入完全一致，每项形如 {\"word\":\"...\",\"phonetic\":\"...\",\"meaning\":\"...\"}；不要输出 Markdown 代码块或其它文字。",
+    "2. gloss 给出该词在此语境下的最简释义，2~6 个汉字，例如「文化」「调节思维」，不要带词性标记。",
+    "3. meaning 只解释该词在本句中的含义，必要时说明词性与常见搭配，20-40 个汉字。",
+    "4. 若该词在句中是专有名词、缩写或非常用写法，含义直接说明它在句中的所指。",
+    "5. 只输出一个 JSON 数组，元素顺序与输入完全一致，每项形如 {\"word\":\"...\",\"phonetic\":\"...\",\"gloss\":\"...\",\"meaning\":\"...\"}；不要输出 Markdown 代码块或其它文字。",
   ].join(NL);
 
   const DEFINE_MODEL = "openai/gpt-6-luna";
@@ -372,8 +373,37 @@ const __shared = (() => {
       return {
         word: item.word,
         phonetic: typeof found.phonetic === "string" ? found.phonetic.trim() : "",
+        gloss: typeof found.gloss === "string" ? found.gloss.trim() : "",
         meaning: typeof found.meaning === "string" ? found.meaning.trim() : "",
       };
+    });
+  }
+
+  // 短语与句子的随读解释：短语给简洁释义，句子给通顺全译；调用方把结果存进卡片，不走词典缓存。
+  const EXPLAIN_PROMPT = [
+    "你是英语精读辅导员。下面给出若干条短语或句子及其出处语境，请逐条给出中文解释，规则：",
+    "1. translation：短语给出简洁释义（2~12 个汉字）；句子给出通顺的完整译文。",
+    "2. 释义以语境为准，不要逐词直译；不要输出原文、不要评论。",
+    "3. 只输出一个 JSON 数组，元素顺序与输入完全一致，每项形如 {\"translation\":\"...\"}；不要输出 Markdown 代码块或其它文字。",
+  ].join(NL);
+
+  async function explainExpressions(items: { term: string; sentence: string }[], sessionId: string) {
+    if (!items.length) return [];
+    const numbered = items
+      .map((item, index) => `${index + 1}. 内容：${item.term}${NL}   出处语境：${item.sentence || "（未提供上下文）"}`)
+      .join(NL + NL);
+    const answer = await runAi({
+      model: DEFINE_MODEL,
+      sessionId,
+      parts: [],
+      prompt: EXPLAIN_PROMPT + NL + NL + numbered,
+      maxOutputTokens: 4096,
+    });
+    const parsed = parseObjectArray(answer);
+    if (!parsed) throw new Error("未能生成解释，请稍后重试。");
+    return items.map((item, index) => {
+      const found = (parsed[index] || {}) as Row;
+      return { term: item.term, translation: typeof found.translation === "string" ? found.translation.trim() : "" };
     });
   }
 
@@ -398,7 +428,7 @@ const __shared = (() => {
     const { data: signed } = await db.storage.from(BUCKET).createSignedUrl(storagePath, SIGNED_IMAGE_TTL);
     return await transcribeImage({ bytes, mime, signedUrl: signed?.signedUrl, model, sessionId });
   }
-  return { json, database, randomKey, libraryFor, hashKey, wakeQueue, BUCKET, cors, splitParagraphs, translateParagraphs, parseObjectArray, defineWords, transcribe };
+  return { json, database, randomKey, libraryFor, hashKey, wakeQueue, BUCKET, cors, splitParagraphs, translateParagraphs, parseObjectArray, defineWords, explainExpressions, transcribe };
 })();
 const { database, json, wakeQueue, BUCKET, transcribe, translateParagraphs } = __shared;
 
