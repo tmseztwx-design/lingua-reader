@@ -13,8 +13,11 @@
   - `scribe_cloud_files` 增加 `paragraphs jsonb`（原表与原数据保留，仅加列）
   - `scribe_finish_page` 换成带 `p_paragraphs` 的五个参数版本，第五个参数带默认值，旧的四参数调用仍然可用（灰度期不会中断在跑的 worker）
   - 新增 `scribe_word_cache`（开启 RLS，`revoke` 给 anon/authenticated，只授权 service_role）：同词同句的音标与语境释义只计费一次
+- **迁移已执行**：`supabase/migrations/20261009120000_word_cache_gloss.sql`
+  - `scribe_word_cache` 增加 `gloss`（卡片主行的概括性简释，完整语境释义仍在 `meaning`；仅加列）
 - **五个后端函数已部署**：`scribe-mobile-upload`、`scribe-ocr`、`scribe-library`、`scribe-queue`、`scribe-study`
   - JWT 校验按 `supabase/config.toml` 关闭；`scribe-queue` 另外要求私有 `x-scribe-worker-key`（来自 `scribe_runtime_settings`，仅服务端可读）；`scribe-study` 用书库同步码鉴权，只服务本书库的页面
+  - `scribe-mobile-upload` 的 `reorder`（调序）与 `absorb`（续传并入）同样按书库同步码鉴权：只认本书库、未删除的批次，且调序会校验页集完整
 - **私有桶 `scribe-pages` 保留**，未改动
 
 ## 二、平台约束（务必先读）
@@ -34,7 +37,7 @@
 ## 三、复现步骤（换 Cloud 或重建时）
 
 1. 通过平台连接 Cloud，并确认 `pg_cron`、`pg_net` 可用。
-2. 按文件名顺序执行 `supabase/migrations/20261003090000_cloud_library_queue.sql` 与 `supabase/migrations/migration_20261009_030634000`。
+2. 按文件名顺序执行 `supabase/migrations/20261003090000_cloud_library_queue.sql`、`supabase/migrations/migration_20261009_030634000` 与 `supabase/migrations/20261009120000_word_cache_gloss.sql`。
 3. 运行 `pnpm bundle:functions`，逐个部署五个函数的 `index.ts`。
 4. 检查 `cron.job` 中 `scribe-background-ocr` 为 active，且 `cron.job_run_details` 有成功记录。
 5. 运行 `pnpm test` 与 `pnpm build`。
@@ -43,10 +46,12 @@
 ## 四、验收证据（本次实测）
 
 - `node test/cloud-live.mjs` → PASS：私密上传、页序（倒序完成仍按确认顺序）、**无浏览器参与的后台自动识别**、跨设备同步、worker 鉴权
-- `pnpm test` → 12 项通过（含逐段译文渲染、折叠标志、点词音标与释义、词库缓存与 RLS 隔离）
+- `pnpm test` → 13 项通过（含逐段译文渲染、折叠标志、点词音标与释义、词库缓存与 RLS 隔离、阅读页调序与失败回退）
 - 界面实测（jsdom 驱动真实页面 + 真实云函数）：生成云端二维码不再出现 `Function not found`，状态显示「云端通道已就绪」，随后后台队列自动完成识别
 - 函数探针：`scribe-mobile-upload` 410、`scribe-ocr` 410、`scribe-library` 401、`scribe-queue` 403、`scribe-study` 401（均为业务级应答，说明函数已正常启动）
-- 识别阶段实测：合成 TXT 页面在后台完成后带回首段结构 `paragraphs:[{text,translation}]`，译文为中文；`scribe-study` 的 `define` 返回 IPA 音标与语境释义，重复查询命中缓存
+- 识别阶段实测：合成 TXT 页面在后台完成后带回首段结构 `paragraphs:[{text,translation}]`，译文为中文；`define` 返回 IPA 音标、概括性简释 `gloss` 与语境释义，重复查询命中缓存
+- 调序与释义实测：三页合成文献调序后书库同步按新顺序返回，缺页的不完整顺序被 409 拒绝；`explain` 为划选短语返回中文释义
+- 续传与清理实测：合成小批次 `absorb` 并入目标文献后页序接在末尾（3 页），原批次不再是独立文献；随后 `remove` 永久删除目标文献，`removedFiles=3`，被并入页面的签名地址立即失效，确认并入的原件也一并清除
 
 ## 五、仍需用户执行
 

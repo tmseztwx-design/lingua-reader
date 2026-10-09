@@ -3555,18 +3555,21 @@ export type Database = {
       scribe_word_cache: {
         Row: {
           cache_key: string
+          gloss: string
           meaning: string
           phonetic: string
           updated_at: string
         }
         Insert: {
           cache_key: string
+          gloss?: string
           meaning?: string
           phonetic?: string
           updated_at?: string
         }
         Update: {
           cache_key?: string
+          gloss?: string
           meaning?: string
           phonetic?: string
           updated_at?: string

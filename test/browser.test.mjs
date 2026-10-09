@@ -158,6 +158,45 @@ test('clicking an imported word collects a card with phonetic and contextual mea
   dom.window.close();
 });
 
+test('reordering reader pages writes the new order to the cloud and rolls back when it fails',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const alerts=[];w.alert=message=>alerts.push(String(message));
+  const calls=[];
+  w.__scribeCloud={callFunction:async(name,body)=>{calls.push([name,JSON.parse(JSON.stringify(body))]);return {ok:true,pages:3};},library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const fileIds=['aaaaaaaa-1111-2222-3333-444444444444','bbbbbbbb-1111-2222-3333-444444444444','cccccccc-1111-2222-3333-444444444444'];
+  const page=(index,id)=>({id:'cloud-'+id,order:index+1,name:'page-'+(index+1)+'.png',type:'image/png',url:'https://example.test/'+index+'.png',text:'Paragraph '+(index+1)+'.',paragraphs:[{text:'Paragraph '+(index+1)+'.',translation:'第 '+(index+1)+' 段。'}],sourceFileId:id,pageIndex:index,cloud:true});
+  const state={docs:[{id:'cloud-reorder',title:'Reorder me',cloudSessionId:'99999999-8888-7777-6666-555555555555',status:'reading',color:'new',pages:3,progress:0,lastPage:0,sourcePages:[page(0,fileIds[0]),page(1,fileIds[1]),page(2,fileIds[2])]}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-reorder',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','c'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();
+  const localOrder=()=>JSON.parse(w.localStorage.getItem('scribe-local-v1')).docs[0].sourcePages.slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(item=>item.sourceFileId);
+  assert.deepEqual(localOrder(),fileIds,'pages start in upload order');
+  const move=()=>{const buttons=[...w.document.querySelectorAll('#paper [data-move-page]')];return buttons.find(button=>button.dataset.movePage==='0'&&button.dataset.delta==='1');};
+  w.document.querySelector('#paper [data-source-reorder]').click();
+  assert.ok(move(),'reorder mode exposes per-page move controls');
+  move().click();
+  await tick();await tick();
+  const reorder=calls.find(([name,body])=>name==='scribe-mobile-upload'&&body.action==='reorder');
+  assert.ok(reorder,'the new order must be sent to the cloud');
+  assert.equal(reorder[1].sessionId,'99999999-8888-7777-6666-555555555555');
+  assert.deepEqual(reorder[1].order,[fileIds[1],fileIds[0],fileIds[2]]);
+  assert.deepEqual(localOrder(),[fileIds[1],fileIds[0],fileIds[2]],'local order applies immediately');
+  // 服务端仍是旧版本时：必须回退本地顺序，并且提示里不出现内部函数名。
+  w.__scribeCloud.callFunction=async()=>{throw new Error('不支持的操作。');};
+  const moveBack=()=>[...w.document.querySelectorAll('#paper [data-move-page]')].find(button=>button.dataset.movePage==='1'&&button.dataset.delta==='-1');
+  assert.ok(moveBack(),'reorder mode stays available after a successful move');
+  moveBack().click();
+  await tick();await tick();
+  assert.deepEqual(localOrder(),[fileIds[1],fileIds[0],fileIds[2]],'a rejected reorder rolls the local order back');
+  assert.equal(alerts.length,1,'the user is told the change was not saved');
+  assert.doesNotMatch(alerts[0],/scribe-mobile-upload|scribe-study|Edge Function/,'内部函数名不应出现在用户提示里');
+  dom.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};

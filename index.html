@@ -691,7 +691,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
           if(target){target.sourcePages=previous;write(fresh);}
           savingOrder=false;
           var message=String(error&&error.message||'');
-          if(/不支持的操作|已失效|通道/.test(message))message='云端函数还没更新到支持调序的版本（需要在 Enter 平台重新部署 scribe-mobile-upload），本次调整未保存。';
+          if(/不支持的操作|已失效|通道/.test(message)){console.warn('[scribe] 调序接口返回：'+message);message='云端服务暂时不可用，请刷新页面后重试。';}
           window.alert('页面顺序未能保存到云端：'+message);
           renderSourceReader(doc.id);return;
         }

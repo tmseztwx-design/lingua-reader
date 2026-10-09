@@ -353,13 +353,22 @@ async function removeSession(db: ReturnType<typeof database>, session: Row) {
     const {data:entry}=await db.from('scribe_library_entries').select('revision').eq('library_id',session.library_id).eq('kind','doc').eq('entry_id','cloud-'+session.id).maybeSingle();
     if(entry)await db.rpc('scribe_write_entry',{p_library:session.library_id,p_kind:'doc',p_id:'cloud-'+session.id,p_value:null,p_deleted:true,p_revision:entry.revision});
   }
+  // 续传并入的页面仍保存在原批次的目录下，所以按文件行记录的 storage_path 删除，
+  // 再用目录列举兜底，保证「永久删除」真的清掉原件。
+  const paths = new Set<string>();
+  const { data: rows } = await db.from("scribe_cloud_files").select("storage_path").eq("session_id", session.id);
+  for (const row of (rows || []) as Row[]) {
+    const value = String(row.storage_path || "");
+    if (value) paths.add(value);
+  }
   const { data: listed } = await db.storage.from(BUCKET).list(String(session.id), { limit: 1000 });
-  const paths = (listed || []).map((item) => `${session.id}/${item.name}`);
-  if (paths.length){const {error}=await db.storage.from(BUCKET).remove(paths);if(error)throw new Error(error.message);}
+  for (const item of listed || []) paths.add(`${session.id}/${item.name}`);
+  const targets = [...paths];
+  if (targets.length){const {error}=await db.storage.from(BUCKET).remove(targets);if(error)throw new Error(error.message);}
   const { error } = await db.from("scribe_cloud_sessions").delete().eq("id", session.id);
   if (error) throw new Error(error.message);
-  console.log("[scribe-mobile-upload] remove", session.id, paths.length);
-  return json({ ok: true, removedFiles: paths.length });
+  console.log("[scribe-mobile-upload] remove", session.id, targets.length);
+  return json({ ok: true, removedFiles: targets.length });
 }
 
 // 续传：把已完成识别的新批次并入已有文献（目标会话），页码接在原有页面之后。
