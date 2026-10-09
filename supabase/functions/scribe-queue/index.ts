@@ -48,6 +48,8 @@ const __shared = (() => {
     else await work;
   }
   // 云端逐页识别：每次只处理一个文件，避免函数超时；由前端按顺序调用，失败可单页重试。
+  // 工作机制为两段式：先用视觉模型逐字转录页面（初稿），再把原图连同初稿交给模型审校——
+  // 对照原图补全遗漏、修正缺词漏词与不通顺之处、合并硬换行并输出干净排版；审校失败时回退初稿。
   // 图片与 PDF 交给 GPT 视觉模型直接读取；docx 用内置解压提取文本。结果写回数据库，任何设备都能读取。
 
   const corsHeaders = {
@@ -69,10 +71,20 @@ const __shared = (() => {
   const PROMPT = [
     "你是专业文献的页面转录引擎。请把内容中的文字逐字转录为纯文本，规则：",
     "1. 只输出原文，不要翻译、不要总结、不要解释、不要添加任何说明或标题。",
-    "2. 保留段落结构与换行；保留原有标点、大小写与拼写，包括原文中的错误。",
-    "3. 页眉、页脚、页码、脚注按出现顺序照常转录，可在行首用 [页眉]/[页脚]/[脚注] 标注。",
-    "4. 无法辨认的字用 ␗ 代替，不要猜测或补全。",
-    "5. 如果内容中确实没有文字，只输出：NO_TEXT",
+    "2. 保留原有标点、大小写与拼写，包括原文中的错误；段落之间用一个空行分隔。",
+    "3. 不要输出 <br> 或任何 HTML 标签、Markdown 标记，只输出纯文本。",
+    "4. 页眉、页脚、页码、脚注按出现顺序照常转录，可在行首用 [页眉]/[页脚]/[脚注] 标注。",
+    "5. 无法辨认的字用 ␗ 代替，不要猜测或补全。",
+    "6. 如果内容中确实没有文字，只输出：NO_TEXT",
+  ].join(NL);
+
+  const REVIEW_PROMPT = [
+    "你是文献转录的审校员。给你同一份页面内容和一份初步转录稿。请对照原图逐行审查并输出最终文本：",
+    "1. 补全遗漏的文字、行与段落；修正认错、漏掉或明显不通顺、缺词漏词的地方，一律以原图为准。",
+    "2. 不要臆造页面上没有的内容；仍无法辨认的字保留 ␗。",
+    "3. 把被硬换行拆开的句子合并成通顺的连续文本，段落之间用一个空行分隔。",
+    "4. 不要输出 <br> 或任何 HTML 标签、Markdown 标记；不要翻译、总结或评论。",
+    "5. 只输出审校后的原文。初步转录稿如下：",
   ].join(NL);
 
   type Row = Record<string, unknown>;
@@ -114,7 +126,7 @@ const __shared = (() => {
   }
 
   // 走 openai_responses 协议；parts 里放 input_image 或 input_file。
-  async function runAi(input: { parts: Row[]; model: string; sessionId: string }) {
+  async function runAi(input: { parts: Row[]; model: string; sessionId: string; prompt?: string }) {
     const apiToken = Deno.env.get(AI_TOKEN_SECRET);
     if (!apiToken) throw new Error("AI 服务未配置，请联系管理员。");
 
@@ -130,7 +142,7 @@ const __shared = (() => {
       body: JSON.stringify({
         model: input.model,
         stream: false,
-        input: [{ role: "user", content: [{ type: "input_text", text: PROMPT }, ...input.parts] }],
+        input: [{ role: "user", content: [{ type: "input_text", text: input.prompt || PROMPT }, ...input.parts] }],
       }),
     });
 
@@ -144,15 +156,33 @@ const __shared = (() => {
     return parseResponsesText(payload);
   }
 
+  // 两段式识别：先转录初稿，再对照原图审校（查漏、补缺、排版）。审校失败不阻塞，回退初稿。
+  async function transcribeWithReview(input: { parts: Row[]; model: string; sessionId: string }) {
+    const draft = await runAi({ model: input.model, sessionId: input.sessionId, parts: input.parts });
+    if (!draft || draft === "NO_TEXT") return draft;
+    try {
+      const reviewed = await runAi({
+        model: input.model,
+        sessionId: input.sessionId,
+        parts: input.parts,
+        prompt: REVIEW_PROMPT + NL + NL + draft,
+      });
+      return reviewed || draft;
+    } catch (error: unknown) {
+      console.warn("[scribe-ocr] review pass failed, using draft:", error instanceof Error ? error.message : error);
+      return draft;
+    }
+  }
+
   async function transcribeImage(input: { bytes: Uint8Array; mime: string; signedUrl?: string; model: string; sessionId: string }) {
-    const inline = () => runAi({
+    const inline = () => transcribeWithReview({
       model: input.model,
       sessionId: input.sessionId,
       parts: [{ type: "input_image", image_url: `data:${input.mime};base64,${toBase64(input.bytes)}` }],
     });
 
     if (!input.signedUrl) return await inline();
-    return await runAi({
+    return await transcribeWithReview({
       model: input.model,
       sessionId: input.sessionId,
       parts: [{ type: "input_image", image_url: input.signedUrl }],
@@ -166,7 +196,7 @@ const __shared = (() => {
     if (input.bytes.length > MAX_INLINE_BYTES) {
       throw new Error("PDF 超过云端单次读取上限（8 MB），请拆分页数，或用手机拍照上传页面。");
     }
-    return await runAi({
+    return await transcribeWithReview({
       model: input.model,
       sessionId: input.sessionId,
       parts: [{
