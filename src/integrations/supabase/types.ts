@@ -3374,6 +3374,7 @@ export type Database = {
           ocr_status: string
           ocr_text: string | null
           page_count: number | null
+          paragraphs: Json | null
           queue_order: number
           retry_at: string | null
           session_id: string
@@ -3394,6 +3395,7 @@ export type Database = {
           ocr_status?: string
           ocr_text?: string | null
           page_count?: number | null
+          paragraphs?: Json | null
           queue_order?: number
           retry_at?: string | null
           session_id: string
@@ -3414,6 +3416,7 @@ export type Database = {
           ocr_status?: string
           ocr_text?: string | null
           page_count?: number | null
+          paragraphs?: Json | null
           queue_order?: number
           retry_at?: string | null
           session_id?: string
@@ -3549,6 +3552,27 @@ export type Database = {
         }
         Relationships: []
       }
+      scribe_word_cache: {
+        Row: {
+          cache_key: string
+          meaning: string
+          phonetic: string
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          meaning?: string
+          phonetic?: string
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          meaning?: string
+          phonetic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -3575,7 +3599,13 @@ export type Database = {
         }[]
       }
       scribe_finish_page: {
-        Args: { p_error: string; p_id: string; p_lease: string; p_text: string }
+        Args: {
+          p_error: string
+          p_id: string
+          p_lease: string
+          p_paragraphs?: Json
+          p_text: string
+        }
         Returns: boolean
       }
       scribe_write_entry: {

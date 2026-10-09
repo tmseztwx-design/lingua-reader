@@ -78,9 +78,16 @@ function parseResponsesText(payload: Row | null) {
 }
 
 // 走 openai_responses 协议；parts 里放 input_image 或 input_file。
-async function runAi(input: { parts: Row[]; model: string; sessionId: string; prompt?: string }) {
+async function runAi(input: { parts: Row[]; model: string; sessionId: string; prompt?: string; maxOutputTokens?: number }) {
   const apiToken = Deno.env.get(AI_TOKEN_SECRET);
   if (!apiToken) throw new Error("AI 服务未配置，请联系管理员。");
+
+  const body: Row = {
+    model: input.model,
+    stream: false,
+    input: [{ role: "user", content: [{ type: "input_text", text: input.prompt || PROMPT }, ...input.parts] }],
+  };
+  if (input.maxOutputTokens) body.max_output_tokens = input.maxOutputTokens;
 
   const response = await fetch(`${AI_BASE_URL}/code/api/v1/ai/responses`, {
     method: "POST",
@@ -91,11 +98,7 @@ async function runAi(input: { parts: Row[]; model: string; sessionId: string; pr
       "X-Session-ID": input.sessionId,
       "X-Enter-Project-ID": PROJECT_ID,
     },
-    body: JSON.stringify({
-      model: input.model,
-      stream: false,
-      input: [{ role: "user", content: [{ type: "input_text", text: input.prompt || PROMPT }, ...input.parts] }],
-    }),
+    body: JSON.stringify(body),
   });
 
   const raw = await response.text();
@@ -217,6 +220,113 @@ async function extractDocxText(bytes: Uint8Array) {
     cursor += 46 + nameLength + extraLength + commentLength;
   }
   throw new Error("Word 文档里没有找到正文。");
+}
+
+// 逐段译文：与识别共用同一条模型通道。整页一次性翻译，段落数量与原文严格对齐，
+// 前端因此可以给每一段配一个折叠标志。翻译失败不阻塞识别，交由客户端按页补齐。
+const TRANSLATE_PROMPT = [
+  "你是精通学术英语与中文的专业译者。请把下面编号的英文段落逐段翻译成中文，规则：",
+  "1. 逐段对齐：第 N 个译文对应第 N 段原文，译文数组长度必须与输入段落数量完全一致，不合并、不拆分、不增删。",
+  "2. 译文要准确、通顺，符合中文学术阅读习惯；术语按学科惯例翻译，首次出现可在括号内保留英文原词。",
+  "3. 不要输出原文、不要解释、不要评论、不要加译者注，译文内部不要保留原文的硬换行。",
+  "4. 只输出一个 JSON 字符串数组，例如 [\"第一段译文\",\"第二段译文\"]，不要输出 Markdown 代码块、序号或任何其它文字。",
+  "5. 某段若无实质内容，对应位置输出空字符串。",
+].join(NL);
+
+const TRANSLATE_MODEL = "openai/gpt-5.5";
+const TRANSLATE_MAX_PARAGRAPHS = 80;
+
+export function splitParagraphs(text: string) {
+  return String(text || "")
+    .replace(/<br\s*\/?>/gi, NL)
+    .replace(/\r\n?/g, NL)
+    .split(/\n[ \t]*\n+/)
+    .map((paragraph) => paragraph.replace(/[ \t]*\n[ \t]*/g, " ").replace(/[ \t]{2,}/g, " ").trim())
+    .filter(Boolean);
+}
+
+function parseStringArray(value: string) {
+  const start = value.indexOf("[");
+  const end = value.lastIndexOf("]");
+  if (start < 0 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(value.slice(start, end + 1));
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function translateParagraphs(text: string, sessionId: string) {
+  const paragraphs = splitParagraphs(text).slice(0, TRANSLATE_MAX_PARAGRAPHS);
+  if (!paragraphs.length) return [];
+  const numbered = paragraphs.map((paragraph, index) => `${index + 1}. ${paragraph}`).join(NL + NL);
+  try {
+    const answer = await runAi({
+      model: TRANSLATE_MODEL,
+      sessionId,
+      parts: [],
+      prompt: TRANSLATE_PROMPT + NL + NL + numbered,
+      maxOutputTokens: 8192,
+    });
+    const lines = parseStringArray(answer);
+    if (!lines) throw new Error("译文不是可解析的数组");
+    if (lines.length !== paragraphs.length) console.warn("[scribe-ocr] translation paragraph count mismatch", lines.length, paragraphs.length);
+    return paragraphs.map((paragraph, index) => ({
+      text: paragraph,
+      translation: typeof lines[index] === "string" ? lines[index].trim() : "",
+    }));
+  } catch (error: unknown) {
+    console.warn("[scribe-ocr] translation failed:", error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+// 点词卡片词典：按句子语境给出音标与释义，调用方负责缓存，避免同一词反复消耗额度。
+const DEFINE_PROMPT = [
+  "你是英语学习词典的编辑。请根据每个单词下面给出的所在句子，判断它在该语境中的含义，规则：",
+  "1. phonetic 用国际音标 IPA 并用斜杠包裹，例如 /ˈeɪdʒənsi/，以英式读音为准。",
+  "2. meaning 只解释该词在本句中的含义，必要时说明词性与常见搭配，20-40 个汉字。",
+  "3. 若该词在句中是专有名词、缩写或非常用写法，含义直接说明它在句中的所指。",
+  "4. 只输出一个 JSON 数组，元素顺序与输入完全一致，每项形如 {\"word\":\"...\",\"phonetic\":\"...\",\"meaning\":\"...\"}；不要输出 Markdown 代码块或其它文字。",
+].join(NL);
+
+const DEFINE_MODEL = "openai/gpt-6-luna";
+
+export function parseObjectArray(value: string) {
+  const start = value.indexOf("[");
+  const end = value.lastIndexOf("]");
+  if (start < 0 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(value.slice(start, end + 1));
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function defineWords(items: { word: string; sentence: string }[], sessionId: string) {
+  if (!items.length) return [];
+  const numbered = items
+    .map((item, index) => `${index + 1}. 单词：${item.word}${NL}   所在句子：${item.sentence || "（未提供上下文）"}`)
+    .join(NL + NL);
+  const answer = await runAi({
+    model: DEFINE_MODEL,
+    sessionId,
+    parts: [],
+    prompt: DEFINE_PROMPT + NL + NL + numbered,
+    maxOutputTokens: 4096,
+  });
+  const parsed = parseObjectArray(answer);
+  if (!parsed) throw new Error("未能取得音标与释义，请稍后重试。");
+  return items.map((item, index) => {
+    const found = (parsed[index] || {}) as Row;
+    return {
+      word: item.word,
+      phonetic: typeof found.phonetic === "string" ? found.phonetic.trim() : "",
+      meaning: typeof found.meaning === "string" ? found.meaning.trim() : "",
+    };
+  });
 }
 
 export async function transcribe(file: Row, storagePath: string, db: ReturnType<typeof database>, sessionId: string, model: string) {

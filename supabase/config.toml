@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.scribe-library]
 verify_jwt = false
+
+[functions.scribe-study]
+verify_jwt = false

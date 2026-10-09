@@ -1,0 +1,38 @@
+-- 逐段译文：识别阶段为每一页生成段落级中文译文，前端据此渲染「每段一个折叠标志」。
+alter table public.scribe_cloud_files add column paragraphs jsonb;
+
+-- Worker 一次写入原文与逐段译文。旧签名保留 p_paragraphs 默认值，灰度期间新旧函数版本都能调用成功。
+drop function if exists public.scribe_finish_page(uuid,uuid,text,text);
+create or replace function public.scribe_finish_page(p_id uuid,p_lease uuid,p_text text,p_error text,p_paragraphs jsonb default null)
+returns boolean language plpgsql security definer set search_path=public as $$
+declare row public.scribe_cloud_files; pending boolean; failed boolean;
+begin
+  update scribe_cloud_files set
+    ocr_status=case when p_error is null then 'complete' when attempts<3 then 'retry' else 'error' end,
+    ocr_text=case when p_error is null then p_text else ocr_text end,
+    paragraphs=case when p_error is null and jsonb_typeof(p_paragraphs)='array' and jsonb_array_length(p_paragraphs)>0 then p_paragraphs else paragraphs end,
+    ocr_error=p_error,
+    page_count=case when p_error is null then 1 else 0 end,
+    retry_at=case when p_error is not null then now()+interval '30 seconds'*attempts else null end,
+    lease_until=null,lease_id=null,ocr_completed_at=now()
+    where id=p_id and lease_id=p_lease returning * into row;
+  if not found then return false; end if;
+  select bool_or(ocr_status in ('pending','retry','processing')),bool_or(ocr_status='error')
+    into pending,failed from scribe_cloud_files where session_id=row.session_id and uploaded_at is not null;
+  update scribe_cloud_sessions set ocr_status=case when pending then 'processing' when failed then 'partial' else 'complete' end,
+    ocr_completed_at=case when pending then null else now() end where id=row.session_id;
+  return true;
+end $$;
+revoke all on function public.scribe_finish_page(uuid,uuid,text,text,jsonb) from public,anon,authenticated;
+grant execute on function public.scribe_finish_page(uuid,uuid,text,text,jsonb) to service_role;
+
+-- 点词卡片词典：同一个词在同一句语境中的音标与释义只消耗一次额度，并在多设备间复用。
+create table public.scribe_word_cache (
+  cache_key text primary key,
+  phonetic text not null default '',
+  meaning text not null default '',
+  updated_at timestamptz not null default now()
+);
+alter table public.scribe_word_cache enable row level security;
+revoke all on public.scribe_word_cache from anon,authenticated;
+grant all on public.scribe_word_cache to service_role;

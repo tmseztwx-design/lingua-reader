@@ -76,7 +76,7 @@ async function sessionDocuments(db: ReturnType<typeof database>,libraryId: strin
       processingState:session.ocr_status==="complete"?"ready":session.ocr_status==="partial"?"partial":"processing",
       processingError:session.ocr_status==="partial"?"部分页未能识别，原件已保留，可重试。":"",
       sourcePages:(files||[]).map((file,index)=>({id:"cloud-"+file.id,order:index+1,name:file.name,type:file.mime||"text/plain",url:urls?.[index]?.signedUrl||"",
-        text:file.ocr_text||"",confidence:file.ocr_status==="complete"?1:0,error:file.ocr_error||"",sourceFileId:file.id,pageIndex:index,cloud:true})),
+        text:file.ocr_text||"",paragraphs:Array.isArray(file.paragraphs)?file.paragraphs:[],confidence:file.ocr_status==="complete"?1:0,error:file.ocr_error||"",sourceFileId:file.id,pageIndex:index,cloud:true})),
       completed:(files||[]).filter(file=>file.ocr_status==="complete"||file.ocr_status==="error").length,
     });
   }

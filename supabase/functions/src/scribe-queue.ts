@@ -1,5 +1,5 @@
 import {database, json, wakeQueue,BUCKET} from "../_shared/cloud.ts";
-import {transcribe} from "../_shared/ocr-core.ts";
+import {transcribe,translateParagraphs} from "../_shared/ocr-core.ts";
 declare const EdgeRuntime:{waitUntil(task:Promise<unknown>):void};
 
 async function work(db: ReturnType<typeof database>) {
@@ -9,13 +9,15 @@ async function work(db: ReturnType<typeof database>) {
     const {data:file,error}=await db.rpc("scribe_claim_page");
     if(error) throw new Error(error.message);
     if(!file) return;
-    let text="",failure: string|null=null;
+    let text="",failure: string|null=null,paragraphs: unknown[] = [];
     try {
       text=await transcribe(file,file.storage_path,db,file.session_id,"openai/gpt-6-luna");
       if(!text.trim() || /^NO_TEXT$/i.test(text.trim())) throw new Error("这一页没有识别到文字，请检查原图。");
+      // 逐段译文与原文同批写回；翻译失败只丢译文，不影响这一页的识别结果。
+      paragraphs=await translateParagraphs(text,file.session_id);
     }catch(e){failure=e instanceof Error?e.message:"识别失败，可重试。";}
     const {error:finishError}=await db.rpc("scribe_finish_page",{
-      p_id:file.id,p_lease:file.lease_id,p_text:text,p_error:failure,
+      p_id:file.id,p_lease:file.lease_id,p_text:text,p_error:failure,p_paragraphs:paragraphs,
     });
     if(finishError) throw new Error(finishError.message);
   }

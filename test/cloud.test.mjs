@@ -25,6 +25,40 @@ test('rotating private image URLs are not counted as user edits; notes are',()=>
   assert.equal(localEntries({docs:[{id:'1'}],cards:[{id:'1'}]}).size,3);
 });
 
+test('paragraph translations and the word cache stay private and round-trip through the worker write path',async()=>{
+  const db=new PGlite();
+  await db.exec('create role anon;create role authenticated;create role service_role;create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');
+  await db.exec(await readFile(new URL('../supabase/migrations/migration_20261003_055025000',import.meta.url),'utf8'));
+  const queue=await readFile(new URL('../supabase/migrations/20261003090000_cloud_library_queue.sql',import.meta.url),'utf8');
+  await db.exec(queue.slice(0,queue.indexOf('-- The scheduled worker')).replace(/create extension[^;]+;/g,''));
+  await db.exec(await readFile(new URL('../supabase/migrations/migration_20261009_030634000',import.meta.url),'utf8'));
+  const library=(await db.query("insert into scribe_libraries(access_hash) values('private') returning id")).rows[0].id;
+  const session=(await db.query("insert into scribe_cloud_sessions(token,expires_at,completed_at,library_id) values('link',now()+interval '1 day',now(),$1) returning id",[library])).rows[0].id;
+  await db.query("insert into scribe_cloud_files(session_id,queue_order,name,uploaded_at) values($1,0,'page.png',now())",[session]);
+  const file=(await db.query('select scribe_claim_page() as file')).rows[0].file;
+  const paragraphs=[{text:'First paragraph.',translation:'第一段。'},{text:'Second paragraph.',translation:'第二段。'}];
+  // Workers keep calling with the historical four arguments; the new column rides along as an extra value.
+  assert.equal((await db.query('select scribe_finish_page($1,$2,$3,$4,$5) as accepted',[file.id,file.lease_id,'First paragraph.\n\nSecond paragraph.',null,JSON.stringify(paragraphs)])).rows[0].accepted,true);
+  const stored=(await db.query('select paragraphs from scribe_cloud_files where id=$1',[file.id])).rows[0].paragraphs;
+  assert.deepEqual(stored,paragraphs);
+  const retried=(await db.query("update scribe_cloud_files set lease_until=now()-interval '1 second' where id=$1 returning id",[file.id])).rows[0];
+  assert.equal(retried.id,file.id);
+  assert.equal((await db.query('select scribe_finish_page($1,$2,$3,$4) as accepted',[file.id,file.lease_id,'',null])).rows[0].accepted,false,'an expired lease cannot rewrite the page');
+  // A failed page keeps the译文 already stored; it must not be blanked by a retry attempt.
+  const again=(await db.query('select scribe_claim_page() as file')).rows[0].file;
+  if(again)assert.equal((await db.query('select scribe_finish_page($1,$2,$3,$4) as accepted',[again.id,again.lease_id,'','blurred page'])).rows[0].accepted,true);
+  assert.deepEqual((await db.query('select paragraphs from scribe_cloud_files where id=$1',[file.id])).rows[0].paragraphs,paragraphs);
+  await db.query("insert into scribe_word_cache(cache_key,phonetic,meaning) values('inherit|sentence','/ɪnˈherɪt/','继承')");
+  assert.equal((await db.query('select count(*)::int as n from scribe_word_cache')).rows[0].n,1);
+  for(const table of ['scribe_word_cache']){
+    const rel=(await db.query("select relrowsecurity from pg_class where relname=$1",[table])).rows[0];
+    assert.equal(rel.relrowsecurity,true,table+' must have RLS enabled');
+    assert.equal((await db.query("select has_table_privilege('anon',$1,'select') as allowed",[table])).rows[0].allowed,false,table+' must not be readable by anon');
+    assert.equal((await db.query("select has_table_privilege('service_role',$1,'select') as allowed",[table])).rows[0].allowed,true,table+' must stay usable by the backend');
+  }
+  await db.close();
+});
+
 test('PostgreSQL queue survives lost workers, preserves selected order, bounds retries and protects revisions',async()=>{
   const db=new PGlite();
   await db.exec('create role anon;create role authenticated;create role service_role;create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');

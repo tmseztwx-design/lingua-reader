@@ -299,7 +299,7 @@ async function signedUrls(db: ReturnType<typeof database>, session: Row, ttl: nu
 async function resultsOf(db: ReturnType<typeof database>, session: Row) {
   const { data } = await db
     .from("scribe_cloud_files")
-    .select("id, queue_order, name, mime, ocr_text, ocr_status, ocr_error")
+    .select("id, queue_order, name, mime, ocr_text, paragraphs, ocr_status, ocr_error")
     .eq("session_id", session.id)
     .order("queue_order", { ascending: true });
   return ((data || []) as Row[]).map((file) => ({
@@ -308,6 +308,7 @@ async function resultsOf(db: ReturnType<typeof database>, session: Row) {
     name: file.name,
     mime: file.mime,
     text: typeof file.ocr_text === "string" ? file.ocr_text : "",
+    paragraphs: Array.isArray(file.paragraphs) ? file.paragraphs : [],
     ocrStatus: file.ocr_status,
     ocrError: file.ocr_error || "",
   }));

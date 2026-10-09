@@ -33,6 +33,13 @@ try{
   }while(Date.now()<deadline);
   assert.equal(result.documents[0]?.processingState,'ready','Background queue did not complete within 3 minutes');
   assert.deepEqual(result.documents[0].sourcePages.map(page=>page.text.trim()),pages);
+  // 每页都要带回逐段结构；译文缺失只警告，翻译失败不应让整批部署验收失败。
+  const pageWithTranslations=result.documents[0].sourcePages.filter(page=>Array.isArray(page.paragraphs)&&page.paragraphs.length);
+  if(pageWithTranslations.length!==result.documents[0].sourcePages.length){
+    console.warn('Paragraph translation was not generated for every page in this run');
+  }else{
+    for(const page of pageWithTranslations)for(const item of page.paragraphs)assert.ok(/[\u4e00-\u9fa5]/.test(item.translation),'每一段译文都必须是中文');
+  }
   const doc=result.documents[0];doc.progress=33;
   await library('sync',{changes:[{kind:'doc',id:doc.id,value:doc,deleted:false,revision:0}]});
   const secondDevice=await library('sync',{changes:[]});
