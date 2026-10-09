@@ -36,12 +36,20 @@ const progress = document.querySelector("#progress");
 const queueEl = document.querySelector("#queue");
 const uploadButton = document.querySelector("#uploadAll");
 const clearButton = document.querySelector("#clearQueue");
+const queueTools = document.querySelector("#queueTools");
+const sortNameButton = document.querySelector("#sortByName");
+const sortTimeButton = document.querySelector("#sortByTime");
 
 let queue = [];
 let uploading = false;
 let uploadLocked = false;
 let completionSent = false;
 let transport = null;
+let addSeq = 0;
+
+function orderLocked() {
+  return uploading || uploadLocked || completionSent;
+}
 
 function show(message, detail) {
   status.classList.add("show");
@@ -200,6 +208,13 @@ function render() {
   queue.forEach((item, index) => {
     const row = document.createElement("div");
     row.className = `queue-item ${item.state || ""}`;
+    row.dataset.index = String(index);
+    const handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "drag-handle";
+    handle.textContent = "☰";
+    handle.setAttribute("aria-label", "按住拖拽调整顺序");
+    handle.disabled = orderLocked();
     const number = document.createElement("span");
     number.className = "queue-number";
     number.textContent = String(index + 1);
@@ -230,7 +245,7 @@ function render() {
         actions.appendChild(button);
       });
 
-    row.append(number, copy, actions);
+    row.append(handle, number, copy, actions);
     queueEl.appendChild(row);
   });
 
@@ -242,6 +257,10 @@ function render() {
       : pending ? `锁定当前顺序并上传 ${queue.length} 个文件` : "确认全部文件已送达";
   clearButton.hidden = !queue.length || uploading;
   clearButton.disabled = uploadLocked;
+  queueTools.hidden = !queue.length;
+  const sortDisabled = queue.length < 2 || orderLocked();
+  sortNameButton.disabled = sortDisabled;
+  sortTimeButton.disabled = sortDisabled;
 }
 
 function move(index, delta) {
@@ -263,11 +282,90 @@ function remove(index) {
 function addFiles(fileList) {
   if (uploadLocked || uploading) return;
   Array.from(fileList || []).forEach((file) => {
-    queue.push({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`, file, state: "" });
+    queue.push({
+      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`,
+      file,
+      state: "",
+      addedAt: Date.now(),
+      seq: addSeq++,
+    });
   });
   render();
   if (queue.length) show("已加入上传队列", "检查队列编号并调整顺序；点击上传后顺序会锁定，再依序传完整批文件。");
 }
+
+function sortQueue(compare) {
+  if (orderLocked() || queue.length < 2) return;
+  queue.sort(compare);
+  render();
+}
+
+sortNameButton.addEventListener("click", () => {
+  sortQueue((left, right) => left.file.name.localeCompare(right.file.name, "zh-Hans-CN", { numeric: true, sensitivity: "base" }));
+});
+sortTimeButton.addEventListener("click", () => {
+  sortQueue((left, right) => left.addedAt - right.addedAt || left.seq - right.seq);
+});
+
+// 触屏/鼠标通用的拖拽换位：按住手柄启动，pointermove 实时指示插入位，pointerup 提交。
+let dragState = null;
+
+function markDropTarget() {
+  queueEl.querySelectorAll(".drop-target,.drop-after").forEach((row) => row.classList.remove("drop-target", "drop-after"));
+  if (!dragState || dragState.target === dragState.index) return;
+  const row = queueEl.querySelectorAll(".queue-item")[dragState.target];
+  if (row) row.classList.add(dragState.target < dragState.index ? "drop-target" : "drop-after");
+}
+
+function finishDrag(commit) {
+  if (!dragState) return;
+  const { index, target, moved } = dragState;
+  dragState = null;
+  if (commit && moved && target !== index) queue.splice(target, 0, queue.splice(index, 1)[0]);
+  render();
+}
+
+queueEl.addEventListener("pointerdown", (event) => {
+  const handle = event.target.closest && event.target.closest(".drag-handle");
+  if (!handle || orderLocked()) return;
+  const row = handle.closest(".queue-item");
+  if (!row) return;
+  const gap = parseFloat(getComputedStyle(queueEl).rowGap) || 8;
+  dragState = {
+    pointerId: event.pointerId,
+    index: Number(row.dataset.index),
+    row,
+    startY: event.clientY,
+    pitch: row.offsetHeight + gap,
+    target: Number(row.dataset.index),
+    moved: false,
+  };
+  if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+  row.classList.add("dragging");
+  event.preventDefault();
+});
+
+queueEl.addEventListener("pointermove", (event) => {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  const delta = event.clientY - dragState.startY;
+  if (!dragState.moved && Math.abs(delta) < 4) return;
+  dragState.moved = true;
+  const clamped = Math.max(-dragState.index * dragState.pitch,
+    Math.min((queue.length - 1 - dragState.index) * dragState.pitch, delta));
+  dragState.row.style.transform = `translateY(${clamped}px)`;
+  const target = Math.max(0, Math.min(queue.length - 1, dragState.index + Math.round(clamped / dragState.pitch)));
+  if (target !== dragState.target) {
+    dragState.target = target;
+    markDropTarget();
+  }
+});
+
+queueEl.addEventListener("pointerup", (event) => {
+  if (dragState && event.pointerId === dragState.pointerId) finishDrag(true);
+});
+queueEl.addEventListener("pointercancel", (event) => {
+  if (dragState && event.pointerId === dragState.pointerId) finishDrag(false);
+});
 
 async function uploadAll() {
   if (!queue.length || completionSent) return;

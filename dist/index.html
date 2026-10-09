@@ -893,4 +893,127 @@ body.immersive #immersiveBadge{display:block}
     },true);
   });
 })();
-</script><script src="/import-queue.js"></script></body></html>
+</script><style>
+/* 阅读页偏好：字号档位与夜间模式，只作用于 #reader 内部，可与沉浸阅读同时使用 */
+#reader .reader-font-ctl{display:flex;gap:4px}
+#reader .reader-font-ctl .button{min-width:34px;padding-left:8px;padding-right:8px}
+#reader.fs-custom .para{font-size:var(--reader-fs)}
+#reader.fs-custom .quote{font-size:var(--reader-fs)}
+#reader.fs-custom .source-reading-text{font-size:var(--reader-fs)}
+#reader.night .reader-top{background:#141a26;border-color:#26314a}
+#reader.night .reader-top .back{color:#93a0b8}
+#reader.night .chapter{color:#d8dee9;border-color:#26314a}
+#reader.night .readprog small{color:#93a0b8}
+#reader.night .track{background:#2a3550}
+#reader.night .modes{border-color:#35415c}
+#reader.night .modes button{color:#93a0b8}
+#reader.night .modes button.active{background:#3b4d74;color:#fff}
+#reader.night .reader-top .button.secondary,#reader.night .source-page-tools .button{background:#222b3d;color:#d8dee9;border-color:#35415c}
+#reader.night .reader-main{background:#141a26}
+#reader.night .paper{background:#1a2230;border-color:#2a3550;color:#d8dee9}
+#reader.night .paper .kicker{color:#b09268}
+#reader.night .paper .subtitle{color:#93a0b8}
+#reader.night .para{color:#d8dee9}
+#reader.night .page{color:#7f8ca6}
+#reader.night .page:before,#reader.night .page:after{background:#2a3550}
+#reader.night .quote{background:#1f2839;border-color:#4a5a7a;color:#c3cddf}
+#reader.night .quote footer{color:#7f8ca6}
+#reader.night .trans{background:#1f2839;border-color:#4a5a7a;color:#aebad0}
+#reader.night .trans-btn{color:#9db4e8}
+#reader.night .notice{background:#26241c;color:#cbb37f}
+#reader.night .word:hover,#reader.night .word.focus{background:#3a4a6b}
+#reader.night .word.captured{background:#2e4166;box-shadow:inset 0 -2px #6d8bce}
+#reader.night .source-reader-paper{background:#141a26!important}
+#reader.night .source-page-stage{background:#141a26!important}
+#reader.night .source-reader-head{background:#1a2230;border-color:#2a3550}
+#reader.night .source-reader-head h1{color:#d8dee9}
+#reader.night .source-reader-head p{color:#93a0b8}
+#reader.night .source-page-count{background:#26324a;color:#9db4e8}
+#reader.night .source-reading-text{background:#1a2230;border-color:#2a3550;color:#d8dee9}
+#reader.night .source-no-text{color:#93a0b8}
+#reader.night .source-page-position{color:#d8dee9}
+#reader.night .source-original{background:#1a2230;border-color:#2a3550}
+#reader.night .source-original summary{color:#93a0b8}
+#reader.night .source-original-stage{border-color:#2a3550}
+#reader.night .source-thumb{background:#1a2230;border-color:#2a3550;color:#93a0b8}
+#reader.night .source-thumb.active{border-color:#6d8bce;color:#9db4e8;background:#222f4a}
+#reader.night .source-unavailable{background:#1a2230}
+#reader.night .source-unavailable h2{color:#d8dee9}
+</style>
+<script>
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var reader=document.getElementById('reader'),top=reader&&reader.querySelector('.reader-top');if(!reader||!top)return;
+    var prefsKey='scribe-reader-prefs',storeKey='scribe-local-v1',fontSizes=[15,17,19,22,26],defaultFont=2;
+    function readPrefs(){try{return JSON.parse(localStorage.getItem(prefsKey)||'{}')}catch(error){return {}}}
+    function writePrefs(prefs){localStorage.setItem(prefsKey,JSON.stringify(prefs));}
+    function readStore(){try{return JSON.parse(localStorage.getItem(storeKey)||'{}')}catch(error){return {}}}
+    function writeStore(state){localStorage.setItem(storeKey,JSON.stringify(state));}
+    var prefs=readPrefs();
+    var fontIndex=Number.isInteger(prefs.fontScale)?Math.max(0,Math.min(fontSizes.length-1,prefs.fontScale)):null;
+    var fontWrap=document.createElement('div');fontWrap.className='reader-font-ctl';
+    fontWrap.innerHTML='<button class="button secondary small" type="button" id="fontMinus" title="减小字号">A−</button><button class="button secondary small" type="button" id="fontPlus" title="增大字号">A＋</button>';
+    var nightBtn=document.createElement('button');nightBtn.className='button secondary small';nightBtn.id='nightToggle';nightBtn.type='button';nightBtn.textContent='夜间';
+    var anchor=document.getElementById('immersiveToggle')||document.getElementById('end');
+    top.insertBefore(nightBtn,anchor||null);top.insertBefore(fontWrap,nightBtn);
+    var fontMinus=fontWrap.querySelector('#fontMinus'),fontPlus=fontWrap.querySelector('#fontPlus');
+    function applyFont(){
+      if(fontIndex===null){reader.classList.remove('fs-custom');reader.style.removeProperty('--reader-fs');}
+      else{reader.classList.add('fs-custom');reader.style.setProperty('--reader-fs',fontSizes[fontIndex]+'px');}
+      fontMinus.disabled=fontIndex===0;fontPlus.disabled=fontIndex===fontSizes.length-1;
+    }
+    function setFont(next){
+      fontIndex=next===null?null:Math.max(0,Math.min(fontSizes.length-1,next));
+      var prefs=readPrefs();if(fontIndex===null)delete prefs.fontScale;else prefs.fontScale=fontIndex;writePrefs(prefs);
+      applyFont();
+    }
+    fontMinus.addEventListener('click',function(){setFont((fontIndex===null?defaultFont:fontIndex)-1);});
+    fontPlus.addEventListener('click',function(){setFont((fontIndex===null?defaultFont:fontIndex)+1);});
+    function applyNight(on){
+      reader.classList.toggle('night',on);
+      nightBtn.textContent=on?'日间':'夜间';
+      nightBtn.setAttribute('aria-pressed',on?'true':'false');
+    }
+    nightBtn.addEventListener('click',function(){var on=!reader.classList.contains('night'),prefs=readPrefs();prefs.theme=on?'night':'day';writePrefs(prefs);applyNight(on);});
+    applyFont();applyNight(prefs.theme==='night');
+    function readerActive(){return reader.classList.contains('active');}
+    function readingDoc(){
+      if(!readerActive())return null;
+      var state=readStore(),docs=Array.isArray(state.docs)?state.docs:[];
+      return docs.find(function(doc){return doc&&String(doc.id)===String(state.activeDocId)&&Array.isArray(doc.sourcePages)&&doc.sourcePages.length;})||null;
+    }
+    var restoringUntil=0;
+    function saveScroll(){
+      if(Date.now()<restoringUntil)return;
+      var doc=readingDoc();if(!doc)return;
+      var state=readStore(),entry=(state.docs||[]).find(function(item){return item&&String(item.id)===String(doc.id);});if(!entry)return;
+      var map=entry.lastScroll&&typeof entry.lastScroll==='object'?entry.lastScroll:{};
+      map[String(Number(entry.lastPage)||0)]=Math.max(0,Math.round(window.scrollY||window.pageYOffset||0));
+      entry.lastScroll=map;writeStore(state);
+    }
+    function restoreScroll(){
+      var doc=readingDoc(),paper=document.getElementById('paper');
+      if(!doc||!paper||!paper.classList.contains('source-reader-paper'))return;
+      restoringUntil=Date.now()+700;
+      var map=doc.lastScroll&&typeof doc.lastScroll==='object'?doc.lastScroll:{};
+      var y=Number(map[String(Number(doc.lastPage)||0)])||0;
+      var apply=function(){window.scrollTo(0,y);};
+      requestAnimationFrame(apply);setTimeout(apply,140);setTimeout(apply,450);
+    }
+    var scrollTimer=null;
+    window.addEventListener('scroll',function(){if(!readerActive()||scrollTimer)return;scrollTimer=setTimeout(function(){scrollTimer=null;saveScroll();},350);},{passive:true});
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveScroll();});
+    window.addEventListener('pagehide',saveScroll);
+    document.addEventListener('click',function(event){
+      var target=event.target&&event.target.closest?event.target:null;if(!target)return;
+      if(target.closest('[data-source-page],[data-source-prev],[data-source-next]')){saveScroll();return;}
+      var nav=target.closest('[data-view],[data-go]');
+      if(nav&&(nav.dataset.view||nav.dataset.go)!=='reader')saveScroll();
+    },true);
+    var paper=document.getElementById('paper');
+    if(paper&&window.MutationObserver)new MutationObserver(function(){setTimeout(restoreScroll,0);}).observe(paper,{childList:true});
+  });
+})();
+</script>
+<script src="/import-queue.js"></script></body></html>
