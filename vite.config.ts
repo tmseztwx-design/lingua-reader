@@ -23,23 +23,26 @@ function lanAddress(): string | null {
   return (privateAddress || candidates[0])?.address || null;
 }
 
-const lanBasePlugin: PluginOption = {
-  name: "scribe-lan-base",
-  configureServer(server) {
-    server.middlewares.use("/api/lan-base", (req, res) => {
-      const port = (req.headers.host || "").split(":")[1] || "8080";
-      const address = lanAddress();
-      res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.setHeader("Cache-Control", "no-store");
-      res.end(JSON.stringify({ base: address ? `http://${address}:${port}` : null }));
-    });
-  },
-};
+// 平台配置器只接受「插件调用」形式的条目，所以这里用工厂函数返回插件对象。
+function lanBasePlugin(): PluginOption {
+  return {
+    name: "scribe-lan-base",
+    configureServer(server) {
+      server.middlewares.use("/api/lan-base", (req, res) => {
+        const port = (req.headers.host || "").split(":")[1] || "8080";
+        const address = lanAddress();
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(JSON.stringify({ base: address ? `http://${address}:${port}` : null }));
+      });
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   const plugins: PluginOption[] = [...enterProdPlugin()];
   if (mode === "development") {
-    plugins.push(...enterDevPlugin(), lanBasePlugin);
+    plugins.push(...enterDevPlugin(), lanBasePlugin());
   }
   return {
     server: {
