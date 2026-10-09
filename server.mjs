@@ -409,6 +409,7 @@ function processDocument(id) {
 
 function routeApi(req, res, url) {
   const pieces = url.pathname.split('/').filter(Boolean);
+  if (req.method === 'GET' && url.pathname === '/api/lan-base') return json(res, 200, { base: publicBase() });
   if (req.method === 'POST' && url.pathname === '/api/mobile-links') return makeSession(res, url.searchParams.get('local') === '1').catch(() => json(res, 500, { error: '上传通道生成失败，请重试。' }));
   if (pieces[0] === 'api' && pieces[1] === 'documents' && pieces[2]) return routeDocument(req, res, pieces);
   if (req.method === 'GET' && url.pathname === '/api/mobile-links/recover') {

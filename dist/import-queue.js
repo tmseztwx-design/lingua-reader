@@ -28,7 +28,7 @@
     var currentDocument = null;
     var serverDocument = null;
     var style = document.createElement('style');
-    style.textContent = '.computer-queue{display:grid;gap:8px;margin-top:14px}.computer-queue:empty{display:none}.computer-queue-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}.computer-queue-number{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.computer-queue-copy{min-width:0}.computer-queue-copy b,.computer-queue-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.computer-queue-copy small{color:var(--muted);font-size:12px}.computer-queue-actions{display:flex;gap:5px}.computer-queue-actions button{width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}.computer-queue-actions button:disabled{opacity:.35}.computer-queue-item.uploading{border-color:#aebee7;background:#f5f8ff}.computer-queue-item.uploaded{border-color:#b5dacd;background:#f3faf7}.computer-queue-item.error{border-color:#e5b7ae;background:#fff7f5}.computer-queue-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px}.computer-queue-tools button{border:0;background:none;color:#8b5260;font:inherit;cursor:pointer}.import-wait{display:inline-flex;align-items:center;gap:8px}.import-wait:before{content:"";width:14px;height:14px;border:2px solid #9eadd4;border-top-color:#4f6fca;border-radius:50%;animation:import-spin .8s linear infinite}@keyframes import-spin{to{transform:rotate(360deg)}}.source-reading-text{width:min(100%,960px);align-self:stretch;justify-self:center;padding:clamp(22px,5vw,64px);background:#fff;color:#253047;border-radius:9px;font:clamp(19px,2vw,27px)/1.8 Georgia,"Noto Serif SC",serif;white-space:pre-wrap;overflow-wrap:anywhere}.source-reading-text .word{cursor:pointer;border-radius:3px}.source-reading-text .word:hover{background:#edf3ff}.source-reading-text .word.captured{background:#dce8ff;box-shadow:inset 0 -2px #5b79ce}.source-original-label{justify-self:start;margin:8px 0 0;color:var(--muted);font-size:12px}@media(max-width:680px){.computer-queue-item{grid-template-columns:27px minmax(0,1fr) auto;padding:9px}.computer-queue-actions{gap:2px}.computer-queue-actions button{width:27px;height:27px}}';
+    style.textContent = '.computer-queue{display:grid;gap:8px;margin-top:14px}.computer-queue:empty{display:none}.computer-queue-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}.computer-queue-item[draggable="true"]{cursor:grab}.computer-queue-item.dragging{opacity:.45}.computer-queue-item.drop-target{border-color:#6d8bce;box-shadow:0 -2px 0 #6d8bce}.computer-queue-number{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.computer-queue-copy{min-width:0}.computer-queue-copy b,.computer-queue-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.computer-queue-copy small{color:var(--muted);font-size:12px}.computer-queue-actions{display:flex;gap:5px}.computer-queue-actions button{width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}.computer-queue-actions button:disabled{opacity:.35}.computer-queue-item.uploading{border-color:#aebee7;background:#f5f8ff}.computer-queue-item.uploaded{border-color:#b5dacd;background:#f3faf7}.computer-queue-item.error{border-color:#e5b7ae;background:#fff7f5}.computer-queue-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px;flex-wrap:wrap}.computer-queue-tools button{border:0;background:none;color:#8b5260;font:inherit;cursor:pointer}.computer-queue-sort{display:flex;align-items:center;gap:6px}.computer-queue-sort button{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:4px 9px;font-size:12px;cursor:pointer}.computer-queue-sort button:disabled{opacity:.35;cursor:not-allowed}.computer-queue-sort button:hover:not(:disabled){border-color:#9fb3ea;color:#3857a8}.import-wait{display:inline-flex;align-items:center;gap:8px}.import-wait:before{content:"";width:14px;height:14px;border:2px solid #9eadd4;border-top-color:#4f6fca;border-radius:50%;animation:import-spin .8s linear infinite}@keyframes import-spin{to{transform:rotate(360deg)}}.source-reading-text{width:min(100%,960px);align-self:stretch;justify-self:center;padding:clamp(22px,5vw,64px);background:#fff;color:#253047;border-radius:9px;font:clamp(19px,2vw,27px)/1.8 Georgia,"Noto Serif SC",serif;white-space:pre-wrap;overflow-wrap:anywhere}.source-reading-text .word{cursor:pointer;border-radius:3px}.source-reading-text .word:hover{background:#edf3ff}.source-reading-text .word.captured{background:#dce8ff;box-shadow:inset 0 -2px #5b79ce}.source-original-label{justify-self:start;margin:8px 0 0;color:var(--muted);font-size:12px}@media(max-width:680px){.computer-queue-item{grid-template-columns:27px minmax(0,1fr) auto;padding:9px}.computer-queue-actions{gap:2px}.computer-queue-actions button{width:27px;height:27px}}';
     document.head.appendChild(style);
 
     input.multiple = true;
@@ -47,11 +47,14 @@
     list.id = 'computerQueue';
     var tools = document.createElement('div');
     tools.className = 'computer-queue-tools';
-    tools.innerHTML = '<span id="computerQueueHint">文件会按列表顺序逐个安全上传</span><button id="clearComputerQueue" type="button">清空队列</button>';
+    tools.innerHTML = '<span id="computerQueueHint">文件会按列表顺序逐个安全上传</span><span class="computer-queue-sort">排序：<button id="sortQueueByName" type="button">按名称</button><button id="sortQueueByTime" type="button">按上传时间</button></span><button id="clearComputerQueue" type="button">清空队列</button>';
     row.insertAdjacentElement('afterend', list);
     list.insertAdjacentElement('afterend', tools);
     var hintText = tools.querySelector('#computerQueueHint');
     var clearButton = tools.querySelector('#clearComputerQueue');
+    var sortNameButton = tools.querySelector('#sortQueueByName');
+    var sortTimeButton = tools.querySelector('#sortQueueByTime');
+    var addSequence = 0;
 
     function fileNameHeader(name) {
       var bytes = new TextEncoder().encode(name);
@@ -66,6 +69,8 @@
       queue.forEach(function (item, index) {
         var entry = document.createElement('div');
         entry.className = 'computer-queue-item ' + (item.state || '');
+        entry.dataset.index = String(index);
+        entry.draggable = !locked && !working;
         var number = document.createElement('span');
         number.className = 'computer-queue-number';
         number.textContent = String(index + 1);
@@ -91,11 +96,57 @@
         list.appendChild(entry);
       });
       clearButton.disabled = locked || working || !queue.length;
+      sortNameButton.disabled = locked || working || queue.length < 2;
+      sortTimeButton.disabled = locked || working || queue.length < 2;
       input.disabled = locked || working;
       button.disabled = !queue.length || working || (!locked && !queue.length);
       if (!locked && !working) button.textContent = queue.length ? '确认顺序，上传全部 ' + queue.length + ' 个文件' : '开始云端处理';
-      if (queue.length && !locked && !working) hintText.textContent = '拖动以外也可用 ↑ ↓ 排序；上传开始后顺序锁定';
+      if (queue.length && !locked && !working) hintText.textContent = '可拖动换位，也可用 ↑ ↓ 或按名称/时间排序；上传开始后顺序锁定';
     }
+    var dragIndex = null;
+    function finishDrag() {
+      dragIndex = null;
+      list.querySelectorAll('.dragging,.drop-target').forEach(function (item) { item.classList.remove('dragging', 'drop-target'); });
+      render();
+    }
+    list.addEventListener('dragstart', function (event) {
+      var item = event.target.closest && event.target.closest('.computer-queue-item');
+      if (!item || locked || working) { event.preventDefault(); return; }
+      dragIndex = Number(item.dataset.index);
+      event.dataTransfer.effectAllowed = 'move';
+      try { event.dataTransfer.setData('text/plain', ''); } catch (error) {}
+      item.classList.add('dragging');
+    });
+    list.addEventListener('dragover', function (event) {
+      if (dragIndex === null) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      var item = event.target.closest && event.target.closest('.computer-queue-item');
+      list.querySelectorAll('.drop-target').forEach(function (entry) { entry.classList.remove('drop-target'); });
+      if (item && Number(item.dataset.index) !== dragIndex) item.classList.add('drop-target');
+    });
+    list.addEventListener('drop', function (event) {
+      if (dragIndex === null) return;
+      event.preventDefault();
+      var item = event.target.closest && event.target.closest('.computer-queue-item');
+      if (item) {
+        var target = Number(item.dataset.index);
+        if (target !== dragIndex) queue.splice(target, 0, queue.splice(dragIndex, 1)[0]);
+      }
+      finishDrag();
+    });
+    list.addEventListener('dragend', finishDrag);
+    function sortQueue(compare) {
+      if (locked || working || queue.length < 2) return;
+      queue.sort(compare);
+      render();
+    }
+    sortNameButton.addEventListener('click', function () {
+      sortQueue(function (left, right) { return left.file.name.localeCompare(right.file.name, 'zh-Hans-CN', { numeric: true, sensitivity: 'base' }); });
+    });
+    sortTimeButton.addEventListener('click', function () {
+      sortQueue(function (left, right) { return left.addedAt - right.addedAt || left.seq - right.seq; });
+    });
     function move(index, delta) {
       if (locked || working) return;
       var target = index + delta;
@@ -113,7 +164,7 @@
     function addFiles(files) {
       if (locked || working) return;
       Array.from(files || []).forEach(function (file) {
-        queue.push({ file: file, state: '' });
+        queue.push({ file: file, state: '', addedAt: Date.now(), seq: addSequence++ });
       });
       if (queue.length) {
         row.classList.add('show');
@@ -131,6 +182,7 @@
     }, true);
     document.addEventListener('drop', function (event) {
       if (!event.target.closest || !event.target.closest('#drop')) return;
+      if (event.target.closest('#computerQueue')) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       drop.classList.remove('drag');
