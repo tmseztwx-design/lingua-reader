@@ -310,6 +310,64 @@ test('the beta admin panel stays closed until the server accepts the password',a
   dom.window.close();
 });
 
+const seedDoc=(id,title)=>({id,title,author:'示例',category:'示例',status:'reading',progress:38,pages:342,time:'12.6 h',color:''});
+function seedCard(id,term){return {id,type:'word',term,meaning:'示例释义',context:'示例语境',source:'The Sociology of Education · p.137',note:'',due:true};}
+// 用真实页面骨架（空 body 会让主脚本在 #heat 等处报错），再注入状态与脚本。
+async function freshPage(state,libraryKey){
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const alerts=[];w.alert=message=>alerts.push(String(message));w.confirm=()=>true;
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  if(libraryKey)w.localStorage.setItem('scribe-library-key',libraryKey);
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  await tick();await tick();
+  return {dom,w,alerts};
+}
+
+test('the start-over entry never removes a real workspace and keeps the cloud library link',async()=>{
+  const libraryKey='d'.repeat(64);
+  const state={docs:[seedDoc('s','示例一'),{id:'real-1',title:'我的文献',status:'reading',progress:12,pages:9,time:'3 h'}],
+    cards:[seedCard('c1','agency'),{id:'real-card',type:'word',term:'inherit',meaning:'继承',phonetic:'/ɪnˈherɪt/',translation:'继承',context:'Students inherit the culture.',source:'我的文献',note:'',due:true}],
+    deletedDocs:[],minutes:412,vocabTotal:0,reviewed:31,filter:'all',tab:'all',kind:'all',settings:{auto:true,timer:true,glossary:'agency = 能动性'}};
+  const {dom,w,alerts}=await freshPage(state,libraryKey);
+  const entry=w.document.querySelector('#startExperience');
+  assert.ok(entry,'the entry button is injected');
+  assert.equal(entry.hidden,true,'a workspace with real content must not offer the start-over button');
+  entry.click();
+  await tick();
+  const saved=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  assert.deepEqual(saved.docs.map(doc=>doc.id),['real-1'],'the user document survives while the sample is removed');
+  assert.deepEqual(saved.cards.map(card=>card.id),['real-card'],'the user card survives while the sample card is removed');
+  assert.equal(saved.minutes,412,'study minutes are preserved');
+  assert.equal(saved.reviewed,31);
+  assert.equal(saved.settings.glossary,'agency = 能动性');
+  assert.equal(w.localStorage.getItem('scribe-library-key'),libraryKey,'the cloud library key must never be dropped');
+  assert.equal(w.localStorage.getItem('scribe-fresh-experience-v1'),null,'real users are not pushed into zero-data mode');
+  assert.match(alerts.join(' '),/保留/);
+  dom.window.close();
+});
+
+test('a workspace holding only built-in samples can still start from zero',async()=>{
+  const libraryKey='e'.repeat(64);
+  const state={docs:[seedDoc('s','示例一'),seedDoc('m','示例二'),seedDoc('c','示例三')],
+    cards:['c1','c2','c3','c4','c5','c6'].map(id=>seedCard(id,'sample-'+id)),
+    deletedDocs:[],minutes:47,vocabTotal:0,reviewed:0,filter:'all',tab:'all',kind:'all',settings:{auto:true,timer:true,glossary:''}};
+  const {dom,w}=await freshPage(state,libraryKey);
+  const entry=w.document.querySelector('#startExperience');
+  assert.equal(entry.hidden,false,'a fresh visitor still sees the start-over button');
+  entry.click();
+  await tick();
+  const saved=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  assert.equal(saved.docs.length,0);
+  assert.deepEqual(saved.cards.map(card=>card.id),['guide']);
+  assert.equal(w.localStorage.getItem('scribe-fresh-experience-v1'),'1');
+  assert.equal(w.localStorage.getItem('scribe-library-key'),libraryKey,'even a fresh start keeps the cloud link');
+  dom.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};
