@@ -3360,6 +3360,67 @@ export type Database = {
   }
   public: {
     Tables: {
+      scribe_beta_codes: {
+        Row: {
+          code_hash: string
+          code_mask: string
+          created_at: string
+          id: string
+          label: string
+          last_seen_at: string | null
+          library_id: string | null
+          redeemed_at: string | null
+          revoked: boolean
+        }
+        Insert: {
+          code_hash: string
+          code_mask?: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_seen_at?: string | null
+          library_id?: string | null
+          redeemed_at?: string | null
+          revoked?: boolean
+        }
+        Update: {
+          code_hash?: string
+          code_mask?: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_seen_at?: string | null
+          library_id?: string | null
+          redeemed_at?: string | null
+          revoked?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_beta_codes_library_id_fkey"
+            columns: ["library_id"]
+            referencedRelation: "scribe_libraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scribe_beta_guard: {
+        Row: {
+          failed_attempts: number
+          id: boolean
+          locked_until: string | null
+        }
+        Insert: {
+          failed_attempts?: number
+          id?: boolean
+          locked_until?: string | null
+        }
+        Update: {
+          failed_attempts?: number
+          id?: boolean
+          locked_until?: string | null
+        }
+        Relationships: []
+      }
       scribe_cloud_files: {
         Row: {
           attempts: number
@@ -3499,6 +3560,34 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      scribe_library_access: {
+        Row: {
+          access_hash: string
+          created_at: string
+          label: string
+          library_id: string
+        }
+        Insert: {
+          access_hash: string
+          created_at?: string
+          label?: string
+          library_id: string
+        }
+        Update: {
+          access_hash?: string
+          created_at?: string
+          label?: string
+          library_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_library_access_library_id_fkey"
+            columns: ["library_id"]
+            referencedRelation: "scribe_libraries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scribe_library_entries: {
         Row: {

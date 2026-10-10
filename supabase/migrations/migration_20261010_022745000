@@ -1,0 +1,35 @@
+-- 内测码：一个码对应一份长期保留的书库数据；后台只保存哈希与尾号，明文只在生成时返回一次。
+create table public.scribe_beta_codes (
+  id uuid primary key default gen_random_uuid(),
+  code_hash text not null unique,
+  code_mask text not null default '',
+  label text not null default '',
+  library_id uuid references public.scribe_libraries(id) on delete set null,
+  revoked boolean not null default false,
+  created_at timestamptz not null default now(),
+  redeemed_at timestamptz,
+  last_seen_at timestamptz
+);
+
+-- 一个书库可有多份访问凭证：同一个内测码在第二台设备登录时新签一份，不共享同一把钥匙。
+create table public.scribe_library_access (
+  library_id uuid not null references public.scribe_libraries(id) on delete cascade,
+  access_hash text not null unique,
+  label text not null default '',
+  created_at timestamptz not null default now()
+);
+create index scribe_library_access_library_idx on public.scribe_library_access(library_id);
+
+-- 兑换与后台口令的失败限流（单行表）。
+create table public.scribe_beta_guard (
+  id boolean primary key default true check (id),
+  failed_attempts integer not null default 0,
+  locked_until timestamptz
+);
+insert into public.scribe_beta_guard(id) values(true) on conflict do nothing;
+
+alter table public.scribe_beta_codes enable row level security;
+alter table public.scribe_library_access enable row level security;
+alter table public.scribe_beta_guard enable row level security;
+revoke all on public.scribe_beta_codes,public.scribe_library_access,public.scribe_beta_guard from anon,authenticated;
+grant all on public.scribe_beta_codes,public.scribe_library_access,public.scribe_beta_guard to service_role;
