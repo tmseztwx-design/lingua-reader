@@ -20,7 +20,8 @@
   - `libraryFor()` 先查 `scribe_libraries.access_hash`，再查 `scribe_library_access.access_hash`；既有同步码原样有效
 - **六个后端函数已部署**：`scribe-mobile-upload`、`scribe-ocr`、`scribe-library`、`scribe-queue`、`scribe-study`、`scribe-beta`
   - JWT 校验按 `supabase/config.toml` 关闭；`scribe-queue` 另外要求私有 `x-scribe-worker-key`（来自 `scribe_runtime_settings`，仅服务端可读）；`scribe-study` 用书库同步码鉴权，只服务本书库的页面
-  - `scribe-mobile-upload` 的 `reorder`（调序）与 `absorb`（续传并入）同样按书库同步码鉴权：只认本书库、未删除的批次，且调序会校验页集完整
+  - `scribe-mobile-upload` 的 `reorder`（调序）、`absorb`（续传并入）与 `pages`（重签原页地址）同样按书库同步码鉴权：只认本书库、未删除的批次，调序会校验页集完整
+  - 原页地址是限时签名链接：书库同步每次都会重签并写入 `urlAt`；阅读区在本页无地址或链接超过 45 分钟时自动重签，图片加载失败也会重试一次，避免「原页像丢了一样」
   - `scribe-beta` 只做内测码兑换与后台管理：`redeem` 按码签发书库凭证，后台动作一律先校验 `SCRIBE_ADMIN_PASSWORD`（服务端环境变量、常量时间比较、连续失败短时锁定），后台口令不落库、不进日志
 - **私有桶 `scribe-pages` 保留**，未改动
 
@@ -54,6 +55,7 @@
 - `pnpm test` → 13 项通过（含逐段译文渲染、折叠标志、点词音标与释义、词库缓存与 RLS 隔离、阅读页调序与失败回退）
 - 界面实测（jsdom 驱动真实页面 + 真实云函数）：生成云端二维码不再出现 `Function not found`，状态显示「云端通道已就绪」，随后后台队列自动完成识别
 - 函数探针：`scribe-mobile-upload` 410、`scribe-ocr` 410、`scribe-library` 401、`scribe-queue` 403、`scribe-study` 401（均为业务级应答，说明函数已正常启动）
+- 原页地址自愈实测：续传并入后的三页文献经 `pages` 按书库凭证重签，三个签名地址全部 200 可读（原件分散在原批次与目标批次两个目录）；单页重签可用；其他书库调用同一接口返回 404，原件仍隔离在本书库内
 - 数据保护回归测试：「进入体验」在已有真实数据的设备上只移除内置示例，用户文献/学习卡/学习时长与云端书库连接全部保留，并对老用户隐藏该入口；示例数据下仍可正常从零开始
 - 内测码实测：同一内测码在两台“设备”上兑换得到**两把不同凭证**并读到**同一份书库数据**；无效码 404、作废码 403、错误或缺失的管理口令 401（证明服务端已设置口令且校验生效）
 - 识别阶段实测：合成 TXT 页面在后台完成后带回首段结构 `paragraphs:[{text,translation}]`，译文为中文；`define` 返回 IPA 音标、概括性简释 `gloss` 与语境释义，重复查询命中缓存

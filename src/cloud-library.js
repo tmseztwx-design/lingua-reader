@@ -1,4 +1,4 @@
-import {localEntries,fingerprint,applyEntries} from './sync-state.js';
+import {localEntries,fingerprint,applyEntries,stampPageUrls} from './sync-state.js';
 
 const STATE='scribe-local-v1',KEY='scribe-library-key',META='scribe-sync-meta-v1';
 const nativeSet=Storage.prototype.setItem;
@@ -70,7 +70,7 @@ export function installLibrary(cloud) {
         }else if(JSON.stringify(pending[id])===JSON.stringify(change)) delete pending[id];
       }
       const rows=response.entries.filter(row=>!pending[row.kind+':'+row.entry_id]);
-      const next=applyEntries(before,rows,response.documents);
+      const next=applyEntries(before,rows,stampPageUrls(response.documents));
       for(const change of Object.values(pending))if(change.deleted){
         if(change.kind==='doc'){next.docs=next.docs.filter(doc=>String(doc.id)!==change.id);next.deletedDocs=next.deletedDocs.filter(doc=>String(doc.id)!==change.id);}
         if(change.kind==='card')next.cards=next.cards.filter(card=>String(card.id)!==change.id);

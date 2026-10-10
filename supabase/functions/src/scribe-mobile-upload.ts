@@ -296,6 +296,24 @@ async function reorderSession(db: ReturnType<typeof database>, body: Row) {
   return json({ ok: true, pages: order.length });
 }
 
+// 重签原页地址：阅读区读到过期或缺失的签名地址时按书库凭证重新签发。
+// 续传并入的页面原件仍在原批次目录下，因此一律以文件行记录的 storage_path 签发。
+async function refreshPagesByLibrary(db: ReturnType<typeof database>, body: Row) {
+  const library = await libraryFor(db, body.libraryKey);
+  if (!library) return fail("请先连接云端书库。", 401);
+  const sessionId = String(body.sessionId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return fail("缺少文献标识。", 400);
+  const { data: session, error } = await db
+    .from("scribe_cloud_sessions")
+    .select("id, library_id, deleted_at")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!session || session.library_id !== library.id || session.deleted_at) return fail("未找到该文献。", 404);
+  const files = await signedUrls(db, session as Row, PAGE_URL_TTL, body.fileId ? String(body.fileId) : undefined);
+  return json({ files, expiresIn: PAGE_URL_TTL });
+}
+
 async function removeSession(db: ReturnType<typeof database>, session: Row) {
   if(session.library_id){
     const {data:entry}=await db.from('scribe_library_entries').select('revision').eq('library_id',session.library_id).eq('kind','doc').eq('entry_id','cloud-'+session.id).maybeSingle();
@@ -410,6 +428,7 @@ Deno.serve(async (req) => {
   try {
     if (action === "create") return await createSession(db, body);
     if (action === "reorder") return await reorderSession(db, body);
+    if (action === "pages") return await refreshPagesByLibrary(db, body);
 
     const session = await sessionByToken(db, body.token);
     if (!session) return json({ error: "此上传通道已失效，请重新生成二维码。" }, 410);

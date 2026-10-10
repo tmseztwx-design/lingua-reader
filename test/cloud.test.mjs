@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
 import {PGlite} from '@electric-sql/pglite';
-import {localEntries,fingerprint,applyEntries} from '../src/sync-state.js';
+import {localEntries,fingerprint,applyEntries,stampPageUrls} from '../src/sync-state.js';
 
 test('remote book refresh preserves reading progress and independent cards; trash and tombstones do not resurrect',()=>{
   const state={docs:[{id:'cloud-a',progress:37,lastPage:2}],deletedDocs:[],cards:[{id:'c1',note:'my note'}],settings:{auto:true}};
@@ -18,11 +18,15 @@ test('remote book refresh preserves reading progress and independent cards; tras
 });
 
 test('rotating private image URLs are not counted as user edits; notes are',()=>{
-  const a={value:{id:'d1',sourcePages:[{url:'old',text:'page'}]}};
-  const b={value:{id:'d1',sourcePages:[{url:'new',text:'page'}]}};
-  assert.equal(fingerprint(a),fingerprint(b));
+  const a={value:{id:'d1',sourcePages:[{url:'old',text:'page',urlAt:1}]}};
+  const b={value:{id:'d1',sourcePages:[{url:'new',text:'page',urlAt:2}]}};
+  assert.equal(fingerprint(a),fingerprint(b),'a refreshed link and its stamp must not look like an edit');
   b.value.note='new note';assert.notEqual(fingerprint(a),fingerprint(b));
   assert.equal(localEntries({docs:[{id:'1'}],cards:[{id:'1'}]}).size,3);
+  const documents=[{id:'cloud-1',sourcePages:[{url:'signed',text:'page'},{text:'no link yet'}]}];
+  stampPageUrls(documents,1234);
+  assert.equal(documents[0].sourcePages[0].urlAt,1234,'signed links get stamped so the reader knows when they age');
+  assert.equal(documents[0].sourcePages[1].urlAt,undefined,'pages without a link are left for the reader to re-sign');
 });
 
 test('paragraph translations and the word cache stay private and round-trip through the worker write path',async()=>{

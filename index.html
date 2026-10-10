@@ -785,12 +785,59 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       if(!pages.length){restoreOriginalReader();return;}
       var index=Math.max(0,Math.min(Number(document.lastPage)||0,pages.length-1)),page=pages[index];
       var availableCount=pages.filter(function(item){return item.url;}).length,hasPageUrl=availableCount>0;
+      var refreshingDocs={},pageRefreshAttempts={},URL_TTL_MS=45*60*1000;
+      function pageUrlStale(page){if(!page.cloud)return false;if(!page.url)return true;return !page.urlAt||Date.now()-Number(page.urlAt)>URL_TTL_MS;}
+      function showPageFallback(stage,page){
+        if(!stage)return;
+        stage.innerHTML='<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>原页链接暂时取不到；正文与译文仍可正常阅读，稍后可再试。</span><a href="'+escapeHtml(page.url||'#')+'" target="_blank" rel="noopener">尝试打开原页</a></div>';
+      }
+      // 云端原页用的是限时签名地址，会过期；续传并入的页面也可能还没有地址。
+      // 这里按书库凭证重新签发，并把新地址写回本地文档后再渲染，避免“图片全没了”的假象。
+      async function refreshPageUrls(document,fileId){
+        if(!document||!document.cloudSessionId||refreshingDocs[document.id])return false;
+        var client=window.__scribeCloud,libraryKey=localStorage.getItem('scribe-library-key');
+        if(!client||!libraryKey)return false;
+        refreshingDocs[document.id]=true;
+        try{
+          var result=await client.callFunction('scribe-mobile-upload',{action:'pages',sessionId:document.cloudSessionId,libraryKey:libraryKey,fileId:fileId});
+          var files=Array.isArray(result.files)?result.files:[];
+          if(!files.length)return false;
+          var urlById={};
+          files.forEach(function(file){if(file&&file.id&&file.url)urlById[file.id]=file.url;});
+          var state=read(),entry=(state.docs||[]).find(function(item){return item.id===document.id;});
+          if(!entry||!Array.isArray(entry.sourcePages))return false;
+          var changed=false;
+          entry.sourcePages.forEach(function(page){
+            var url=urlById[page.sourceFileId];
+            if(url&&url!==page.url){page.url=url;page.urlAt=Date.now();changed=true;}
+          });
+          if(changed){write(state);if(read().activeDocId===document.id)renderSourceReader(document.id);}
+          return changed;
+        }catch(error){
+          console.warn('[scribe] 重签原页地址失败：'+(error&&error.message||error));
+          return false;
+        }finally{delete refreshingDocs[document.id];}
+      }
+      function handlePageImageError(image,page,document){
+        var stage=image.parentNode,key=page.id+'@'+(page.url||'');
+        if(!pageRefreshAttempts[key]){
+          pageRefreshAttempts[key]=true;
+          refreshPageUrls(document,page.sourceFileId).then(function(changed){if(!changed)showPageFallback(stage,page);});
+          return;
+        }
+        showPageFallback(stage,page);
+      }
       preserveOriginalReader();
       paper.classList.add('source-reader-paper');
       var chapter=q('#reader .chapter');if(chapter)chapter.textContent='手机扫描文献 · '+document.title;
       updateAppendButton(document);
       var progress=q('#reader .readprog small'),bar=q('#reader .readprog i'),percent=Math.round((index+1)/pages.length*100);if(progress)progress.textContent='阅读进度 '+percent+'%';if(bar)bar.style.width=percent+'%';
       if(!hasPageUrl){
+        if(document.cloudSessionId&&!refreshingDocs[document.id]){
+          paper.innerHTML='<section class="source-unavailable"><div><div class="eyebrow">正在获取原页</div><h2>正在重新获取这 '+pages.length+' 页的原页链接</h2><p>原页用的是限时地址，过期后会自动重签；已经识别好的正文与译文不受影响。</p></div></section>';
+          refreshPageUrls(document).then(function(changed){if(changed)renderSourceReader(document.id);});
+          return;
+        }
         paper.innerHTML='<section class="source-unavailable"><div><div class="eyebrow">正在恢复原页</div><h2>正在寻找这 '+pages.length+' 页扫描件</h2><p id="sourceRestoreMessage">旧版本只保存了页数。若扫码通道仍有效，系统会自动把这批原页补回文献中。</p></div></section>';
         recoverSourceDocument(document);return;
       }
@@ -846,7 +893,9 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       var previous=q('[data-source-prev]',paper),next=q('[data-source-next]',paper);if(previous)previous.onclick=function(){goPage(index-1);};if(next)next.onclick=function(){goPage(index+1);};
       var reorderToggle=q('[data-source-reorder]',paper);if(reorderToggle)reorderToggle.onclick=function(){reorderMode=!reorderMode;renderSourceReader(document.id);};
       Array.prototype.forEach.call(paper.querySelectorAll('[data-move-page]'),function(button){button.onclick=function(event){event.preventDefault();event.stopPropagation();movePage(document,Number(button.dataset.movePage),Number(button.dataset.delta));};});
-      var image=q('#sourcePageImage',paper);if(image)image.onerror=function(){var stage=image.parentNode;stage.innerHTML='<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>此图片格式无法由当前浏览器预览。</span><a href="'+escapeHtml(page.url)+'" target="_blank" rel="noopener">下载原页查看</a></div>';};
+      var image=q('#sourcePageImage',paper);if(image)image.onerror=function(){handlePageImageError(image,page,document);};
+      // 打开这一页时如果地址缺失或已经接近过期，先补一次，用户不需要手动刷新。
+      if(document.cloudSessionId&&pages.some(pageUrlStale))refreshPageUrls(document);
       if(needsTranslation)ensurePageTranslation(document,page);
     }
     document.addEventListener('click',function(event){

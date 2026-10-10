@@ -10,8 +10,16 @@ export function fingerprint(entry) {
   if(!entry) return 'deleted';
   const value=structuredClone(entry.value);
   // Signed URLs rotate; they are refreshed on reads, not user edits.
-  if(Array.isArray(value?.sourcePages)) value.sourcePages.forEach(page=>delete page.url);
+  if(Array.isArray(value?.sourcePages)) value.sourcePages.forEach(page=>{delete page.url;delete page.urlAt;});
   return JSON.stringify(value);
+}
+// 服务端每次同步都会重签原页地址；记录签发时间，供阅读区判断链接是否可能已过期。
+export function stampPageUrls(documents, now=Date.now()) {
+  for(const document of documents||[]){
+    if(!Array.isArray(document?.sourcePages)) continue;
+    for(const page of document.sourcePages) if(page?.url) page.urlAt=now;
+  }
+  return documents;
 }
 export function applyEntries(state,rows,documents=[]) {
   const next=structuredClone(state);

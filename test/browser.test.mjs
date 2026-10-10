@@ -368,6 +368,54 @@ test('a workspace holding only built-in samples can still start from zero',async
   dom.window.close();
 });
 
+test('an imported document re-signs expired page links instead of showing missing pages',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const calls=[],fresh='https://example.test/fresh-signed.png';
+  w.__scribeCloud={callFunction:async(name,body)=>{
+    calls.push([name,JSON.parse(JSON.stringify(body))]);
+    if(name==='scribe-mobile-upload'&&body.action==='pages')return {files:[{id:'file-1',url:fresh,order:0,name:'page-1.png'}]};
+    return {};
+  },library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const stale=Date.now()-3*60*60*1000;
+  const state={docs:[{id:'cloud-stale',title:'过期链接文献',cloudSessionId:'77777777-8888-9999-aaaa-bbbbbbbbbbbb',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:'cloud-f1',order:1,name:'page-1.png',type:'image/png',url:'https://example.test/expired.png',urlAt:stale,text:'One page of text.',paragraphs:[{text:'One page of text.',translation:'一页正文。'}],sourceFileId:'file-1',pageIndex:0,cloud:true}]}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-stale',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','f'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();await tick();
+  const refresh=calls.find(([name,body])=>name==='scribe-mobile-upload'&&body.action==='pages');
+  assert.ok(refresh,'stale page links must be re-signed on open');
+  assert.equal(refresh[1].sessionId,'77777777-8888-9999-aaaa-bbbbbbbbbbbb');
+  assert.equal(refresh[1].libraryKey,'f'.repeat(64));
+  const saved=JSON.parse(w.localStorage.getItem('scribe-local-v1')).docs[0].sourcePages[0];
+  assert.equal(saved.url,fresh,'the fresh link is written back to the local document');
+  assert.ok(saved.urlAt&&Date.now()-saved.urlAt<60000,'the new link is stamped so it is refreshed again only after it ages');
+  assert.equal(w.document.querySelector('#sourcePageImage').getAttribute('src'),fresh,'the reader renders the re-signed image');
+  assert.match(w.document.querySelector('#paper').textContent,/一页正文。/,'text and translations survive a link refresh');
+  dom.window.close();
+});
+
+test('a document with no usable page link asks the cloud once, and an image failure falls back gracefully',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const calls=[];
+  w.__scribeCloud={callFunction:async(name,body)=>{calls.push([name,JSON.parse(JSON.stringify(body))]);return {files:[]};},library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const state={docs:[{id:'cloud-blank',title:'无链接文献',cloudSessionId:'66666666-7777-8888-9999-aaaaaaaaaaaa',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:'cloud-f9',order:1,name:'page-1.png',type:'image/png',url:'',text:'Body text only.',paragraphs:[{text:'Body text only.',translation:'只有正文。'}],sourceFileId:'file-9',pageIndex:0,cloud:true}]}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-blank',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','9'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();await tick();
+  const refresh=calls.filter(([name,body])=>name==='scribe-mobile-upload'&&body.action==='pages');
+  assert.equal(refresh.length,1,'a cloud document with no live link asks exactly once, not in a loop');
+  assert.match(w.document.querySelector('#paper').textContent,/正在重新获取/);
+  assert.match(w.document.querySelector('#paper').textContent,/只有正文。|正文/,'the recognised text stays readable while links are being re-signed');
+  dom.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};
