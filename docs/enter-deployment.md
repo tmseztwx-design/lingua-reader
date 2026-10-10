@@ -15,9 +15,13 @@
   - 新增 `scribe_word_cache`（开启 RLS，`revoke` 给 anon/authenticated，只授权 service_role）：同词同句的音标与语境释义只计费一次
 - **迁移已执行**：`supabase/migrations/20261009120000_word_cache_gloss.sql`
   - `scribe_word_cache` 增加 `gloss`（卡片主行的概括性简释，完整语境释义仍在 `meaning`；仅加列）
-- **五个后端函数已部署**：`scribe-mobile-upload`、`scribe-ocr`、`scribe-library`、`scribe-queue`、`scribe-study`
+- **迁移已执行**：`supabase/migrations/migration_20261010_022745000`（内测码）
+  - 新增 `scribe_beta_codes`（码哈希、掩码、备注、绑定书库、作废标记、兑换与最近活跃时间）、`scribe_library_access`（一个书库多份设备凭证）、`scribe_beta_guard`（失败限流单行表）；三张表同迁移内开 RLS、`revoke` 给 anon/authenticated，只授权 service_role
+  - `libraryFor()` 先查 `scribe_libraries.access_hash`，再查 `scribe_library_access.access_hash`；既有同步码原样有效
+- **六个后端函数已部署**：`scribe-mobile-upload`、`scribe-ocr`、`scribe-library`、`scribe-queue`、`scribe-study`、`scribe-beta`
   - JWT 校验按 `supabase/config.toml` 关闭；`scribe-queue` 另外要求私有 `x-scribe-worker-key`（来自 `scribe_runtime_settings`，仅服务端可读）；`scribe-study` 用书库同步码鉴权，只服务本书库的页面
   - `scribe-mobile-upload` 的 `reorder`（调序）与 `absorb`（续传并入）同样按书库同步码鉴权：只认本书库、未删除的批次，且调序会校验页集完整
+  - `scribe-beta` 只做内测码兑换与后台管理：`redeem` 按码签发书库凭证，后台动作一律先校验 `SCRIBE_ADMIN_PASSWORD`（服务端环境变量、常量时间比较、连续失败短时锁定），后台口令不落库、不进日志
 - **私有桶 `scribe-pages` 保留**，未改动
 
 ## 二、平台约束（务必先读）
@@ -37,8 +41,9 @@
 ## 三、复现步骤（换 Cloud 或重建时）
 
 1. 通过平台连接 Cloud，并确认 `pg_cron`、`pg_net` 可用。
-2. 按文件名顺序执行 `supabase/migrations/20261003090000_cloud_library_queue.sql`、`supabase/migrations/migration_20261009_030634000` 与 `supabase/migrations/20261009120000_word_cache_gloss.sql`。
-3. 运行 `pnpm bundle:functions`，逐个部署五个函数的 `index.ts`。
+2. 按文件名顺序执行 `supabase/migrations/20261003090000_cloud_library_queue.sql`、`supabase/migrations/migration_20261009_030634000`、`supabase/migrations/20261009120000_word_cache_gloss.sql` 与 `supabase/migrations/migration_20261010_022745000`。
+3. 运行 `pnpm bundle:functions`，逐个部署六个函数的 `index.ts`。
+3.1 通过平台安全表单写入服务端环境变量 `SCRIBE_ADMIN_PASSWORD`（内测管理口令）；未设置时后台动作会返回 503。
 4. 检查 `cron.job` 中 `scribe-background-ocr` 为 active，且 `cron.job_run_details` 有成功记录。
 5. 运行 `pnpm test` 与 `pnpm build`。
 6. 运行 `node test/cloud-live.mjs`：只创建合成 TXT 批量与独立书库，不使用用户文件，结束时软删除自己的批次。
@@ -49,6 +54,7 @@
 - `pnpm test` → 13 项通过（含逐段译文渲染、折叠标志、点词音标与释义、词库缓存与 RLS 隔离、阅读页调序与失败回退）
 - 界面实测（jsdom 驱动真实页面 + 真实云函数）：生成云端二维码不再出现 `Function not found`，状态显示「云端通道已就绪」，随后后台队列自动完成识别
 - 函数探针：`scribe-mobile-upload` 410、`scribe-ocr` 410、`scribe-library` 401、`scribe-queue` 403、`scribe-study` 401（均为业务级应答，说明函数已正常启动）
+- 内测码实测：同一内测码在两台“设备”上兑换得到**两把不同凭证**并读到**同一份书库数据**；无效码 404、作废码 403、错误或缺失的管理口令 401（证明服务端已设置口令且校验生效）
 - 识别阶段实测：合成 TXT 页面在后台完成后带回首段结构 `paragraphs:[{text,translation}]`，译文为中文；`define` 返回 IPA 音标、概括性简释 `gloss` 与语境释义，重复查询命中缓存
 - 调序与释义实测：三页合成文献调序后书库同步按新顺序返回，缺页的不完整顺序被 409 拒绝；`explain` 为划选短语返回中文释义
 - 续传与清理实测：合成小批次 `absorb` 并入目标文献后页序接在末尾（3 页），原批次不再是独立文献；随后 `remove` 永久删除目标文献，`removedFiles=3`，被并入页面的签名地址立即失效，确认并入的原件也一并清除

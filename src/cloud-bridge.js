@@ -3,6 +3,7 @@
 import { supabase } from "./integrations/supabase/client";
 import QRCode from "qrcode";
 import {installLibrary} from "./cloud-library.js";
+import {installBeta} from "./beta-access.js";
 
 async function callFunction(name, body) {
   const { data, error } = await supabase.functions.invoke(name, { body });
@@ -37,5 +38,6 @@ async function qrDataUrl(text) {
 }
 
 window.__scribeCloud = { callFunction, qrDataUrl };
+if(document.querySelector('#settings')) installBeta(window.__scribeCloud);
 if(document.querySelector('#settings')) installLibrary(window.__scribeCloud);
 window.dispatchEvent(new Event("scribe-cloud-ready"));

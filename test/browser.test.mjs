@@ -197,6 +197,119 @@ test('reordering reader pages writes the new order to the cloud and rolls back w
   dom.window.close();
 });
 
+const BETA_DOM='<div class="nav"></div><div class="topbar"><span id="crumb"></span></div><div id="upload"><div class="upload-grid"></div></div><div id="settings"><div class="settings-grid"></div></div>';
+async function betaPage(w,cloud){
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;
+  w.__scribeCloud=cloud;
+  const pure=(await readFile(new URL('../src/sync-state.js',import.meta.url),'utf8')).replaceAll('export function','function');
+  const library=(await readFile(new URL('../src/cloud-library.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/,'').replace('export function','function');
+  const beta=(await readFile(new URL('../src/beta-access.js',import.meta.url),'utf8')).replace('export function','function');
+  w.eval(pure+'\n'+library+'\n'+beta+'\nwindow.installLibrary=installLibrary;window.installBeta=installBeta;');
+  w.installBeta(cloud);w.installLibrary(cloud);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  await tick();await tick();await tick();
+}
+
+test('a device without a beta code cannot create a cloud library and is told how to enable it',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  const calls=[];
+  await betaPage(w,{callFunction:async(name,body)=>{calls.push([name,body]);return{};}});
+  assert.equal(calls.filter(([name,body])=>name==='scribe-library'&&body.action==='create').length,0,'no anonymous library may be created during the beta');
+  const card=w.document.querySelector('#betaCard-upload');
+  assert.ok(card,'the upload view carries the beta code card');
+  assert.match(card.textContent,/未开启/);
+  assert.match(w.document.querySelector('#cloudSyncState').textContent,/内测码未填写/);
+  assert.ok(w.document.querySelector('#betaCard-settings'),'settings also offers the beta code card');
+  dom.window.close();
+});
+
+test('redeeming a beta code stores a permanent session and the next visit syncs with it',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  const calls=[],libraryKey='a'.repeat(64);
+  await betaPage(w,{callFunction:async(name,body)=>{calls.push([name,JSON.parse(JSON.stringify(body))]);return name==='scribe-beta'?{mask:'SCRIBE-****-4F2A',label:'内测用户 A',libraryKey,firstDevice:true}:{};}});
+  const input=w.document.querySelector('#betaInput-upload');
+  input.value='scribe abcd 4f2a';
+  w.document.querySelector('#betaRedeem-upload').click();
+  await tick();await tick();
+  const redeem=calls.find(([name,body])=>name==='scribe-beta'&&body.action==='redeem');
+  assert.ok(redeem,'the code is sent to the backend for verification');
+  assert.equal(redeem[1].code,'scribe abcd 4f2a','the raw code is what the user typed; normalisation is server side');
+  const session=JSON.parse(w.localStorage.getItem('scribe-beta-session'));
+  assert.equal(session.libraryKey,libraryKey);
+  assert.equal(session.mask,'SCRIBE-****-4F2A');
+  assert.match(w.document.querySelector('#betaState-upload').textContent,/已开启/);
+  assert.equal(w.document.querySelector('#betaRedeem-upload').hidden,true,'the code input is replaced by the logged-in state');
+  dom.window.close();
+
+  // 重新打开页面：会话仍在，云端同步直接使用内测码签发的钥匙，不再新建书库。
+  const again=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w2=again.window;
+  const calls2=[];
+  w2.localStorage.setItem('scribe-beta-session',JSON.stringify({mask:'SCRIBE-****-4F2A',libraryKey,redeemedAt:new Date().toISOString()}));
+  await betaPage(w2,{callFunction:async(name,body)=>{calls2.push([name,JSON.parse(JSON.stringify(body))]);return{};}});
+  assert.equal(calls2.filter(([name,body])=>name==='scribe-library'&&body.action==='create').length,0,'a logged-in device reuses its key');
+  const sync=calls2.find(([name,body])=>name==='scribe-library'&&body.action==='sync');
+  assert.equal(sync[1].libraryKey,libraryKey,'the beta key drives the library sync');
+  assert.match(w2.document.querySelector('#betaState-upload').textContent,/已开启/);
+  again.window.close();
+});
+
+test('an invalid beta code is refused without storing a session',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  await betaPage(w,{callFunction:async(name)=>{if(name==='scribe-beta')throw new Error('内测码无效或已输入错误，请核对后重试。');return{};}});
+  w.document.querySelector('#betaInput-upload').value='SCRIBE-WRNG-0000';
+  w.document.querySelector('#betaRedeem-upload').click();
+  await tick();await tick();
+  assert.equal(w.localStorage.getItem('scribe-beta-session'),null,'a rejected code must not log the device in');
+  assert.match(w.document.querySelector('#betaMessage-upload').textContent,/内测码无效/);
+  assert.match(w.document.querySelector('#betaState-upload').textContent,/未开启/);
+  dom.window.close();
+});
+
+test('a pre-beta device that already holds a library key keeps syncing',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  const legacy='b'.repeat(64),calls=[];
+  w.localStorage.setItem('scribe-library-key',legacy);
+  await betaPage(w,{callFunction:async(name,body)=>{calls.push([name,JSON.parse(JSON.stringify(body))]);return{};}});
+  const sync=calls.find(([name,body])=>name==='scribe-library'&&body.action==='sync');
+  assert.ok(sync,'an existing device must not be locked out of its own data');
+  assert.equal(sync[1].libraryKey,legacy);
+  assert.match(w.document.querySelector('#betaCard-upload').textContent,/尚未绑定内测码/);
+  dom.window.close();
+});
+
+test('the beta admin panel stays closed until the server accepts the password',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  const listEntry={id:'11111111-2222-3333-4444-555555555555',mask:'SCRIBE-****-4F2A',label:'内测用户 A',revoked:false,createdAt:new Date().toISOString(),redeemedAt:new Date().toISOString(),lastSeenAt:new Date().toISOString(),bound:true,documents:2,cards:5,devices:2};
+  await betaPage(w,{callFunction:async(name,body)=>{
+    if(name!=='scribe-beta')return{};
+    if(body.action==='adminAuth'){if(body.password==='open-sesame')return{ok:true};throw new Error('管理口令不正确。');}
+    if(body.action==='adminList')return{codes:[listEntry]};
+    return{};
+  }});
+  const view=w.document.querySelector('#betaAdmin');
+  assert.ok(view,'the admin view exists');
+  assert.equal(view.querySelector('#betaAdminList').hidden,true,'the code list stays hidden before unlocking');
+  assert.match(view.textContent,/需要管理口令/);
+  const navButtons=[...w.document.querySelectorAll('.nav button')];
+  const nav=navButtons.find(button=>button.dataset.betaAdmin==='1');
+  assert.ok(nav&&nav.hidden,'the nav entry stays hidden until unlocked');
+  view.querySelector('#betaPassword').value='wrong';
+  view.querySelector('#betaUnlock').click();
+  await tick();await tick();
+  assert.match(view.querySelector('#betaGateMessage').textContent,/口令不正确/);
+  assert.equal(view.querySelector('#betaAdminList').hidden,true);
+  view.querySelector('#betaPassword').value='open-sesame';
+  view.querySelector('#betaUnlock').click();
+  await tick();await tick();
+  assert.equal(view.querySelector('#betaAdminList').hidden,false,'a verified password opens the list');
+  assert.equal(nav.hidden,false);
+  assert.match(view.querySelector('#betaRows').textContent,/SCRIBE-\*\*\*\*-4F2A/);
+  assert.match(view.querySelector('#betaListSummary').textContent,/共 1 个/);
+  assert.match(view.querySelector('#betaRows').textContent,/文献 2/);
+  dom.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};

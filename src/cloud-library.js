@@ -8,15 +8,21 @@ const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 export function installLibrary(cloud) {
   let metadata=read(META,{}),pending={},busy=false,dirty=false,applying=false,readyPromise=null,generation=0;
-  let indicator,refreshButton;
+  let indicator,refreshButton,betaBlocked=false;
   const say=message=>{if(indicator)indicator.textContent=message;};
   const key=()=>localStorage.getItem(KEY)||'';
+  const betaKey=()=>{try{return JSON.parse(localStorage.getItem('scribe-beta-session')||'null')?.libraryKey||'';}catch{return '';}};
+  function betaRequiredError(){
+    const error=new Error('云端需要内测码：请在「导入文献」页顶部输入内测码，然后重试。');
+    error.code='BETA_REQUIRED';
+    return error;
+  }
   async function ensureLibrary(){
     if(key()) return key();
-    if(!readyPromise) readyPromise=cloud.callFunction('scribe-library',{action:'create'}).then(created=>{
-      nativeSet.call(localStorage,KEY,created.libraryKey);metadata={};write(META,metadata);return created.libraryKey;
-    }).finally(()=>{readyPromise=null;});
-    return readyPromise;
+    // 内测期间不再为陌生设备自动新建书库：必须先用内测码登录。
+    const fromBeta=betaKey();
+    if(fromBeta){nativeSet.call(localStorage,KEY,fromBeta);metadata={};write(META,metadata);return fromBeta;}
+    throw betaRequiredError();
   }
   async function libraryCall(action,body={}){
     return cloud.callFunction('scribe-library',{action,libraryKey:await ensureLibrary(),...body});
@@ -48,8 +54,7 @@ export function installLibrary(cloud) {
     const epoch=generation;
     let succeeded=false;
     try {
-      await ensureLibrary();collect();say('正在同步…');
-      const sending=Object.values(pending).slice(0,100);
+      await ensureLibrary();collect();say('正在同步…');      const sending=Object.values(pending).slice(0,100);
       const response=await libraryCall('sync',{changes:sending});
       if(epoch!==generation)return;
       // User edits made during the request stay pending and keep their local values.
@@ -93,7 +98,11 @@ export function installLibrary(cloud) {
       say(conflictCount?'同步完成；冲突副本已保留，可导出核对':Object.keys(pending).length?'正在同步剩余内容…':'已同步到云端');
       succeeded=true;
       return response;
-    }catch(error){say('暂未同步：'+error.message);throw error;}
+    }catch(error){
+      // 没有内测码时不再反复重试，也不再自动新建书库，交给内测卡片引导用户输入。
+      if(error&&error.code==='BETA_REQUIRED'){betaBlocked=true;say('内测码未填写 · 云端同步已暂停');return;}
+      say('暂未同步：'+error.message);throw error;
+    }
     finally{busy=false;if(succeeded && (dirty || Object.keys(pending).length))setTimeout(()=>sync().catch(()=>{}),2000);}
   }
   async function createSession(body={}){
@@ -126,7 +135,7 @@ export function installLibrary(cloud) {
   });
   function mount(){
     const panel=document.createElement('section');panel.className='card setting';panel.id='cloudLibrarySettings';
-    panel.innerHTML='<h2>云端书库</h2><p class="muted tiny">书库、学习卡和阅读进度自动同步。另一台设备输入同一同步码即可连接；请妥善保管同步码。</p><p id="cloudSyncState"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button secondary" id="showLibraryKey">显示同步码</button><button class="button secondary" id="joinLibrary">连接已有书库</button><button class="button secondary" id="syncNow">立即同步</button><button class="button secondary" id="exportSyncConflicts">导出冲突副本</button></div><pre id="libraryKeyValue" hidden style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all"></pre>';
+    panel.innerHTML='<h2>云端书库</h2><p class="muted tiny">书库、学习卡和阅读进度自动同步。另一台设备输入同一同步码即可连接；请妥善保管同步码。</p><p id="cloudSyncState"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button secondary" id="showLibraryKey">显示同步码</button><button class="button secondary" id="joinLibrary">连接已有书库</button><button class="button secondary" id="syncNow">立即同步</button><button class="button secondary" id="betaGoCode">输入内测码</button><button class="button secondary" id="exportSyncConflicts">导出冲突副本</button></div><pre id="libraryKeyValue" hidden style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all"></pre>';
     document.querySelector('#settings .settings-grid')?.prepend(panel);
     if(!panel.isConnected) document.querySelector('#settings')?.append(panel);
     indicator=panel.querySelector('#cloudSyncState');
@@ -150,6 +159,8 @@ export function installLibrary(cloud) {
       }catch(error){say(error.message);}
     };
     document.querySelector('#syncNow').onclick=()=>sync().catch(()=>{});
+    const goCode=document.querySelector('#betaGoCode');
+    if(goCode)goCode.onclick=()=>{const input=document.querySelector('#betaInput-settings');const card=document.querySelector('#betaCard-settings');if(card)card.scrollIntoView({behavior:'smooth',block:'center'});if(input)setTimeout(()=>input.focus(),260);};
     const restore=document.createElement('button');restore.className='button secondary';restore.textContent='恢复上一个工作区';
     restore.onclick=async()=>{
       const previous=read('scribe-last-workspace',null);if(!previous){say('没有工作区备份。');return;}
@@ -166,7 +177,7 @@ export function installLibrary(cloud) {
     ensureLibrary().then(async()=>{
       for(const item of read('scribe-cloud-links',[])) try{await libraryCall('attach',{token:item.token});}catch{}
       await sync();
-    }).catch(error=>say('云端书库未就绪：'+error.message));
+    }).catch(error=>say(error&&error.code==='BETA_REQUIRED'?'内测码未填写 · 云端同步已暂停':'云端书库未就绪：'+error.message));
     setInterval(()=>sync().catch(()=>{}),15000);
     window.addEventListener('online',()=>sync().catch(()=>{}));
     window.addEventListener('pagehide',collect);

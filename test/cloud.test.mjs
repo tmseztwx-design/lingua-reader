@@ -100,3 +100,31 @@ test('PostgreSQL queue survives lost workers, preserves selected order, bounds r
   assert.equal((await db.query('select * from scribe_cleanup_candidates()')).rows.some(row=>row.id===activeSession),false,'another library cannot delete originals by guessing a book id');
   await db.close();
 });
+
+test('beta codes, multi-credential libraries and the rate-limit guard stay service-role only',async()=>{
+  const db=new PGlite();
+  await db.exec('create role anon;create role authenticated;create role service_role;create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');
+  await db.exec(await readFile(new URL('../supabase/migrations/migration_20261003_055025000',import.meta.url),'utf8'));
+  const queue=await readFile(new URL('../supabase/migrations/20261003090000_cloud_library_queue.sql',import.meta.url),'utf8');
+  await db.exec(queue.slice(0,queue.indexOf('-- The scheduled worker')).replace(/create extension[^;]+;/g,''));
+  await db.exec(await readFile(new URL('../supabase/migrations/migration_20261010_022745000',import.meta.url),'utf8'));
+  for(const table of ['scribe_beta_codes','scribe_library_access','scribe_beta_guard']){
+    assert.equal((await db.query('select relrowsecurity from pg_class where relname=$1',[table])).rows[0].relrowsecurity,true,table+' must have RLS enabled');
+    assert.equal((await db.query("select has_table_privilege('anon',$1,'select') as allowed",[table])).rows[0].allowed,false,table+' must not be readable by anon');
+    assert.equal((await db.query("select has_table_privilege('anon',$1,'insert') as allowed",[table])).rows[0].allowed,false,table+' must not be writable by anon');
+    assert.equal((await db.query("select has_table_privilege('service_role',$1,'select') as allowed",[table])).rows[0].allowed,true,table+' must stay usable by the backend');
+  }
+  assert.equal((await db.query('select count(*)::int as n from scribe_beta_guard where id=true')).rows[0].n,1,'the guard table keeps a single row');
+  const library=(await db.query("insert into scribe_libraries(access_hash) values('primary') returning id")).rows[0].id;
+  await db.query("insert into scribe_library_access(library_id,access_hash,label) values($1,'device-two','SCRIBE-****-4F2A')",[library]);
+  await db.query("insert into scribe_library_access(library_id,access_hash,label) values($1,'device-three','')",[library]);
+  assert.equal((await db.query('select count(*)::int as n from scribe_library_access where library_id=$1',[library])).rows[0].n,2,'one library can hold several device credentials');
+  await db.query("insert into scribe_beta_codes(code_hash,code_mask,label,library_id) values('hash-one','SCRIBE-****-4F2A','内测用户 A',$1)",[library]);
+  let duplicate=null;
+  try{await db.query("insert into scribe_beta_codes(code_hash,code_mask,label) values('hash-one','dup','')");}catch(error){duplicate=error;}
+  assert.ok(duplicate,'code hashes must be unique');
+  await db.query("delete from scribe_libraries where id=$1",[library]);
+  assert.equal((await db.query('select count(*)::int as n from scribe_library_access')).rows[0].n,0,'deleting a library clears its device credentials');
+  assert.equal((await db.query('select library_id from scribe_beta_codes where code_hash=$1',['hash-one'])).rows[0].library_id,null,'a deleted library leaves the code unbound instead of deleting it');
+  await db.close();
+});

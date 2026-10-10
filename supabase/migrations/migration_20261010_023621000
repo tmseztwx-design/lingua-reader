@@ -1,0 +1,1 @@
+update public.scribe_beta_codes set revoked = true where code_hash = '17586ef1295b667b4530d97fcbc6f7bfb967738aebc54aae39a5af8f26a17afd'

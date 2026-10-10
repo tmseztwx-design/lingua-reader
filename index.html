@@ -317,7 +317,14 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         var qrBox=q('#phoneQr').closest('.phone-qr');if(qrBox)qrBox.style.display='none';
         q('#phoneUrl').classList.remove('show');q('#phoneUrl').textContent='';
         q('#phoneLink').classList.add('show');
-        showStatus('云端通道暂时不可用：'+error.message+'（云端识别所需的函数可能尚未发布，可先切换到“本机直连 · 同一 Wi‑Fi”通道。）');
+        if(error&&error.code==='BETA_REQUIRED'){
+          showStatus('云端通道需要内测码：请在上方「用内测码开启云端」输入内测码后再生成二维码；也可以先切换到“本机直连 · 同一 Wi‑Fi”通道。');
+          var betaCard=q('#betaCard-upload'),betaInput=q('#betaInput-upload');
+          if(betaCard)betaCard.scrollIntoView({behavior:'smooth',block:'center'});
+          if(betaInput)setTimeout(function(){betaInput.focus();},260);
+        }else{
+          showStatus('云端通道暂时不可用：'+error.message+'（云端识别所需的函数可能尚未发布，可先切换到“本机直连 · 同一 Wi‑Fi”通道。）');
+        }
         button.textContent='重新生成二维码';button.disabled=false;
       }
     }
