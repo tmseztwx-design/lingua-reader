@@ -278,35 +278,79 @@ test('a pre-beta device that already holds a library key keeps syncing',async()=
   dom.window.close();
 });
 
-test('the beta admin panel stays closed until the server accepts the password',async()=>{
-  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
-  const listEntry={id:'11111111-2222-3333-4444-555555555555',mask:'SCRIBE-****-4F2A',label:'内测用户 A',revoked:false,createdAt:new Date().toISOString(),redeemedAt:new Date().toISOString(),lastSeenAt:new Date().toISOString(),bound:true,documents:2,cards:5,devices:2};
-  await betaPage(w,{callFunction:async(name,body)=>{
-    if(name!=='scribe-beta')return{};
+test('the student app carries no admin console, only the beta code login',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  assert.doesNotMatch(html,/id=["']betaAdmin["']/,'the admin view must not exist inside the student app');
+  assert.doesNotMatch(html,/管理入口/,'no admin entry may be offered to students');
+  assert.doesNotMatch(html,/beta-admin-row/,'admin list styles belong to the separate console page');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  await betaPage(w,{callFunction:async()=>({}),library:{call:async()=>({sessions:[]}),sync:async()=>{}}});
+  assert.equal(w.document.querySelector('#betaAdmin'),null);
+  assert.equal([...w.document.querySelectorAll('.nav button')].some(button=>button.dataset.betaAdmin),false,'no admin nav entry is injected');
+  assert.match(w.document.querySelector('#betaCard-upload').textContent,/内测码/,'the tester code entry stays');
+  dom.window.close();
+});
+
+test('the separate admin console stays locked until the server accepts the password',async()=>{
+  const html=await readFile(new URL('../admin.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test/admin.html',runScripts:'outside-only'}),w=dom.window;
+  w.confirm=()=>true;
+  const copied=[];
+  Object.defineProperty(w.navigator,'clipboard',{value:{writeText:async text=>copied.push(text)},configurable:true});
+  const calls=[];
+  const entry={id:'11111111-2222-3333-4444-555555555555',mask:'SCRIBE-****-4F2A',label:'内测用户 A',revoked:false,bound:true,documents:2,cards:203,devices:2,createdAt:new Date().toISOString(),redeemedAt:new Date().toISOString(),lastSeenAt:new Date().toISOString()};
+  const cloud={callFunction:async(name,body)=>{
+    calls.push([name,JSON.parse(JSON.stringify(body))]);
+    assert.equal(name,'scribe-beta');
     if(body.action==='adminAuth'){if(body.password==='open-sesame')return{ok:true};throw new Error('管理口令不正确。');}
-    if(body.action==='adminList')return{codes:[listEntry]};
-    return{};
-  }});
-  const view=w.document.querySelector('#betaAdmin');
-  assert.ok(view,'the admin view exists');
-  assert.equal(view.querySelector('#betaAdminList').hidden,true,'the code list stays hidden before unlocking');
-  assert.match(view.textContent,/需要管理口令/);
-  const navButtons=[...w.document.querySelectorAll('.nav button')];
-  const nav=navButtons.find(button=>button.dataset.betaAdmin==='1');
-  assert.ok(nav&&nav.hidden,'the nav entry stays hidden until unlocked');
-  view.querySelector('#betaPassword').value='wrong';
-  view.querySelector('#betaUnlock').click();
+    if(body.action==='adminList')return{codes:[entry]};
+    if(body.action==='adminCreate')return{codes:[{code:'SCRIBE-ZZZZ-9999',mask:'SCRIBE-****-9999'}]};
+    if(body.action==='adminRevoke')return{ok:true,id:entry.id,revoked:true};
+    return{ok:true};
+  }};
+  const source=(await readFile(new URL('../src/admin-console.js',import.meta.url),'utf8')).replace('export function','function');
+  w.eval(source+'\nwindow.installAdminConsole=installAdminConsole;');
+  w.installAdminConsole(cloud);
+  assert.equal(w.document.querySelector('#gate').hidden,false,'the console starts locked');
+  assert.equal(w.document.querySelector('#console').hidden,true);
+  assert.equal(calls.length,0,'a locked console asks the server for nothing');
+  w.document.querySelector('#password').value='wrong-password';
+  w.document.querySelector('#gateButton').click();
   await tick();await tick();
-  assert.match(view.querySelector('#betaGateMessage').textContent,/口令不正确/);
-  assert.equal(view.querySelector('#betaAdminList').hidden,true);
-  view.querySelector('#betaPassword').value='open-sesame';
-  view.querySelector('#betaUnlock').click();
+  assert.match(w.document.querySelector('#gateMessage').textContent,/口令不正确/);
+  assert.equal(w.document.querySelector('#console').hidden,true);
+  assert.equal(calls.filter(([,body])=>body.action==='adminList').length,0,'a rejected password must not reach the list');
+  w.document.querySelector('#password').value='open-sesame';
+  w.document.querySelector('#gateButton').click();
   await tick();await tick();
-  assert.equal(view.querySelector('#betaAdminList').hidden,false,'a verified password opens the list');
-  assert.equal(nav.hidden,false);
-  assert.match(view.querySelector('#betaRows').textContent,/SCRIBE-\*\*\*\*-4F2A/);
-  assert.match(view.querySelector('#betaListSummary').textContent,/共 1 个/);
-  assert.match(view.querySelector('#betaRows').textContent,/文献 2/);
+  assert.equal(w.document.querySelector('#console').hidden,false,'a verified password opens the console');
+  assert.equal(w.document.querySelector('#gate').hidden,true);
+  const rowText=w.document.querySelector('#rows').textContent;
+  assert.match(rowText,/SCRIBE-\*\*\*\*-4F2A/);
+  assert.match(rowText,/203/,'card counts are visible to the owner');
+  assert.equal(w.document.querySelector('#statDocuments').textContent,'2');
+  assert.equal(w.document.querySelector('#statDevices').textContent,'2');
+  // 生成：明文只在这一次显示，可复制。
+  w.document.querySelector('#count').value='1';
+  w.document.querySelector('#label').value='内测用户 B';
+  w.document.querySelector('#create').click();
+  await tick();await tick();
+  const create=calls.find(([,body])=>body.action==='adminCreate');
+  assert.equal(create[1].count,1);
+  assert.equal(create[1].label,'内测用户 B');
+  assert.equal(create[1].password,'open-sesame','every admin call re-verifies the password server side');
+  const generated=w.document.querySelector('#generated');
+  assert.equal(generated.hidden,false);
+  assert.match(generated.textContent,/SCRIBE-ZZZZ-9999/);
+  generated.querySelector('#copyCodes').click();
+  await tick();
+  assert.deepEqual(copied,['SCRIBE-ZZZZ-9999'],'the plaintext codes can be copied once');
+  // 停用：调用服务端动作并刷新列表。
+  w.document.querySelector('[data-toggle]').click();
+  await tick();await tick();
+  const revoked=calls.find(([,body])=>body.action==='adminRevoke');
+  assert.equal(revoked[1].id,entry.id);
+  assert.equal(revoked[1].password,'open-sesame');
   dom.window.close();
 });
 

@@ -58,6 +58,7 @@ export default defineConfig(({ mode }) => {
         input: {
           main: path.resolve(__dirname, "index.html"),
           mobile: path.resolve(__dirname, "mobile.html"),
+          admin: path.resolve(__dirname, "admin.html"),
         },
       },
     },

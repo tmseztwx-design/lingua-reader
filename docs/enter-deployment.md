@@ -25,6 +25,14 @@
   - `scribe-beta` 只做内测码兑换与后台管理：`redeem` 按码签发书库凭证，后台动作一律先校验 `SCRIBE_ADMIN_PASSWORD`（服务端环境变量、常量时间比较、连续失败短时锁定），后台口令不落库、不进日志
 - **私有桶 `scribe-pages` 保留**，未改动
 
+## 一点五、站点入口
+
+构建产物有三个入口：`index.html`（学生端）、`mobile.html`（手机上传页）、`admin.html`（**内测管理后台**，独立页面）。
+
+- 管理后台只在 `/admin.html` 出现，学生端（`/`）**不含任何后台入口**；后台需要 `SCRIBE_ADMIN_PASSWORD` 校验，口令只在本标签页内保存。
+- `src/cloud-client.js` 是学生端与后台共用的云端调用封装；`src/admin-console.js` 只被 `admin.html` 使用。
+- 后端 `scribe-beta` 的所有后台动作都要口令校验，未设置密钥时返回 503。
+
 ## 二、平台约束（务必先读）
 
 **部署器只打包 `supabase/functions/<name>/index.ts` 这一个文件。** 同目录的兄弟文件、子目录、以及上层的 `_shared/` 都不会被带上，否则部署会失败并报 `Module not found`。因此本仓库的布局是：
@@ -45,6 +53,7 @@
 2. 按文件名顺序执行 `supabase/migrations/20261003090000_cloud_library_queue.sql`、`supabase/migrations/migration_20261009_030634000`、`supabase/migrations/20261009120000_word_cache_gloss.sql` 与 `supabase/migrations/migration_20261010_022745000`。
 3. 运行 `pnpm bundle:functions`，逐个部署六个函数的 `index.ts`。
 3.1 通过平台安全表单写入服务端环境变量 `SCRIBE_ADMIN_PASSWORD`（内测管理口令）；未设置时后台动作会返回 503。
+3.2 发布后管理后台的地址是 `<站点根地址>/admin.html`，与学生端互不入口污染；建议加书签或只自己保存。
 4. 检查 `cron.job` 中 `scribe-background-ocr` 为 active，且 `cron.job_run_details` 有成功记录。
 5. 运行 `pnpm test` 与 `pnpm build`。
 6. 运行 `node test/cloud-live.mjs`：只创建合成 TXT 批量与独立书库，不使用用户文件，结束时软删除自己的批次。

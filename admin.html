@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17243e">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Scribe · 内测管理后台</title>
+  <style>
+    :root{--ink:#17243e;--navy:#17243e;--muted:#64718a;--line:#e1e7f0;--paper:#f5f7fb;--blue:#5572cf;--bluep:#edf2ff;--green:#21816a;--gold:#d69a50;--goldp:#fff6e8;--serif:Georgia,"Noto Serif SC",serif;--sans:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;--shadow:0 12px 35px rgba(23,36,62,.08)}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans)}
+    button{font:inherit;cursor:pointer}
+    a{color:var(--blue)}
+    .shell{max-width:1180px;margin:0 auto;padding:26px 22px 70px}
+    .brand{display:flex;align-items:center;gap:11px;color:var(--ink);text-decoration:none}
+    .mark{display:grid;place-items:center;width:33px;height:33px;border-radius:11px 11px 4px;background:linear-gradient(135deg,#efbd72,#c97842);color:var(--navy);font:bold 21px var(--serif)}
+    .brand b{display:block;font:20px var(--serif)}
+    .brand small{color:var(--muted);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+    .topbar{display:flex;align-items:center;gap:16px;margin-bottom:26px}
+    .topbar .ghost{margin-left:auto}
+    .heading{margin-bottom:20px}
+    .eyebrow{color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;margin-bottom:6px}
+    h1{font:clamp(26px,3vw,34px)/1.16 var(--serif);margin:0 0 6px;letter-spacing:-.02em}
+    h2{font:20px var(--serif);margin:0 0 4px}
+    h3{font:17px var(--serif);margin:0 0 4px}
+    p{margin:0 0 10px}
+    .muted{color:var(--muted)}
+    .tiny{font-size:12px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 8px #17243e08;padding:20px}
+    .notice{padding:12px 14px;border-left:3px solid var(--gold);border-radius:0 9px 9px 0;background:var(--goldp);color:#73572e;font-size:13px}
+    .button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;border-radius:9px;padding:10px 14px;font-weight:700;text-decoration:none}
+    .primary{background:var(--navy);color:#fff}
+    .primary:hover{background:#2b4264}
+    .secondary{background:#fff;border-color:var(--line);color:var(--ink)}
+    .ghost{border:0;background:none;color:var(--blue);font-size:13px;font-weight:700;padding:4px 6px}
+    .field{display:grid;gap:6px;margin:14px 0}
+    .field label{color:var(--muted);font-size:13px}
+    .field input,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;color:var(--ink);background:#fff;font:inherit}
+    .field textarea{resize:vertical}
+    .stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 18px}
+    .stat{padding:15px;background:#fff;border:1px solid var(--line);border-radius:13px}
+    .stat span{display:block;color:var(--muted);font-size:12px}
+    .stat b{display:block;font:26px/1.1 var(--serif);margin-top:7px}
+    .grid{display:grid;grid-template-columns:minmax(300px,.85fr) minmax(0,1.15fr);gap:18px;align-items:start}
+    .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+    .generated{margin-top:14px;padding:14px;border:1px solid #cfe0d6;border-radius:11px;background:#f4faf7}
+    .generated code{display:block;margin-top:8px;font:13px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace;user-select:all;word-break:break-all}
+    .list-head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .list-head .field{margin:0;flex:1;min-width:180px}
+    .rows{display:grid;gap:9px}
+    .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:#fff}
+    .row.off{background:#fbfbfd;color:#93a0b8}
+    .row-main{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+    .row-main b{font:13px ui-monospace,SFMono-Regular,Menlo,monospace}
+    .row-meta{grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px}
+    .mono{color:var(--muted);font-size:12px}
+    .chip{padding:3px 9px;border-radius:99px;background:#f1f4f8;color:var(--muted);font-size:11px;font-weight:700}
+    .chip.live{background:#eef7f3;color:var(--green)}
+    .chip.off{background:#f4eef0;color:#9c5a63}
+    .empty{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+    .gate{max-width:430px;margin:6vh auto 0}
+    #consoleMessage[data-tone="bad"],#gateMessage{color:#a3512f}
+    [hidden]{display:none!important}
+    @media(max-width:900px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <span class="brand"><span class="mark">S</span><span><b>Scribe</b><small>内测管理后台</small></span></span>
+      <button class="button secondary" id="lock" hidden type="button">锁定后台</button>
+    </div>
+
+    <section id="gate">
+      <div class="card gate">
+        <div class="eyebrow">管理员入口</div>
+        <h1>输入管理口令</h1>
+        <p class="muted tiny">口令只在服务端校验，不会保存在云端；本标签页关闭后需要重新输入。</p>
+        <div class="field">
+          <label for="password">管理口令</label>
+          <input id="password" type="password" autocomplete="current-password" placeholder="只有你知道">
+        </div>
+        <button class="button primary" id="gateButton" type="button">进入后台</button>
+        <p class="tiny" id="gateMessage" style="margin-top:10px"></p>
+      </div>
+    </section>
+
+    <section id="console" hidden>
+      <div class="heading">
+        <div class="eyebrow">内测码</div>
+        <h1>谁可以使用这个站点</h1>
+        <p class="muted">一个内测码对应一份独立数据，可在多台设备登录同一份数据。明文只在生成时显示一次。</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span>内测码总数</span><b id="statTotal">0</b></div>
+        <div class="stat"><span>当前可用</span><b id="statAvailable">0</b></div>
+        <div class="stat"><span>已绑定</span><b id="statBound">0</b></div>
+        <div class="stat"><span>登录设备</span><b id="statDevices">0</b></div>
+        <div class="stat"><span>累计文献</span><b id="statDocuments">0</b></div>
+      </div>
+
+      <div class="grid">
+        <article class="card">
+          <h2>生成内测码</h2>
+          <p class="muted tiny">系统随机生成，形如 SCRIBE-XXXX-XXXX；也可以自己指定内容（每行一个）。</p>
+          <div class="field">
+            <label for="count">生成数量（1-50）</label>
+            <input id="count" type="number" min="1" max="50" value="5">
+          </div>
+          <div class="field">
+            <label for="label">备注（给谁用）</label>
+            <input id="label" type="text" placeholder="例如：内测用户 A">
+          </div>
+          <div class="field">
+            <label for="custom">自定义内测码（可选）</label>
+            <textarea id="custom" rows="3" placeholder="留空则随机生成；每行一个，至少 6 位字母或数字"></textarea>
+          </div>
+          <div class="actions">
+            <button class="button primary" id="create" type="button">生成</button>
+            <button class="button secondary" id="reload" type="button">刷新列表</button>
+            <button class="button secondary" id="export" type="button">导出 JSON</button>
+          </div>
+          <div class="generated" id="generated" hidden></div>
+          <p class="tiny" id="consoleMessage" style="margin-top:12px"></p>
+          <div class="notice" style="margin-top:14px"><b>发放建议：</b>生成后立刻复制或下载保存；后台只保留哈希与尾号，丢失后只能停用重发。</div>
+        </article>
+
+        <article class="card">
+          <div class="list-head">
+            <div>
+              <h2>内测码列表</h2>
+              <p class="muted tiny" id="listSummary">正在载入…</p>
+            </div>
+            <div class="field">
+              <label for="filter">筛选（掩码或备注）</label>
+              <input id="filter" type="text" placeholder="输入关键字">
+            </div>
+          </div>
+          <div class="rows" id="rows"></div>
+        </article>
+      </div>
+    </section>
+  </div>
+  <script type="module">
+    import { createCloud } from "/src/cloud-client.js";
+    import { installAdminConsole } from "/src/admin-console.js";
+    installAdminConsole(createCloud());
+  </script>
+</body>
+</html>
