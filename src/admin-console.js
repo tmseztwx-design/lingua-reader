@@ -136,11 +136,12 @@ export function installAdminConsole(cloud) {
   function bind() {
     el('gateButton').onclick = async () => {
       const input = el('password');
-      if (!input.value) { el('gateMessage').textContent = '请输入管理口令。'; return; }
+      const entered = String(input.value || '').trim();
+      if (!entered) { el('gateMessage').textContent = '请输入管理口令。'; return; }
       el('gateMessage').textContent = '正在校验…';
       try {
-        await cloud.callFunction('scribe-beta', { action: 'adminAuth', password: input.value });
-        remember(input.value);
+        await cloud.callFunction('scribe-beta', { action: 'adminAuth', password: entered });
+        remember(entered);
         el('gateMessage').textContent = '';
         input.value = '';
         paintGate();

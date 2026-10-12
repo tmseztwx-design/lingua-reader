@@ -135,7 +135,10 @@ async function requireAdmin(db: ReturnType<typeof database>, body: Row) {
   if (minutes) return json({ error: `口令错误次数过多，请 ${minutes} 分钟后再试。` }, 429);
   const secret = Deno.env.get(ADMIN_SECRET);
   if (!secret) return json({ error: "后台口令还没有设置在服务端，请先保存管理口令。" }, 503);
-  if (!safeEqual(String(body.password || ""), secret)) {
+  const attempt = String(body.password || "");
+  // 空口令不算“猜错”：否则一次客户端漏传就会把管理员自己锁在门外。
+  if (!attempt) return json({ error: "请输入管理口令。" }, 401);
+  if (!safeEqual(attempt, secret)) {
     await guardFail(db);
     return json({ error: "管理口令不正确。" }, 401);
   }

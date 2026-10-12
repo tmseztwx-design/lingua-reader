@@ -1,0 +1,2 @@
+-- 清掉我自动探测造成的后台口令锁定计数（scribe_beta_guard 是我这一版新建的限流单行表，无业务数据）。
+update public.scribe_beta_guard set failed_attempts = 0, locked_until = null where id = true;
