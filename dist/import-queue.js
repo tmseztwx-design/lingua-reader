@@ -390,7 +390,11 @@
         var state=JSON.parse(localStorage.getItem('scribe-local-v1')||'{}');state.activeDocId='cloud-'+cloudSession.sessionId;
         localStorage.setItem('scribe-local-v1',JSON.stringify(state));await cloud.library.sync();
         sessionStorage.setItem('scribe-open-import-reader','1');location.reload();
-      }catch(error){hintText.textContent=error.message;button.textContent='重试云端上传与处理';}
+      }catch(error){
+        var message=String(error&&error.message||'上传失败');
+        if(/quota|exceeded/i.test(message))message='本机存储空间不足，这次进度没能写进浏览器：请点「清理本机缓存」后重试；云端数据不受影响。';
+        hintText.textContent=message;button.textContent='重试云端上传与处理';
+      }
       finally{working=false;render();button.disabled=false;}
     }
     button.addEventListener('click', function (event) {

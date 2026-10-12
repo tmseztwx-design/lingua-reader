@@ -805,9 +805,12 @@ test('a definition written while a sync is in flight is not reverted by the stal
   assert.equal(saved.phonetic,'/ˌsəʊsiəʊekəˈnɒmɪk/');
   assert.equal(saved.gloss,'社会经济的');
   assert.doesNotMatch(String(saved.meaning),/正在查询/,'不能退回“正在查询”的占位文案');
+  // 待发镜像是“引用 + 短指纹”：内容始终取自 STATE（避免再存一份整库副本撑爆配额），
+  // 所以这里校验引用仍在排队，且真正的内容最新。
   const pending=JSON.parse(w.localStorage.getItem('scribe-sync-pending'));
   assert.equal(Boolean(pending['card:card-new']),true,'这次编辑仍然排队等待下一次同步');
-  assert.match(JSON.stringify(pending['card:card-new']),/社会经济地位/,'排队的是最新值，不是旧快照');
+  assert.equal(pending['card:card-new'].deleted,false);
+  assert.equal(pending['card:card-new'].value,undefined,'待发镜像不再复制整份内容');
   dom.window.close();
 });
 
@@ -845,6 +848,55 @@ test('the card panel repaints from stored state even if a render callback was mi
   assert.match(panel,/\/əˈkjuːmjəleɪt\//,'面板会自动补上音标');
   assert.match(panel,/积累；逐渐积累/,'面板会自动补上语境释义');
   assert.doesNotMatch(panel,/正在查询/,'补渲染后不再停留在“正在查询”');
+  dom.window.close();
+});
+
+test('a page stored with paragraphs only still renders its text and translations',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  w.__scribeCloud={callFunction:async()=>({}),library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  // text 为空、只有逐段结构（服务端为了省本机存储不再重复下发整页原文）
+  const paragraphs=[{text:'First stored paragraph.',translation:'第一段译文。'},{text:'Second stored paragraph.',translation:'第二段译文。'}];
+  const state={docs:[{id:'cloud-compact',title:'压缩存储',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:'cc1',order:1,name:'p1.png',type:'image/png',url:'https://example.test/p1.png',urlAt:Date.now(),text:'',paragraphs,sourceFileId:'cf1',pageIndex:0,cloud:true}]}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-compact',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','n'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();
+  const paper=w.document.querySelector('#paper');
+  assert.equal(paper.querySelectorAll('.src-para').length,2,'逐段结构单独存在时也要按段落渲染');
+  assert.match(paper.textContent,/First stored paragraph\./);
+  assert.match(paper.textContent,/第二段译文。/);
+  assert.doesNotMatch(paper.textContent,/暂未能从这一页识别出正文文字/,'不能因为没有整页原文就说识别不到文字');
+  dom.window.close();
+});
+
+test('a full local store never blocks the upload flow and offers a cleanup',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const calls=[];
+  w.__scribeCloud={callFunction:async(name,body)=>{calls.push([name,JSON.parse(JSON.stringify(body))]);return {};},library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const doc={id:'cloud-full',title:'存储写满',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:'cf1',order:1,name:'p1.png',type:'image/png',url:'https://example.test/p1.png',urlAt:Date.now(),text:'',paragraphs:[{text:'Body.',translation:'正文。'}],sourceFileId:'f1',pageIndex:0,cloud:true}]};
+  w.localStorage.setItem('scribe-library-key','o'.repeat(64));
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify({docs:[doc],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-full',settings:{}}));
+  // 让所有 STATE 之外的空间也被占满：任何写入都会抛配额错误。
+  const proto=Object.getPrototypeOf(w.localStorage),original=proto.setItem;
+  let blocked=false;
+  proto.setItem=function(name,value){if(blocked)throw new Error("Failed to execute 'setItem' on 'Storage': Setting the value of '"+name+"' exceeded the quota.");return original.call(this,name,value);};
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  // 真实场景：先正常用过一次，再把存储写满。
+  await tick();await tick();
+  blocked=true;
+  // 再点一个词、并触发一次同步：都不应该抛出浏览器原始错误。
+  const target=[...w.document.querySelectorAll('#paper .word')].find(item=>item.textContent==='Body');
+  target.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
+  await tick();await tick();
+  const panel=w.document.querySelector('#captureTabPanel').textContent;
+  assert.match(panel,/本机存储空间不足/,'存储写满时要明确说明“这次没能保存”，而不是看起来点了没反应');
+  blocked=false;
   dom.window.close();
 });
 

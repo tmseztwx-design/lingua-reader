@@ -27,17 +27,33 @@ export function installLibrary(cloud) {
   async function libraryCall(action,body={}){
     return cloud.callFunction('scribe-library',{action,libraryKey:await ensureLibrary(),...body});
   }
+  // 短指纹：只用来判断“内容有没有变”，不参与云端合并，因此不需要整份内容。
+  function shortPrint(value){
+    const text=typeof value==='string'?value:JSON.stringify(value);
+    let hash=5381;
+    for(let index=0;index<text.length;index+=1) hash=((hash<<5)+hash+text.charCodeAt(index))|0;
+    return (hash>>>0).toString(36)+':'+text.length;
+  }
   function collect(){
     if(applying || !key()) return;
     const entries=localEntries(read(STATE,{}));
     for(const id of Object.keys(pending))if(!entries.has(id)&&!metadata[id])delete pending[id];
     for(const [id,entry] of entries){
-      if(fingerprint(entry)!==metadata[id]?.fingerprint) pending[id]={...entry,deleted:false,revision:metadata[id]?.revision||0};
+      if(fingerprint(entry)!==metadata[id]?.fingerprint) pending[id]={kind:entry.kind,id:entry.id,deleted:false,revision:metadata[id]?.revision||0,print:shortPrint(entry.value)};
     }
     for(const [id,known] of Object.entries(metadata)){
-      if(!entries.has(id) && known.fingerprint!=='deleted') pending[id]={kind:known.kind,id:known.id,value:null,deleted:true,revision:known.revision};
+      if(!entries.has(id) && known.fingerprint!=='deleted') pending[id]={kind:known.kind,id:known.id,deleted:true,revision:known.revision,print:'deleted'};
     }
-    write('scribe-sync-pending',pending);
+    safeWrite('scribe-sync-pending',pending);
+  }
+  // 发送前把引用补成真正的值（内容取自当前状态，永远是最新的）。
+  function withValues(changes){
+    const entries=localEntries(read(STATE,{}));
+    return changes.map(change=>{
+      const entry=entries.get(change.kind+':'+change.id);
+      return {kind:change.kind,id:change.id,deleted:change.deleted===true,revision:change.revision||0,
+        value:change.deleted?null:(entry?entry.value:null),print:change.print};
+    });
   }
   let timer;
   Storage.prototype.setItem=function(name,value){
@@ -63,6 +79,19 @@ export function installLibrary(cloud) {
     if(reload)location.reload();
     return {switched:true};
   }
+  // 这些键都是可重建的辅助数据（待发镜像、指纹表、冲突副本）。
+  // 浏览器存储写满时（Safari 无痕、配额耗尽）绝不能因此中断上传与同步。
+  let storagePressure = '';
+  function safeWrite(name, value) {
+    try { nativeSet.call(localStorage, name, JSON.stringify(value)); storagePressure = ''; return true; }
+    catch (error) {
+      storagePressure = (error && error.message) || '本机存储写入失败';
+      console.warn('[scribe] 本机存储写入失败（' + name + '）：' + storagePressure);
+      try { window.dispatchEvent(new Event('scribe-storage-pressure')); } catch { /* 忽略 */ }
+      return false;
+    }
+  }
+  const storageState = () => storagePressure;
   function backupConflict(change){
     const conflicts=read('scribe-sync-conflicts',[]);
     conflicts.push({...change,savedAt:new Date().toISOString()});write('scribe-sync-conflicts',conflicts.slice(-100));
@@ -73,7 +102,8 @@ export function installLibrary(cloud) {
     const epoch=generation;
     let succeeded=false;
     try {
-      await ensureLibrary();collect();say('正在同步…');      const sending=Object.values(pending).slice(0,100);
+      await ensureLibrary();collect();say('正在同步…');      const queued=Object.values(pending).slice(0,100);
+      const sending=withValues(queued);
       const response=await libraryCall('sync',{changes:sending});
       if(epoch!==generation)return;
       // User edits made during the request stay pending and keep their local values.
@@ -86,9 +116,10 @@ export function installLibrary(cloud) {
         const id=change.kind+':'+change.id;
         if(conflicts.has(id)){
           // An edit made during a conflicting request is still based on the old
-          // version. Preserve that latest draft instead of rebasing it silently.
-          backupConflict(pending[id]||change);conflictCount++;delete pending[id];
-        }else if(JSON.stringify(pending[id])===JSON.stringify(change)) delete pending[id];
+          // version. Preserve that latest draft (with its full content) instead of
+          // rebasing it silently.
+          backupConflict(withValues([pending[id]||change])[0]||change);conflictCount++;delete pending[id];
+        }else if(pending[id]&&change.print&&pending[id].print===change.print) delete pending[id];
       }
       const rows=response.entries.filter(row=>!pending[row.kind+':'+row.entry_id]);
       const next=applyEntries(before,rows,stampPageUrls(response.documents));
@@ -115,7 +146,7 @@ export function installLibrary(cloud) {
         if(pending[id]) pending[id].revision=row.revision;
       }
       // Generated cloud documents must join the revisioned library on the next tick.
-      write(META,metadata);write('scribe-sync-pending',pending);
+      safeWrite(META,metadata);safeWrite('scribe-sync-pending',pending);
       const snapshot=state=>JSON.stringify([...localEntries(state)].map(([id,entry])=>[id,fingerprint(entry)]));
       const changed=snapshot(before)!==snapshot(next);
       if(changed){refreshButton.hidden=false;window.dispatchEvent(new Event('scribe-cloud-updated'));}
@@ -152,7 +183,32 @@ export function installLibrary(cloud) {
       await pause(2500);
     }
   }
-  cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key};
+  // 存储被写满时给用户一条明确的出路：清掉可重建的本机缓存（词库缓存、冲突副本、
+  // 上一工作区备份、待发镜像），再重新同步。云端与 STATE 里的学习数据都不动。
+  function clearLocalCaches(){
+    for(const name of ['scribe-word-cache-v1','scribe-sync-conflicts','scribe-last-workspace','scribe-sync-pending']) localStorage.removeItem(name);
+    pending={};metadata={};
+    return true;
+  }
+  function mountStorageBanner(){
+    if(!document.body)return;
+    let bar=document.getElementById('scribeStorageBar');
+    if(!bar){
+      bar=document.createElement('div');
+      bar.id='scribeStorageBar';
+      bar.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:120;display:none;align-items:center;gap:12px;max-width:min(680px,92vw);padding:12px 14px;border:1px solid #e6cfae;border-radius:11px;background:#fff8ec;color:#7a5a28;font-size:13px;box-shadow:0 12px 32px #17243e22';
+      bar.innerHTML='<b>本机存储写入失败</b><span id="scribeStorageText" style="flex:1"></span><button class="button secondary small" type="button" id="scribeStorageFix">清理本机缓存</button>';
+      document.body.appendChild(bar);
+      bar.querySelector('#scribeStorageFix').onclick=()=>{clearLocalCaches();bar.style.display='none';sync().catch(()=>{});};
+    }
+    const show=()=>{
+      const text=bar.querySelector('#scribeStorageText');
+      if(text)text.textContent=storagePressure?('（'+storagePressure+'）— 云端数据不受影响，可清理本机缓存后重试。'):'云端数据不受影响，可清理本机缓存后重试。';
+      bar.style.display='flex';
+    };
+    window.addEventListener('scribe-storage-pressure',show);
+  }
+  cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key,storageState,clearLocalCaches};
   window.addEventListener('scribe-reset-workspace',()=>{
     write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
     generation++;localStorage.removeItem(KEY);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
@@ -186,7 +242,11 @@ export function installLibrary(cloud) {
       const blob=new Blob([JSON.stringify(read('scribe-sync-conflicts',[]),null,2)],{type:'application/json'});
       const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='书库同步冲突副本.json';link.click();URL.revokeObjectURL(link.href);
     };
-    pending=read('scribe-sync-pending',{});
+    // 旧版本把整份内容存进待发镜像；带上“内容已改”的判断只需短指纹，
+    // 读到旧格式就丢掉，collect() 会立刻按当前状态重建（内容来自 STATE，不丢东西）。
+    mountStorageBanner();
+    pending=Object.fromEntries(Object.entries(read('scribe-sync-pending',{})).filter(([,change])=>change&&change.print));
+    safeWrite('scribe-sync-pending',pending);
     ensureLibrary().then(async()=>{
       for(const item of read('scribe-cloud-links',[])) try{await libraryCall('attach',{token:item.token});}catch{}
       await sync();
