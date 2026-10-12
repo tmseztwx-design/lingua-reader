@@ -466,7 +466,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         return '<div class="cloud-batch"><div class="cloud-batch-copy"><b>'+when+' · '+uploaded+' 页</b><small>'+state+'</small></div><div class="cloud-batch-actions"><button class="button small secondary" type="button" data-recall="'+index+'">'+(row.status.ocrStatus==='complete'?'重新识别':'取回并识别')+'</button><button class="button small secondary" type="button" data-remove="'+index+'">删除云端副本</button></div></div>';
       }).join('');
       Array.prototype.forEach.call(container.querySelectorAll('[data-recall]'),function(button){button.addEventListener('click',function(){var row=rows[Number(button.dataset.recall)];if(!row||!row.status)return;var files=(row.status.files||[]).filter(function(file){return file.uploaded;});showStatus('正在从云端取回并识别 '+files.length+' 页…');runCloudRecognition(row.token,button,files);});});
-      Array.prototype.forEach.call(container.querySelectorAll('[data-remove]'),function(button){button.textContent='移入最近删除';button.addEventListener('click',async function(){var row=rows[Number(button.dataset.remove)];if(!row)return;button.disabled=true;button.textContent='正在移入…';try{var client=await cloudReady();await client.library.sync();await client.library.call('trash',{sessionId:row.status.id});await client.library.sync();forgetCloudLink(row.token);await refreshCloudBatches();showStatus('文献已移入最近删除，30 天内可以恢复。');}catch(error){showStatus(error.message);button.disabled=false;button.textContent='移入最近删除';}});});
+      Array.prototype.forEach.call(container.querySelectorAll('[data-remove]'),function(button){button.textContent='移入最近删除';button.addEventListener('click',async function(){var row=rows[Number(button.dataset.remove)];if(!row)return;button.disabled=true;button.textContent='正在移入…';try{var client=await cloudReady();var moved=false,lastError=null;for(var attempt=0;attempt<3&&!moved;attempt+=1){try{await client.library.sync();await client.library.call('trash',{sessionId:row.status.id});moved=true;}catch(error){lastError=error;}}if(!moved)throw lastError||new Error('移入失败，请重试。');forgetCloudLink(row.token);await refreshCloudBatches();showStatus('文献已移入最近删除，30 天内可以恢复。');}catch(error){showStatus(error.message);button.disabled=false;button.textContent='移入最近删除';}});});
       Array.prototype.forEach.call(container.querySelectorAll('[data-forget]'),function(button){button.addEventListener('click',async function(){var row=rows[Number(button.dataset.forget)];if(!row)return;forgetCloudLink(row.token);await refreshCloudBatches();});});
     }
     mount();
@@ -1086,18 +1086,29 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       purgeDeleted(function(){return true;});
     };
     filters.addEventListener('click',function(event){if(event.target.closest('button[data-filter]'))setTimeout(showBooks,0);});
+    // 删除不弹原生确认框（部分 WebView 会拦截 window.confirm，导致点了没反应）：
+    // 直接移入最近删除，30 天内可随时恢复，比确认框更安全。
+    // 云端文献同时把墓碑写到服务端（按服务端当前修订号），避免同步冲突把书带回来。
+    async function trashCloudSession(sessionId){
+      if(!sessionId||!window.__scribeCloud||!window.__scribeCloud.library)return;
+      for(var attempt=0;attempt<2;attempt+=1){
+        try{await window.__scribeCloud.library.call('trash',{sessionId:sessionId});return;}
+        catch(error){if(attempt===0){try{await window.__scribeCloud.library.sync();}catch(e){}}}
+      }
+    }
     list.addEventListener('click',function(event){
       var button=event.target.closest('.book-delete');if(!button)return;
       event.preventDefault();event.stopPropagation();
       var state=read(),docs=Array.isArray(state.docs)?state.docs:[],index=docs.findIndex(function(doc){return String(doc.id)===button.dataset.docId;});
       if(index<0)return;
       var doc=docs[index];
-      if(!window.confirm('将《'+doc.title+'》移到最近删除？\n可以随时恢复，原图和学习卡不会清除。'))return;
       var deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[];
       deleted.unshift(Object.assign({},doc,{deletedAt:new Date().toISOString(),deletedIndex:index}));
       docs.splice(index,1);state.docs=docs;state.deletedDocs=deleted;state.filter='all';
       if(String(state.activeDocId)===String(doc.id))state.activeDocId=docs[0]?docs[0].id:null;
-      save(state);reloadAt('books');
+      save(state);
+      trashCloudSession(doc.cloudSessionId);
+      reloadAt('books');
     });
     trash.addEventListener('click',function(event){
       var button=event.target.closest('.restore-book');if(!button)return;

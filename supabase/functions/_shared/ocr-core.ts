@@ -147,19 +147,66 @@ async function transcribeImage(input: { bytes: Uint8Array; mime: string; signedU
   });
 }
 
-async function transcribePdf(input: { bytes: Uint8Array; name: string; model: string; sessionId: string }) {
-  if (input.bytes.length > MAX_INLINE_BYTES) {
-    throw new Error("这份 PDF 是整份上传的，超过云端单次读取上限（8 MB）。请刷新页面后重新上传：新版会在浏览器里自动按页拆分，再大的 PDF 也能识别。");
+// pdf-lib 纯 JS，可在边缘函数里把大 PDF 切成页块；每个页块单独转录再按页序拼接。
+import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
+
+const PDF_CHUNK_PAGES = 6;
+
+// 大 PDF 分块：每块最多 PDF_CHUNK_PAGES 页，避免整本超过模型单次输入上限。
+async function splitPdf(bytes: Uint8Array) {
+  const source = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  const pageCount = source.getPageCount();
+  const chunks: Uint8Array[] = [];
+  for (let start = 0; start < pageCount; start += PDF_CHUNK_PAGES) {
+    const sub = await PDFDocument.create();
+    const indexes = [];
+    for (let index = start; index < Math.min(start + PDF_CHUNK_PAGES, pageCount); index += 1) indexes.push(index);
+    const copied = await sub.copyPages(source, indexes);
+    copied.forEach((page) => sub.addPage(page));
+    chunks.push(await sub.save());
   }
-  return await transcribeWithReview({
-    model: input.model,
-    sessionId: input.sessionId,
-    parts: [{
-      type: "input_file",
-      filename: input.name,
-      file_data: `data:application/pdf;base64,${toBase64(input.bytes)}`,
-    }],
-  });
+  return { chunks, pageCount };
+}
+
+async function transcribePdf(input: { bytes: Uint8Array; name: string; model: string; sessionId: string }) {
+  if (input.bytes.length <= MAX_INLINE_BYTES) {
+    return await transcribeWithReview({
+      model: input.model,
+      sessionId: input.sessionId,
+      parts: [{
+        type: "input_file",
+        filename: input.name,
+        file_data: `data:application/pdf;base64,${toBase64(input.bytes)}`,
+      }],
+    });
+  }
+  // 超过单次输入上限：按页切块逐块转录，再按页序拼回完整文本。
+  let split;
+  try {
+    split = await splitPdf(input.bytes);
+  } catch (error: unknown) {
+    console.warn("[scribe-ocr] pdf split failed:", error instanceof Error ? error.message : error);
+    throw new Error("PDF 无法解析（可能已加密或损坏），请重新导出后上传。");
+  }
+  const texts: string[] = [];
+  for (let index = 0; index < split.chunks.length; index += 1) {
+    const chunk = split.chunks[index];
+    if (chunk.length > MAX_INLINE_BYTES) {
+      throw new Error(`PDF 第 ${index * PDF_CHUNK_PAGES + 1} 页起的分块仍超过 8 MB，请把这份文件拆成更小的部分上传。`);
+    }
+    const text = await transcribeWithReview({
+      model: input.model,
+      sessionId: input.sessionId,
+      parts: [{
+        type: "input_file",
+        filename: input.name.replace(/\.pdf$/i, "") + `-第${index * PDF_CHUNK_PAGES + 1}页起.pdf`,
+        file_data: `data:application/pdf;base64,${toBase64(chunk)}`,
+      }],
+    });
+    if (text && !/^NO_TEXT$/i.test(text.trim())) texts.push(text);
+  }
+  if (!texts.length) throw new Error("这份 PDF 各页都没能识别出文字；如果是纯图片扫描件，请改用手机拍照上传。");
+  return texts.join(NL + NL);
 }
 
 function decodeEntities(value: string) {
