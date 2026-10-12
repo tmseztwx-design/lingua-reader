@@ -906,11 +906,46 @@ test('desktop upload submits the whole confirmed queue to cloud in user-selected
   const uploaded=[],calls=[];
   w.__scribeCloud={callFunction:async(name,body)=>{calls.push(body);return{};},library:{createSession:async()=>({token:'batch',sessionId:'session'}),upload:async(token,file,order)=>uploaded.push([file.name,order]),sync:async()=>{},awaitBatch:async()=>{throw new Error('Synthetic offline pause after durable submission');}}};
   w.eval(await readFile(new URL('../public/import-queue.js',import.meta.url),'utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
-  const input=w.document.querySelector('#fileInput');Object.defineProperty(input,'files',{value:['a','b','c'].map(name=>new w.File(['page'],name+'.txt',{type:'text/plain'}))});input.dispatchEvent(new w.Event('change',{bubbles:true}));
+  const input=w.document.querySelector('#fileInput');Object.defineProperty(input,'files',{value:['a','b','c'].map(name=>new w.File(['page'],name+'.txt',{type:'text/plain'}))});input.dispatchEvent(new w.Event('change',{bubbles:true}));await tick();
   w.document.querySelector('[aria-label="下移"]').click();w.document.querySelector('#process').click();await tick();
   assert.deepEqual(uploaded,[['b.txt',0],['a.txt',1],['c.txt',2]]);
   assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{action:'complete',token:'batch'}]);
   assert.equal(w.document.querySelector('#fileInput').disabled,true);
   assert.match(w.document.querySelector('#computerQueueHint').textContent,/Synthetic offline/);
+  dom.window.close();
+});
+
+test('a large PDF is split into one upload per page before it reaches the cloud',async()=>{
+  const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
+  const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};
+  const uploaded=[],sessions=[],exploded=[];
+  // 模拟 19 MB、30 页的 PDF：浏览器端拆成 30 张页面图，云端每次只读一页。
+  w.__scribeExplodePdf=async(file,onProgress)=>{exploded.push(file.name);return Array.from({length:30},(_,index)=>{onProgress(index+1,30);return new w.File(['jpeg'],'未命名1 · 第 '+String(index+1).padStart(2,'0')+' 页.jpg',{type:'image/jpeg'});});};
+  w.__scribeCloud={callFunction:async()=>({}),library:{createSession:async(body)=>{sessions.push(body);return{token:'batch',sessionId:'session'};},upload:async(token,file,order)=>uploaded.push([file.name,file.type,order]),sync:async()=>{},awaitBatch:async()=>{throw new Error('Synthetic pause');}}};
+  w.eval(await readFile(new URL('../public/import-queue.js',import.meta.url),'utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  const input=w.document.querySelector('#fileInput');
+  Object.defineProperty(input,'files',{value:[new w.File(['%PDF-1.4'],'未命名1.pdf',{type:'application/pdf'})]});
+  input.dispatchEvent(new w.Event('change',{bubbles:true}));await tick();await tick();
+  assert.deepEqual(exploded,['未命名1.pdf']);
+  assert.equal(w.document.querySelectorAll('#computerQueue .computer-queue-item').length,30,'队列里是 30 个页面而不是 1 个整份 PDF');
+  w.document.querySelector('#process').click();await tick();await tick();
+  assert.equal(uploaded.length,30);
+  assert.ok(uploaded.every(([name,type],index)=>type==='image/jpeg'&&uploaded[index][2]===index),'每页按原页序作为单独的图片上传');
+  assert.equal(uploaded[0][0],'未命名1 · 第 01 页.jpg');assert.equal(uploaded[29][0],'未命名1 · 第 30 页.jpg');
+  assert.deepEqual(JSON.parse(JSON.stringify(sessions)),[{title:'未命名1'}],'书名沿用 PDF 文件名');
+  dom.window.close();
+});
+
+test('a PDF the browser cannot split is still queued as one file with an explanation',async()=>{
+  const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
+  const w=dom.window;w.TextEncoder=TextEncoder;w.console={...console,warn(){}};
+  w.__scribeExplodePdf=async()=>{throw new Error('Invalid PDF structure');};
+  w.__scribeCloud={callFunction:async()=>({}),library:{}};
+  w.eval(await readFile(new URL('../public/import-queue.js',import.meta.url),'utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  const input=w.document.querySelector('#fileInput');
+  Object.defineProperty(input,'files',{value:[new w.File(['x'],'broken.pdf',{type:'application/pdf'})]});
+  input.dispatchEvent(new w.Event('change',{bubbles:true}));await tick();await tick();
+  assert.equal(w.document.querySelectorAll('#computerQueue .computer-queue-item').length,1);
+  assert.match(w.document.querySelector('#fileMeta').textContent,/broken\.pdf 无法在浏览器拆页/);
   dom.window.close();
 });

@@ -209,7 +209,7 @@ const __shared = (() => {
 
   async function transcribePdf(input: { bytes: Uint8Array; name: string; model: string; sessionId: string }) {
     if (input.bytes.length > MAX_INLINE_BYTES) {
-      throw new Error("PDF 超过云端单次读取上限（8 MB），请拆分页数，或用手机拍照上传页面。");
+      throw new Error("这份 PDF 是整份上传的，超过云端单次读取上限（8 MB）。请刷新页面后重新上传：新版会在浏览器里自动按页拆分，再大的 PDF 也能识别。");
     }
     return await transcribeWithReview({
       model: input.model,

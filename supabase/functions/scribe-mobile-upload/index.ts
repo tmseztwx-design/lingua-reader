@@ -77,7 +77,7 @@ const BUCKET = "scribe-pages";
 const LINK_TTL_MS = 24 * 60 * 60 * 1000;
 const SHORT_URL_TTL = 60 * 60;
 const PAGE_URL_TTL = 60 * 60;
-const MAX_FILES = 100;
+const MAX_FILES = 500; // PDF 在浏览器端按页拆开，一本书可达数百页
 const MAX_BYTES = 100 * 1024 * 1024;
 const MAX_OPEN_SESSIONS = 20;
 

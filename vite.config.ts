@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { defineConfig, type PluginOption } from "vite";
@@ -39,8 +40,35 @@ function lanBasePlugin(): PluginOption {
   };
 }
 
+// pdf.js 读 PDF 时按需取字体、CMap（中日韩文字）与扫描件解码器（JBIG2/JPX 的 wasm）。
+// 开发时直接从 node_modules 提供 /pdfjs/*，构建时原样复制进 dist/pdfjs/。
+const PDFJS_ROOT = path.resolve(__dirname, "node_modules/pdfjs-dist");
+const PDFJS_DIRS = ["cmaps", "standard_fonts", "wasm", "iccs"];
+function pdfjsAssetsPlugin(): PluginOption {
+  return {
+    name: "scribe-pdfjs-assets",
+    configureServer(server) {
+      server.middlewares.use("/pdfjs", (req, res, next) => {
+        const relative = decodeURIComponent((req.url || "").split("?")[0]).replace(/^\/+/, "");
+        const file = path.resolve(PDFJS_ROOT, relative);
+        if (!PDFJS_DIRS.includes(relative.split("/")[0]) || !file.startsWith(PDFJS_ROOT) || !fs.existsSync(file)) return next();
+        res.setHeader("Cache-Control", "public, max-age=86400");
+        fs.createReadStream(file).pipe(res);
+      });
+    },
+    generateBundle() {
+      for (const dir of PDFJS_DIRS) {
+        for (const name of fs.readdirSync(path.join(PDFJS_ROOT, dir))) {
+          const source = path.join(PDFJS_ROOT, dir, name);
+          if (fs.statSync(source).isFile()) this.emitFile({ type: "asset", fileName: `pdfjs/${dir}/${name}`, source: fs.readFileSync(source) });
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
-  const plugins: PluginOption[] = [...enterProdPlugin()];
+  const plugins: PluginOption[] = [...enterProdPlugin(), pdfjsAssetsPlugin()];
   if (mode === "development") {
     plugins.push(...enterDevPlugin(), lanBasePlugin());
   }

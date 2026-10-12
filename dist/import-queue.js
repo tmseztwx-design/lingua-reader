@@ -179,15 +179,45 @@
       queue.splice(index, 1);
       render();
     }
-    function addFiles(files) {
-      if (locked || working) return;
-      Array.from(files || []).forEach(function (file) {
-        queue.push({ file: file, state: '', addedAt: Date.now(), seq: addSequence++ });
-      });
+    // PDF 先在浏览器里拆成逐页图片再入队：一页一个文件，大 PDF 不会超出云端读取上限，每页单独识别与翻译。
+    var expanding = false;
+    function isPdf(file) { return /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf'; }
+    async function expandPdfs(files) {
+      var result = [], failed = [];
+      for (var index = 0; index < files.length; index++) {
+        var file = files[index];
+        if (!isPdf(file) || typeof window.__scribeExplodePdf !== 'function') { result.push({ file: file }); continue; }
+        try {
+          hintText.textContent = '正在拆分 PDF：' + file.name + ' · 读取中…';
+          var stem = file.name.replace(/\.pdf$/i, '');
+          var pages = await window.__scribeExplodePdf(file, function (done, total) { hintText.textContent = '正在拆分 PDF：' + file.name + ' · 第 ' + done + ' / ' + total + ' 页'; });
+          pages.forEach(function (page) { result.push({ file: page, source: stem }); });
+        } catch (error) {
+          console.warn('[scribe] PDF 拆页失败，改为整份上传', error);
+          failed.push(file.name);
+          result.push({ file: file });
+        }
+      }
+      return { items: result, failed: failed };
+    }
+    async function addFiles(files) {
+      if (locked || working || expanding) return;
+      var picked = Array.from(files || []);
+      if (!picked.length) return;
+      expanding = true; button.disabled = true;
+      var expanded = null;
+      try {
+        expanded = await expandPdfs(picked);
+        expanded.items.forEach(function (entry) {
+          queue.push({ file: entry.file, source: entry.source || '', state: '', addedAt: Date.now(), seq: addSequence++ });
+        });
+      } finally { expanding = false; button.disabled = false; }
       if (queue.length) {
         row.classList.add('show');
         document.querySelector('#fileName').textContent = queue.length + ' 个文件已加入队列';
-        document.querySelector('#fileMeta').textContent = '确认顺序后，整批处理';
+        document.querySelector('#fileMeta').textContent = expanded && expanded.failed.length
+          ? expanded.failed.join('、') + ' 无法在浏览器拆页，将整份上传；超过 8 MB 的整份 PDF 云端无法读取。'
+          : '确认顺序后，整批处理';
         render();
       }
     }
@@ -357,12 +387,18 @@
       }
     }
     var cloudSession = null;
+    // 整批都来自同一份 PDF 时以 PDF 名作书名，否则沿用「N 个文件」的自动标题。
+    function batchTitle() {
+      var sources = queue.map(function (item) { return item.source || ''; });
+      if (sources[0] && sources.every(function (source) { return source === sources[0]; })) return sources[0];
+      return queue.length === 1 ? queue[0].file.name.replace(/\.[^.]+$/, '') : '电脑上传文献（' + queue.length + ' 个文件）';
+    }
     async function processCloud() {
       working=true;locked=true;button.disabled=true;render();
       try {
         var cloud=window.__scribeCloud;
         if(!cloud || !cloud.library) throw new Error('云端组件尚未加载，请稍后重试。');
-        if(!cloudSession) cloudSession=await cloud.library.createSession({title:queue.length===1?queue[0].file.name.replace(/\.[^.]+$/,''):'电脑上传文献（'+queue.length+' 个文件）'});
+        if(!cloudSession) cloudSession=await cloud.library.createSession({title:batchTitle()});
         for(var index=0;index<queue.length;index++){
           var item=queue[index];if(item.state==='uploaded')continue;
           item.state='uploading';render();

@@ -209,7 +209,7 @@ const __shared = (() => {
 
   async function transcribePdf(input: { bytes: Uint8Array; name: string; model: string; sessionId: string }) {
     if (input.bytes.length > MAX_INLINE_BYTES) {
-      throw new Error("PDF 超过云端单次读取上限（8 MB），请拆分页数，或用手机拍照上传页面。");
+      throw new Error("这份 PDF 是整份上传的，超过云端单次读取上限（8 MB）。请刷新页面后重新上传：新版会在浏览器里自动按页拆分，再大的 PDF 也能识别。");
     }
     return await transcribeWithReview({
       model: input.model,
@@ -447,13 +447,24 @@ const { database, json, wakeQueue, BUCKET, transcribe, translateParagraphs } = _
 // ---- 函数实现 ----
 declare const EdgeRuntime:{waitUntil(task:Promise<unknown>):void};
 
+// PDF 在浏览器端拆成逐页图片后，一本书就是几十上百页：开 4 条并行通道同时识别，
+// scribe_claim_page 用 skip locked 保证同一页不会被两条通道重复领取。
+const LANES=4;
 async function work(db: ReturnType<typeof database>) {
   await cleanup(db);
   const started=Date.now();
+  const results=await Promise.allSettled(Array.from({length:LANES},()=>lane(db,started)));
+  results.forEach(r=>{if(r.status==="rejected")console.error("[scribe-queue lane]",r.reason instanceof Error?r.reason.message:r.reason);});
+  // 只要有一条通道把队列取空了就不再自唤醒（否则空队列会无限自调用）；cron 每分钟兜底。
+  if(results.some(r=>r.status==="fulfilled"&&r.value==="drained")) return;
+  await wakeQueue(db);
+}
+
+async function lane(db: ReturnType<typeof database>,started:number):Promise<"drained"|"budget"> {
   for(let count=0;count<5 && Date.now()-started<40000;count++) {
     const {data:file,error}=await db.rpc("scribe_claim_page");
     if(error) throw new Error(error.message);
-    if(!file) return;
+    if(!file) return "drained";
     let text="",failure: string|null=null,paragraphs: unknown[] = [];
     try {
       text=await transcribe(file,file.storage_path,db,file.session_id,"openai/gpt-6-luna");
@@ -466,7 +477,7 @@ async function work(db: ReturnType<typeof database>) {
     });
     if(finishError) throw new Error(finishError.message);
   }
-  await wakeQueue(db);
+  return "budget";
 }
 
 async function cleanup(db:ReturnType<typeof database>) {

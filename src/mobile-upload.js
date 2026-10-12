@@ -1,6 +1,7 @@
 // 手机上传页逻辑：一套队列 UI，两种传输通道。
 // - 云模式（URL 带 ?t=）：直传 Enter 云私有存储，识别也在云端。
 // - 局域网模式（无 ?t=，token 由本机服务注入）：沿用原来的 /api/mobile-links 接口，识别在本机。
+const isPdf = (file) => /\.pdf$/i.test(file?.name || "") || file?.type === "application/pdf";
 const cloudToken = (new URLSearchParams(location.search).get("t") || "").trim();
 const PLACEHOLDER = "__SCRIBE_LINK_TOKEN__";
 const injectedToken = typeof window.__scribeLinkToken === "string" ? window.__scribeLinkToken.trim() : "";
@@ -251,7 +252,7 @@ function render() {
 
   const pending = queue.filter((item) => item.state !== "uploaded").length;
   document.querySelectorAll("#images,#documents,#camera").forEach((input) => { input.disabled = uploadLocked || uploading; });
-  uploadButton.disabled = !queue.length || uploading || completionSent;
+  uploadButton.disabled = !queue.length || uploading || completionSent || expanding;
   uploadButton.textContent = uploading ? "正在按顺序上传…"
     : completionSent ? "全部文件已送达"
       : pending ? `锁定当前顺序并上传 ${queue.length} 个文件` : "确认全部文件已送达";
@@ -279,9 +280,44 @@ function remove(index) {
   render();
 }
 
-function addFiles(fileList) {
-  if (uploadLocked || uploading) return;
-  Array.from(fileList || []).forEach((file) => {
+// PDF 先在手机上拆成逐页图片再入队：大文件不会超出云端读取上限，每页单独识别与翻译。
+let expanding = false;
+async function expandPdfs(files) {
+  const result = [], failed = [];
+  for (const file of files) {
+    if (!isPdf(file)) { result.push(file); continue; }
+    try {
+      const { explodePdf } = await import("./pdf-pages.js");
+      show("正在拆分 PDF", `${file.name} · 读取中…`);
+      const pages = await explodePdf(file, (done, total) => show("正在拆分 PDF", `${file.name} · 第 ${done} / ${total} 页`));
+      result.push(...pages);
+    } catch (error) {
+      console.warn("[scribe] PDF 拆页失败，改为整份上传", error);
+      failed.push(file.name);
+      result.push(file);
+    }
+  }
+  return { files: result, failed };
+}
+
+async function addFiles(fileList) {
+  if (uploadLocked || uploading || expanding) return;
+  const picked = Array.from(fileList || []);
+  if (picked.some(isPdf)) {
+    expanding = true;
+    uploadButton.disabled = true;
+    try {
+      const { files, failed } = await expandPdfs(picked);
+      enqueue(files);
+      if (failed.length) show("有 PDF 无法在手机上拆页", `${failed.join("、")} 将整份上传；超过 8 MB 的整份 PDF 云端无法读取，建议改在电脑上传。`);
+    } finally { expanding = false; render(); }
+    return;
+  }
+  enqueue(picked);
+}
+
+function enqueue(files) {
+  files.forEach((file) => {
     queue.push({
       id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`,
       file,

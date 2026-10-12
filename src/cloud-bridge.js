@@ -12,6 +12,8 @@ if (route.get('admin') === '1') {
   document.documentElement.classList.add('alt-route');
   import("./admin-page.js").then(({installAdminPage}) => installAdminPage(cloud));
 } else {
+  // 电脑上传队列（public/import-queue.js，普通脚本）通过这里按需加载 PDF 拆页模块。
+  window.__scribeExplodePdf = (file, onProgress) => import("./pdf-pages.js").then(({explodePdf}) => explodePdf(file, onProgress));
   // 等本机数据保险库（public/storage-vault.js）把 IndexedDB 读进内存、页面脚本跑完，再接管同步；
   // 没有保险库的环境（测试、旧页面）直接启动。
   const start = () => {
