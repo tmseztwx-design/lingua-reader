@@ -25,6 +25,14 @@ const __shared = (() => {
   function randomKey() {
     return Array.from(crypto.getRandomValues(new Uint8Array(32)), n=>n.toString(16).padStart(2,"0")).join("");
   }
+  // 续传并入后页数会变，自动生成的标题（如「电脑上传文献（9 个文件）」）必须跟着更新，
+  // 否则用户会以为页面丢了；用户自己起的标题不含这个格式，原样保留。
+  function withPageCount(title: unknown, pages: number) {
+    const value = String(title ?? "");
+    const match = value.match(/^(.*)（\s*\d+\s*(个文件|页)\s*）\s*$/);
+    if (!match) return value;
+    return `${match[1]}（${pages} ${match[2]}）`;
+  }
   async function libraryFor(db: ReturnType<typeof database>, key: unknown) {
     if (typeof key !== "string" || !/^[a-f0-9]{64}$/.test(key)) return null;
     const bytes = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(key));
@@ -432,7 +440,7 @@ const __shared = (() => {
     const { data: signed } = await db.storage.from(BUCKET).createSignedUrl(storagePath, SIGNED_IMAGE_TTL);
     return await transcribeImage({ bytes, mime, signedUrl: signed?.signedUrl, model, sessionId });
   }
-  return { json, database, randomKey, libraryFor, hashKey, wakeQueue, BUCKET, cors, splitParagraphs, translateParagraphs, parseObjectArray, defineWords, explainExpressions, transcribe };
+  return { json, database, randomKey, withPageCount, libraryFor, hashKey, wakeQueue, BUCKET, cors, splitParagraphs, translateParagraphs, parseObjectArray, defineWords, explainExpressions, transcribe };
 })();
 const { database, json, libraryFor, defineWords, explainExpressions, translateParagraphs } = __shared;
 

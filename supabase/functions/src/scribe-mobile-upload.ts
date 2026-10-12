@@ -1,7 +1,7 @@
 // 手机跨网络上传中转：手机（任意网络）→ Enter 云私有桶，电脑/任意设备凭 token 取回。
 // 所有动作都由 token 鉴权；数据库对客户端默认拒绝，只有本函数（服务角色）可以读写。
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {database, libraryFor, wakeQueue} from "../_shared/cloud.ts";
+import {database, libraryFor, wakeQueue, withPageCount} from "../_shared/cloud.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -379,10 +379,13 @@ async function absorbSession(db: ReturnType<typeof database>, session: Row, body
   const failed = all.filter((file) => file.ocr_status === "error").length;
   const finished = all.filter((file) => file.ocr_status === "complete" || file.ocr_status === "error").length;
   const ocrStatus = finished < all.length ? "processing" : failed ? "partial" : "complete";
+  // 自动生成的标题带页数，并入后必须同步改写，否则标题会一直停在上一次的数量。
+  const title = withPageCount(target.title, all.length);
   const { error: updateError } = await db
     .from("scribe_cloud_sessions")
     .update({
       file_count: all.length,
+      title: title || target.title,
       ocr_status: ocrStatus,
       ocr_completed_at: ocrStatus === "processing" ? null : new Date().toISOString(),
     })

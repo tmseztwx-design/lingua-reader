@@ -21,6 +21,15 @@ export function stampPageUrls(documents, now=Date.now()) {
   }
   return documents;
 }
+// 「电脑上传文献（9 个文件）」这类自动标题带页数；续传并入后页数变了，
+// 标题必须跟着服务端的真实页数走，否则用户会以为页面丢了。用户自定义标题不受影响。
+const AUTO_TITLE = /（\s*(\d+)\s*(个文件|页)\s*）\s*$/;
+function realPageCount(generated) {
+  const pages = Number(generated?.pages);
+  if (Number.isFinite(pages) && pages > 0) return pages;
+  return Array.isArray(generated?.sourcePages) ? generated.sourcePages.length : 0;
+}
+
 export function applyEntries(state,rows,documents=[]) {
   const next=structuredClone(state);
   const docs=new Map((next.docs||[]).map(doc=>[String(doc.id),doc]));
@@ -38,8 +47,12 @@ export function applyEntries(state,rows,documents=[]) {
   for(const generated of documents){
     if(tombstones.has(generated.id)) continue;
     const saved=docs.get(generated.id);
-    docs.set(generated.id,{...generated,...saved,sourcePages:generated.sourcePages,pages:generated.pages,
-      processingState:generated.processingState,processingError:generated.processingError,completed:generated.completed});
+    const merged={...generated,...saved,sourcePages:generated.sourcePages,pages:generated.pages,
+      processingState:generated.processingState,processingError:generated.processingError,completed:generated.completed};
+    const claimed=String(saved?.title||'').match(AUTO_TITLE);
+    const real=realPageCount(generated);
+    if(claimed && real && Number(claimed[1])!==real && generated.title) merged.title=generated.title;
+    docs.set(generated.id,merged);
   }
   next.docs=[...docs.values()];next.deletedDocs=[...trash.values()];next.cards=[...cards.values()];
   return next;

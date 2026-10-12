@@ -1,0 +1,2 @@
+-- 复现用户的情形：把这条验收合成文献的标题改成偏小的页数（仅改我几分钟前创建的验收数据）。
+update public.scribe_cloud_sessions set title = '验收标题（9 个文件）' where id = 'fd9489a6-7d80-483a-b8ad-707c6ba83837'

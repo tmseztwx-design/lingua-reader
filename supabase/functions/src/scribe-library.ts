@@ -1,4 +1,4 @@
-import {database,json,libraryFor,hashKey,randomKey,BUCKET,Row} from "../_shared/cloud.ts";
+import {database,json,libraryFor,hashKey,randomKey,BUCKET,Row,withPageCount} from "../_shared/cloud.ts";
 
 async function entriesOf(db: ReturnType<typeof database>, id: string) {
   const result:Row[]=[];
@@ -8,6 +8,36 @@ async function entriesOf(db: ReturnType<typeof database>, id: string) {
     result.push(...(data||[]));if((data||[]).length<500) return result;
   }
 }
+// 自动标题（「电脑上传文献（9 个文件）」）里的页数必须等于真实页数：
+// 续传并入后、或旧版本客户端推上来的记录里，这个数字常常落后。这里以服务端页数为准改写，
+// 学生端即使还是旧版本也能在下次同步看到正确标题。
+async function pageCountsOf(db: ReturnType<typeof database>, libraryId: string) {
+  const counts = new Map<string, number>();
+  const { data: sessions, error } = await db.from("scribe_cloud_sessions").select("id").eq("library_id", libraryId);
+  if (error) throw new Error(error.message);
+  const ids = (sessions || []).map((row: Row) => String(row.id));
+  if (!ids.length) return counts;
+  const { data: files, error: fileError } = await db.from("scribe_cloud_files").select("session_id").in("session_id", ids).not("uploaded_at", "is", null);
+  if (fileError) throw new Error(fileError.message);
+  for (const row of (files || []) as Row[]) {
+    const key = String(row.session_id);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return counts;
+}
+
+function correctAutoTitles(rows: Row[], counts: Map<string, number>) {
+  return rows.map((row) => {
+    if (row.kind !== "doc" || row.deleted || !row.value) return row;
+    const sessionId = String(row.entry_id || "").replace(/^cloud-/, "");
+    const real = counts.get(sessionId);
+    if (!real) return row;
+    const fixed = withPageCount(row.value.title, real);
+    if (!fixed || fixed === row.value.title) return row;
+    return { ...row, value: { ...row.value, title: fixed } };
+  });
+}
+
 async function sessionDocuments(db: ReturnType<typeof database>,libraryId: string) {
   const {data:sessions,error}=await db.from("scribe_cloud_sessions").select("*").eq("library_id",libraryId).is("deleted_at",null).not("completed_at","is",null).order("created_at",{ascending:false});
   if(error) throw new Error(error.message);
@@ -18,7 +48,7 @@ async function sessionDocuments(db: ReturnType<typeof database>,libraryId: strin
     const paths=(files||[]).map(file=>file.storage_path);
     const {data:urls}=paths.length?await db.storage.from(BUCKET).createSignedUrls(paths,3600):{data:[]};
     documents.push({
-      id:"cloud-"+session.id,cloudSessionId:session.id,title:session.title||((files||[]).length===1?files![0].name.replace(/\.[^.]+$/,""):"云端文献（"+(files||[]).length+" 页）"),
+      id:"cloud-"+session.id,cloudSessionId:session.id,title:withPageCount(session.title,(files||[]).length)||((files||[]).length===1?files![0].name.replace(/\.[^.]+$/,""):"云端文献（"+(files||[]).length+" 页）"),
       author:"云端导入",category:"云端文献",status:"reading",progress:0,pages:(files||[]).length,time:"0 h",color:"new",
       processingState:session.ocr_status==="complete"?"ready":session.ocr_status==="partial"?"partial":"processing",
       processingError:session.ocr_status==="partial"?"部分页未能识别，原件已保留，可重试。":"",
@@ -80,6 +110,6 @@ Deno.serve(async req=>{
       if(error) throw new Error(error.message);
       if(!data.accepted) conflicts.push({kind:change.kind,id:change.id,entry:data.entry});
     }
-    return json({libraryId:library.id,entries:await entriesOf(db,library.id),documents:await sessionDocuments(db,library.id),conflicts});
+    return json({libraryId:library.id,entries:correctAutoTitles(await entriesOf(db,library.id),await pageCountsOf(db,library.id)),documents:await sessionDocuments(db,library.id),conflicts});
   }catch(e){console.error("[scribe-library]",e);return json({error:e instanceof SyntaxError?"请求格式错误。":e instanceof Error?e.message:"同步失败。"},500);}
 });

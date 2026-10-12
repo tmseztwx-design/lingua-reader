@@ -17,6 +17,21 @@ test('remote book refresh preserves reading progress and independent cards; tras
   assert.equal(purged.cards.length,1);
 });
 
+test('an appended document adopts the real page count in its title',()=>{
+  const state={docs:[{id:'cloud-a',title:'电脑上传文献（9 个文件）',pages:9,progress:20}],deletedDocs:[],cards:[],settings:{}};
+  const grown=[{id:'cloud-a',title:'电脑上传文献（27 个文件）',pages:27,progress:0,sourcePages:new Array(27).fill({text:'page'})}];
+  const next=applyEntries(state,[],grown);
+  assert.equal(next.docs[0].pages,27,'the server page count wins');
+  assert.equal(next.docs[0].title,'电脑上传文献（27 个文件）','a stale auto title must not claim 9 files');
+  assert.equal(next.docs[0].progress,20,'reading progress is preserved');
+  // 用户自己起的标题不受这条规则影响。
+  const renamed=applyEntries({docs:[{id:'cloud-a',title:'我的阅读计划',pages:9}]},[],grown);
+  assert.equal(renamed.docs[0].title,'我的阅读计划');
+  // 页数一致时保留原值，避免每次同步都改写。
+  const same=applyEntries({docs:[{id:'cloud-a',title:'电脑上传文献（27 个文件）',pages:27}]},[],[{id:'cloud-a',title:'电脑上传文献（27 个文件）',pages:27,sourcePages:new Array(27).fill({text:'page'})}]);
+  assert.equal(same.docs[0].title,'电脑上传文献（27 个文件）');
+});
+
 test('rotating private image URLs are not counted as user edits; notes are',()=>{
   const a={value:{id:'d1',sourcePages:[{url:'old',text:'page',urlAt:1}]}};
   const b={value:{id:'d1',sourcePages:[{url:'new',text:'page',urlAt:2}]}};
