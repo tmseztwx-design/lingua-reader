@@ -758,6 +758,90 @@ test('a word lookup that never answers times out with a retry hint',async()=>{
   dom.window.close();
 });
 
+test('a definition written while a sync is in flight is not reverted by the stale snapshot',async()=>{
+  const dom=new JSDOM('<div id="settings"><div class="settings-grid"></div></div><div class="topbar"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
+  const w=dom.window;w.structuredClone=structuredClone;w.setTimeout=()=>0;w.setInterval=()=>0;
+  // 卡片已经建好，但还没查到释义（真实流程：点词后立刻建卡，查词结果几秒后才回来）。
+  const card={id:'card-new',type:'word',term:'socioeconomic',meaning:'正在查询音标与语境释义…',phonetic:'',translation:'',context:'socioeconomic status matters',source:'x',note:'',due:true};
+  const initial={docs:[],cards:[card],deletedDocs:[],settings:{}};
+  w.localStorage.setItem('scribe-library-key','a'.repeat(64));
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(initial));
+  // 每次同步调用都排队等待手动应答，方便精确控制「请求进行中」这个时刻。
+  const resolvers=[];
+  const cloud={callFunction:async(name,body)=>{assert.equal(body.action,'sync');return await new Promise(resolve=>resolvers.push(resolve));}};
+  const pure=(await readFile(new URL('../src/sync-state.js',import.meta.url),'utf8')).replaceAll('export function','function');
+  const library=(await readFile(new URL('../src/cloud-library.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/,'').replace('export function','function');
+  w.eval(pure+'\n'+library+'\nwindow.installLibrary=installLibrary;');
+  w.installLibrary(cloud);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  await tick();
+  // 初次同步（挂载时）先应答，让同步器空闲下来。
+  assert.equal(resolvers.length,1,'挂载时会先同步一次');
+  resolvers.shift()({entries:[{kind:'card',entry_id:'card-new',value:card,revision:1,deleted:false}],documents:[],conflicts:[]});
+  await tick();await tick();
+  // 点词后本地又改过这张卡（此刻它是待发内容）。
+  const beforeSync=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  beforeSync.cards[0]={...beforeSync.cards[0],context:'socioeconomic status matters a lot'};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(beforeSync));
+  const syncing=cloud.library.sync();
+  await tick();
+  assert.equal(resolvers.length,1,'这次同步正在请求中');
+  // 请求进行中，查词结果回来了：写入音标、简释与释义。
+  const withAnswer=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  withAnswer.cards[0]={...withAnswer.cards[0],phonetic:'/ˌsəʊsiəʊekəˈnɒmɪk/',gloss:'社会经济的',translation:'社会经济地位的',meaning:'社会经济的；与社会社会经济地位有关'};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(withAnswer));
+  // 同步响应回来，服务端并不知道这条新释义。
+  resolvers.shift()({entries:[{kind:'card',entry_id:'card-new',value:card,revision:1,deleted:false},{kind:'preferences',entry_id:'settings',value:{settings:{}},revision:1,deleted:false}],documents:[],conflicts:[]});
+  await syncing;
+  await tick();
+  const saved=JSON.parse(w.localStorage.getItem('scribe-local-v1')).cards[0];
+  assert.equal(saved.translation,'社会经济地位的','请求期间写入的释义不能被请求开始时的旧快照冲掉');
+  assert.equal(saved.phonetic,'/ˌsəʊsiəʊekəˈnɒmɪk/');
+  assert.equal(saved.gloss,'社会经济的');
+  assert.doesNotMatch(String(saved.meaning),/正在查询/,'不能退回“正在查询”的占位文案');
+  const pending=JSON.parse(w.localStorage.getItem('scribe-sync-pending'));
+  assert.equal(Boolean(pending['card:card-new']),true,'这次编辑仍然排队等待下一次同步');
+  assert.match(JSON.stringify(pending['card:card-new']),/社会经济地位/,'排队的是最新值，不是旧快照');
+  dom.window.close();
+});
+
+test('the card panel repaints from stored state even if a render callback was missed',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  const timers=[];
+  w.setTimeout=(fn,ms)=>{timers.push({fn,ms});return 0;};
+  w.setInterval=(fn,ms)=>{if(Number(ms)===2000)timers.push({fn,ms,interval:true});return 0;};
+  w.fetch=()=>new Promise(()=>{});
+  w.__scribeCloud={callFunction:async()=>new Promise(()=>{}),library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const paragraph='Students accumulate symbolic capital during seminars.';
+  const state={docs:[{id:'cloud-panel',title:'面板对账',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:'pp1',order:1,name:'p1.png',type:'image/png',url:'https://example.test/p1.png',urlAt:Date.now(),text:paragraph,paragraphs:[{text:paragraph,translation:'学生在研讨课上积累符号资本。'}],sourceFileId:'pf1',pageIndex:0,cloud:true}]}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-panel',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','m'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();
+  const target=[...w.document.querySelectorAll('#paper .word')].find(item=>item.textContent==='accumulate');
+  target.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
+  await tick();await tick();
+  assert.match(w.document.querySelector('#captureTabPanel').textContent,/正在查询音标与语境释义/, '点词后先显示查询中');
+  // 模拟“查词结果已经写入状态，但那次渲染没能反映出来”：直接改存储，不碰面板。
+  const current=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  const card=current.cards.find(item=>item.term==='accumulate');
+  card.phonetic='/əˈkjuːmjəleɪt/';card.gloss='积累';card.translation='积累；逐渐积累';card.meaning='积累；逐渐积累（语境释义）';
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(current));
+  assert.match(w.document.querySelector('#captureTabPanel').textContent,/正在查询/, '面板此刻可能还是旧内容（这就是用户看到的现象）');
+  // 对账定时器跑一次，面板必须自己补上最新释义。
+  const sweep=timers.find(item=>item.interval&&item.ms===2000);
+  assert.ok(sweep,'存在面板对账定时器');
+  sweep.fn();
+  await tick();
+  const panel=w.document.querySelector('#captureTabPanel').textContent;
+  assert.match(panel,/\/əˈkjuːmjəleɪt\//,'面板会自动补上音标');
+  assert.match(panel,/积累；逐渐积累/,'面板会自动补上语境释义');
+  assert.doesNotMatch(panel,/正在查询/,'补渲染后不再停留在“正在查询”');
+  dom.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};

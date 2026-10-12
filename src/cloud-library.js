@@ -78,6 +78,8 @@ export function installLibrary(cloud) {
       if(epoch!==generation)return;
       // User edits made during the request stay pending and keep their local values.
       const before=read(STATE,{}),live=localEntries(before);
+      // 下面每次用到 pending 内容时都重新取一次，确保拿到请求期间新写入的内容。
+      const latestEntries=()=>localEntries(read(STATE,{}));
       const conflicts=new Set(response.conflicts.map(item=>item.kind+':'+item.id));
       let conflictCount=0;
       for(const change of sending){
@@ -95,6 +97,9 @@ export function installLibrary(cloud) {
         if(change.kind==='card')next.cards=next.cards.filter(card=>String(card.id)!==change.id);
       }
       for(const change of Object.values(pending)){
+        // 必须用「此刻最新」的本地内容，不能用请求开始时的快照：
+        // 查词结果、笔记等如果是在这次请求期间写入的，用旧快照会把它们冲掉
+        // （表现就是卡片一会儿有释义、一会儿又回到「正在查询」）。
         const entry=live.get(change.kind+':'+change.id);
         if(change.kind==='doc'){
           next.docs=next.docs.filter(doc=>String(doc.id)!==change.id);next.deletedDocs=next.deletedDocs.filter(doc=>String(doc.id)!==change.id);
