@@ -208,6 +208,17 @@ export function installLibrary(cloud) {
     };
     window.addEventListener('scribe-storage-pressure',show);
   }
+  // 告诉用户数据实际存在哪：大容量本机数据库（IndexedDB）+ 云端书库主副本。
+  function describeStorage(panel){
+    const vault=window.__scribeVault;if(!vault)return;
+    const line=document.createElement('p');line.className='muted tiny';line.id='localStorageState';panel.insertBefore(line,indicator);
+    const mb=bytes=>(bytes/1048576).toFixed(bytes<10485760?1:0)+' MB';
+    vault.estimate().then(estimate=>{
+      const mode=vault.info.mode==='indexeddb'?'本机大容量数据库':'浏览器小容量存储（约 5 MB，建议换用 Chrome / Safari 最新版）';
+      const usage=estimate&&estimate.quota?' · 已用 '+mb(estimate.usage||0)+' / 可用约 '+mb(estimate.quota):'';
+      line.textContent='本机数据：'+mode+usage+(vault.info.persisted?' · 已申请持久保存':'')+' · 云端书库保存完整主副本';
+    });
+  }
   cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key,storageState,clearLocalCaches};
   window.addEventListener('scribe-reset-workspace',()=>{
     write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
@@ -245,6 +256,7 @@ export function installLibrary(cloud) {
     // 旧版本把整份内容存进待发镜像；带上“内容已改”的判断只需短指纹，
     // 读到旧格式就丢掉，collect() 会立刻按当前状态重建（内容来自 STATE，不丢东西）。
     mountStorageBanner();
+    describeStorage(panel);
     pending=Object.fromEntries(Object.entries(read('scribe-sync-pending',{})).filter(([,change])=>change&&change.print));
     safeWrite('scribe-sync-pending',pending);
     ensureLibrary().then(async()=>{
