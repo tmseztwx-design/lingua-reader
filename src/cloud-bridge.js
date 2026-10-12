@@ -1,9 +1,19 @@
-// 学生端桥接：把云端客户端挂到 window，并装配内测登录与书库同步。
+// 主入口装配：按地址栏路由决定挂载哪一屏。
+// 正式站只发布主入口（/），/admin.html 这类子页面在正式域名上取不到，
+// 所以管理后台同时提供 /?admin=1 这条主入口路由。
 import {createCloud} from "./cloud-client.js";
 import {installLibrary} from "./cloud-library.js";
 import {installBeta} from "./beta-access.js";
 
-window.__scribeCloud = createCloud();
-if(document.querySelector('#settings')) installBeta(window.__scribeCloud);
-if(document.querySelector('#settings')) installLibrary(window.__scribeCloud);
-window.dispatchEvent(new Event("scribe-cloud-ready"));
+const route = new URLSearchParams(location.search);
+const cloud = createCloud();
+
+if (route.get('admin') === '1') {
+  document.documentElement.classList.add('alt-route');
+  import("./admin-page.js").then(({installAdminPage}) => installAdminPage(cloud));
+} else {
+  window.__scribeCloud = cloud;
+  if (document.querySelector('#settings')) installBeta(cloud);
+  if (document.querySelector('#settings')) installLibrary(cloud);
+  window.dispatchEvent(new Event("scribe-cloud-ready"));
+}

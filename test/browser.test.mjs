@@ -292,8 +292,14 @@ test('the student app carries no admin console, only the beta code login',async(
 });
 
 test('the separate admin console stays locked until the server accepts the password',async()=>{
-  const html=await readFile(new URL('../admin.html',import.meta.url),'utf8');
-  const dom=new JSDOM(html,{url:'https://scribe.test/admin.html',runScripts:'outside-only'}),w=dom.window;
+  // 独立页面 /admin.html 与主入口路由 /?admin=1 共用 src/admin-page.js 里的结构与样式。
+  const page=await readFile(new URL('../src/admin-page.js',import.meta.url),'utf8');
+  const markup=JSON.parse(page.match(/const ADMIN_MARKUP = (.*);/)[1]);
+  const style=JSON.parse(page.match(/const ADMIN_STYLE = (.*);/)[1]);
+  assert.match(markup,/id="password"/,'共用结构里要有口令输入');
+  const dom=new JSDOM('<html><head></head><body></body></html>',{url:'https://scribe.test/admin.html',runScripts:'outside-only'}),w=dom.window;
+  w.document.head.appendChild(Object.assign(w.document.createElement('style'),{textContent:style}));
+  w.document.body.innerHTML=markup;
   w.confirm=()=>true;
   const copied=[];
   Object.defineProperty(w.navigator,'clipboard',{value:{writeText:async text=>copied.push(text)},configurable:true});
