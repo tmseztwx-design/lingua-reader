@@ -672,6 +672,34 @@ test('clicking a word that is already selected still adds it in one click',async
   dom.window.close();
 });
 
+test('captured words are re-marked right after a page render and the clicked word flashes',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  w.__scribeCloud={callFunction:async(name,body)=>name==='scribe-study'&&body.action==='define'?{words:[{word:body.words[0].word,phonetic:'/'+body.words[0].word+'/',gloss:'简释',meaning:'语境释义'}]}:{},library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const first='The first page mentions nothing of interest.',second='A second page about memory and attention.';
+  const page=(index,text)=>({id:'pg'+index,order:index+1,name:'p'+(index+1)+'.png',type:'image/png',url:'https://example.test/'+index+'.png',urlAt:Date.now(),text,paragraphs:[{text,translation:'第 '+(index+1)+' 页译文。'}],sourceFileId:'f'+index,pageIndex:index,cloud:true});
+  const state={docs:[{id:'cloud-mark',title:'标记测试',status:'reading',color:'new',pages:2,progress:0,lastPage:0,sourcePages:[page(0,first),page(1,second)]}],
+    cards:[{id:'card-1',type:'word',term:'memory',meaning:'记忆',phonetic:'/ˈmeməri/',translation:'记忆',gloss:'记忆',context:second,source:'标记测试',note:'',due:true}],
+    deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-mark',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','j'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();await tick();
+  const find=(term)=>[...w.document.querySelectorAll('#paper .word')].find(item=>item.textContent===term);
+  assert.ok(find('first'),'the first page renders');
+  w.document.querySelector('#paper [data-source-next]').click();
+  await tick();await tick();await tick();
+  const memory=find('memory');
+  assert.ok(memory,'the second page renders after the page turn');
+  assert.equal(memory.classList.contains('captured'),true,'已收藏的词在翻页后立刻高亮，不需要再点一次');
+  memory.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
+  await tick();
+  assert.equal(memory.classList.contains('word-flash'),true,'点词时正文里那个词会闪动提示');
+  dom.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};
