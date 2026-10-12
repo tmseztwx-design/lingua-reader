@@ -599,6 +599,79 @@ test('redeeming a code from another library really switches the device over',asy
   dom2.window.close();
 });
 
+test('each clicked word is looked up immediately and in parallel with earlier ones',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const requests=[],settle=[];
+  w.__scribeCloud={callFunction:async(name,body)=>{
+    if(name==='scribe-study'&&body.action==='define'){
+      requests.push(body.words[0].word);
+      // 挂起：模拟正在思考的模型，看看第二张卡会不会被第一张卡挡住。
+      return await new Promise(resolve=>settle.push(()=>resolve({words:[{word:body.words[0].word,phonetic:'/'+body.words[0].word+'/',gloss:'简释',meaning:body.words[0].word+' 的语境释义'}]})));
+    }
+    return {};
+  },library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const paragraph='Students accumulate symbolic capital during seminars.';
+  const state={docs:[{id:'cloud-words',title:'点词测试',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:'cp1',order:1,name:'p1.png',type:'image/png',url:'https://example.test/p1.png',text:paragraph,paragraphs:[{text:paragraph,translation:'学生在研讨课上积累符号资本。'}],sourceFileId:'f1',pageIndex:0,cloud:true}]}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-words',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','h'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();
+  const word=term=>[...w.document.querySelectorAll('#paper .word')].find(item=>item.textContent===term);
+  const click=element=>element.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
+  click(word('accumulate'));
+  await tick();await tick();
+  assert.deepEqual(requests,['accumulate'],'点一下就应该立刻发出查询，不需要再点第二次');
+  click(word('capital'));
+  await tick();await tick();
+  assert.deepEqual(requests,['accumulate','capital'],'第二张卡不能被第一张卡挡住，两个查询要并行');
+  assert.equal(settle.length,2,'两个查询都在进行中');
+  settle[1]();// 后点的词先回来也要能正确落到自己的卡片上
+  await tick();await tick();
+  const cards=()=>JSON.parse(w.localStorage.getItem('scribe-local-v1')).cards;
+  const capital=cards().find(card=>card.term==='capital');
+  assert.equal(capital.translation,'capital 的语境释义','后点的词先返回时也要写回自己的卡片');
+  assert.equal(capital.phonetic,'/capital/');
+  assert.equal(cards().find(card=>card.term==='accumulate').translation,'','先点的词还没返回，不能被顶替');
+  settle[0]();
+  await tick();await tick();
+  const accumulate=cards().find(card=>card.term==='accumulate');
+  assert.equal(accumulate.translation,'accumulate 的语境释义','先点的词返回后同样要写回自己的卡片');
+  assert.equal(accumulate.phonetic,'/accumulate/');
+  assert.equal(requests.length,2,'同一张卡不会因为渲染而重复请求');
+  dom.window.close();
+});
+
+test('clicking a word that is already selected still adds it in one click',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const requests=[];
+  w.__scribeCloud={callFunction:async(name,body)=>{if(name==='scribe-study'&&body.action==='define')requests.push(body.words[0].word);return {words:[{word:'capital',phonetic:'/ˈkæpɪtl/',gloss:'资本',meaning:'资本；此处指符号资本'}]};},library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const paragraph='Students accumulate symbolic capital during seminars.';
+  const state={docs:[{id:'cloud-sel',title:'选中点词',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:'cp1',order:1,name:'p1.png',type:'image/png',url:'https://example.test/p1.png',text:paragraph,paragraphs:[{text:paragraph,translation:'学生在研讨课上积累符号资本。'}],sourceFileId:'f1',pageIndex:0,cloud:true}]}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-sel',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','i'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();
+  const target=[...w.document.querySelectorAll('#paper .word')].find(item=>item.textContent==='capital');
+  // 模拟“这个词此刻正被选中”的点击：旧逻辑会把它当成划选而忽略掉。
+  const selection=w.getSelection(),range=w.document.createRange();
+  range.selectNodeContents(target);selection.removeAllRanges();selection.addRange(range);
+  assert.equal(w.getSelection().toString().trim(),'capital');
+  target.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
+  await tick();await tick();
+  assert.deepEqual(requests,['capital'],'选中状态下点词也要一次就发起查询');
+  const card=JSON.parse(w.localStorage.getItem('scribe-local-v1')).cards.find(item=>item.term==='capital');
+  assert.ok(card,'一次点击就要建卡');
+  assert.equal(card.translation,'资本；此处指符号资本');
+  assert.equal(w.getSelection().toString().trim(),'','处理完点词后清掉选区，避免菜单残留');
+  dom.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};

@@ -548,7 +548,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     function writeWordCache(value){try{localStorage.setItem('scribe-word-cache-v1',JSON.stringify(value));}catch(error){}}
     async function cloudStudyCall(body){
       var libraryKey=localStorage.getItem('scribe-library-key');
-      if(!libraryKey)throw new Error('连接云端书库后即可查询音标与释义。');
+      if(!libraryKey)throw new Error('先输入内测码开启云端，才能查询音标与释义。');
       var client=window.__scribeCloud;
       if(!client)throw new Error('云端组件尚未加载，请刷新页面后重试。');
       return await client.callFunction('scribe-study',Object.assign({},body,{libraryKey:libraryKey}));
@@ -558,6 +558,28 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       if(!card)return;
       card.phonetic=detail.phonetic||'';card.gloss=detail.gloss||card.gloss||'';card.translation=detail.meaning||'';if(detail.meaning)card.meaning=detail.meaning;
       delete card.lookupFailed;write(current);render();
+    }
+    // 点词即时查询：每张卡各自发一次请求，互不排队；同一张卡重复点击不会重复请求。
+    var wordLookups={};
+    function lookupWordCard(id,term,context){
+      if(!id||wordLookups[id])return;
+      var sentence=exampleFor(term,context),key=wordCacheKey(term,sentence),cache=readWordCache();
+      if(cache[key]){applyWordDetail(id,cache[key]);return;}
+      var known=wordDetail(term);
+      if(known.translation){applyWordDetail(id,{phonetic:known.phonetic,meaning:known.translation,gloss:''});return;}
+      wordLookups[id]=true;
+      cloudStudyCall({action:'define',words:[{word:term,sentence:sentence}]}).then(function(result){
+        var entry=(result.words||[])[0];
+        if(!entry||(!entry.phonetic&&!entry.meaning&&!entry.gloss))throw new Error('这个词暂时查不到释义。');
+        var detail={phonetic:entry.phonetic||'',gloss:entry.gloss||'',meaning:entry.meaning||''};
+        var fresh=readWordCache();fresh[key]=detail;writeWordCache(fresh);
+        wordDetails[String(term||'').trim().toLowerCase()]=[detail.phonetic,detail.meaning];
+        applyWordDetail(id,detail);
+      }).catch(function(error){
+        var current=read(),card=(current.cards||[]).find(function(item){return item.id===id;});
+        if(!card||card.translation)return;
+        card.meaning=error.message||'暂时无法查询音标与释义。';card.lookupFailed=true;write(current);render();
+      }).finally(function(){delete wordLookups[id];});
     }
     // 一次请求补齐所有缺释义的词卡（新收藏的词与历史遗留的占位卡片都走这里），失败的卡片保留重试状态。
     var healingWords=false;
@@ -569,6 +591,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         var cache=readWordCache(),pending=[];
         (shown||[]).forEach(function(card){
           if(card.type!=='word'||card.lookupFailed)return;
+          if(wordLookups[card.id])return;
           if(cleanStoredDetail(card.translation))return;
           var known=wordDetail(card.term);
           if(known.translation){applyWordDetail(card.id,{phonetic:known.phonetic,meaning:known.translation});return;}
@@ -646,7 +669,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         write(current);
       }).finally(function(){healingExpressions=false;});
     }
-    function addCard(type,term,meaning,context){var current=read(),all=Array.isArray(current.cards)?current.cards:[],normalized=term.trim().toLowerCase(),detail=type==='word'?wordDetail(term):null;var existing=all.find(function(card){return card&&card.type===type&&String(card.term||'').trim().toLowerCase()===normalized;});if(existing){activeKind=type;focusCardId=existing.id;render();return false;}var id='collect-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),card={id:id,type:type,term:term.trim(),meaning:detail&&detail.translation?detail.translation:(meaning||'来自当前阅读'),phonetic:detail?detail.phonetic:'',translation:detail?detail.translation:'',context:context||'当前阅读段落',articleInfo:detail?articleInfo(context):'',example:detail?exampleFor(term,context):'',source:'The Sociology of Education · Chapter 3',note:'',due:true};if(type==='word'&&!card.translation)card.meaning='正在查询音标与语境释义…';all.push(card);current.cards=all;write(current);activeKind=type;focusCardId=id;render();return true;}
+    function addCard(type,term,meaning,context){var current=read(),all=Array.isArray(current.cards)?current.cards:[],normalized=term.trim().toLowerCase(),detail=type==='word'?wordDetail(term):null;var existing=all.find(function(card){return card&&card.type===type&&String(card.term||'').trim().toLowerCase()===normalized;});if(existing){activeKind=type;focusCardId=existing.id;if(type==='word'&&!cleanStoredDetail(existing.translation)&&!wordLookups[existing.id]){delete existing.lookupFailed;lookupWordCard(existing.id,existing.term,existing.context);}render();return false;}var id='collect-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),card={id:id,type:type,term:term.trim(),meaning:detail&&detail.translation?detail.translation:(meaning||'来自当前阅读'),phonetic:detail?detail.phonetic:'',translation:detail?detail.translation:'',context:context||'当前阅读段落',articleInfo:detail?articleInfo(context):'',example:detail?exampleFor(term,context):'',source:'The Sociology of Education · Chapter 3',note:'',due:true};if(type==='word'&&!card.translation)card.meaning='正在查询音标与语境释义…';all.push(card);current.cards=all;write(current);activeKind=type;focusCardId=id;if(type==='word'&&!card.translation)lookupWordCard(id,card.term,card.context);render();return true;}
     function removeCard(id){var current=read();current.cards=(current.cards||[]).filter(function(card){return card.id!==id;});write(current);render();}
     function makeWordsClickable(){
       qa('#paper .para').forEach(function(paragraph){var walker=document.createTreeWalker(paragraph,NodeFilter.SHOW_TEXT),nodes=[],node;while(node=walker.nextNode())if(!node.parentElement.closest('.word'))nodes.push(node);nodes.forEach(function(textNode){var source=textNode.nodeValue,match,pattern=/[A-Za-z]+(?:[’'-][A-Za-z]+)*/g,last=0,fragment=document.createDocumentFragment();while(match=pattern.exec(source)){if(match.index>last)fragment.appendChild(document.createTextNode(source.slice(last,match.index)));var word=document.createElement('span');word.className='word capture-word';word.dataset.captureTerm=match[0];word.textContent=match[0];word.title='点击收进词汇';fragment.appendChild(word);last=match.index+match[0].length;}if(last===0)return;if(last<source.length)fragment.appendChild(document.createTextNode(source.slice(last)));textNode.replaceWith(fragment);});});
@@ -679,7 +702,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
     function countWords(text){var words=text.match(/[A-Za-z]+(?:[’'-][A-Za-z]+)*/g);return words?words.length:Math.max(1,text.trim().split(/\s+/).length);}
     function hideClassifier(){qa('.classify-menu').forEach(function(item){item.remove();});if(selectionMenu)selectionMenu.remove();selectionMenu=null;var old=q('#selmenu');if(old)old.classList.remove('show');}
     function classify(text,rect){hideClassifier();var amount=countWords(text),suggested=(amount>=9||/[.!?。！？][”’']?$/.test(text.trim()))?'sentence':'phrase';selectionMenu=document.createElement('div');selectionMenu.className='reader-classify-menu';selectionMenu.innerHTML='<div class="summary">已划选 '+amount+' 个词 · 推荐归为'+label(suggested)+'</div><p class="quoted">“'+escapeHtml(text)+'”</p><div class="reader-classify-actions"><button class="reader-classify-choice '+(suggested==='phrase'?'recommended':'')+'" type="button" data-kind="phrase">收为短语'+(suggested==='phrase'?'<small>推荐，但由你决定</small>':'<small>自行选择</small>')+'</button><button class="reader-classify-choice '+(suggested==='sentence'?'recommended':'')+'" type="button" data-kind="sentence">收为句子'+(suggested==='sentence'?'<small>推荐，但由你决定</small>':'<small>自行选择</small>')+'</button></div><button class="reader-classify-cancel" type="button" data-cancel>暂不收藏</button>';selectionMenu.style.left=Math.max(12,Math.min(innerWidth-352,rect.left+rect.width/2-165))+'px';selectionMenu.style.top=Math.max(12,rect.top-164)+'px';document.body.appendChild(selectionMenu);qa('[data-kind]',selectionMenu).forEach(function(button){button.onmousedown=function(event){event.preventDefault();};button.onclick=function(){var kind=button.dataset.kind;addCard(kind,text,kind==='phrase'?'自选短语 · '+amount+' 词':'自选句子 · '+amount+' 词',text);var current=read(),card=(current.cards||[]).find(function(item){return item&&item.type===kind&&String(item.term||'').trim().toLowerCase()===text.trim().toLowerCase();});if(card)enrichExpression(card);window.getSelection().removeAllRanges();hideClassifier();};});q('[data-cancel]',selectionMenu).onclick=function(){window.getSelection().removeAllRanges();hideClassifier();};}
-    document.addEventListener('click',function(event){var word=event.target.closest&&event.target.closest('#paper .word');if(!word||window.getSelection().toString().trim())return;event.preventDefault();event.stopImmediatePropagation();var term=word.textContent.trim(),context=(word.closest('.para')||{}).textContent||'当前阅读段落';addCard('word',term,wordDetail(term).translation,context);},true);
+    document.addEventListener('click',function(event){var word=event.target.closest&&event.target.closest('#paper .word');if(!word)return;var selected=window.getSelection().toString().trim();if(selected&&selected!==word.textContent.trim())return;if(selected){var clear=window.getSelection();if(clear&&clear.removeAllRanges)clear.removeAllRanges();}event.preventDefault();event.stopImmediatePropagation();var term=word.textContent.trim(),context=(word.closest('.para')||{}).textContent||'当前阅读段落';addCard('word',term,wordDetail(term).translation,context);},true);
     document.addEventListener('mouseup',function(){setTimeout(function(){var selection=window.getSelection(),text=selection?selection.toString().trim():'',range=selection&&selection.rangeCount?selection.getRangeAt(0):null,paper=q('#paper');if(!text||!range||!paper||!paper.contains(range.commonAncestorContainer)){hideClassifier();return;}var rect=range.getBoundingClientRect();if(rect.width||rect.height)classify(text,rect);},0);});
     document.addEventListener('mousedown',function(event){if(selectionMenu&&!selectionMenu.contains(event.target))hideClassifier();},true);
     makeWordsClickable();buildSide();
