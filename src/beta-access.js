@@ -30,6 +30,11 @@ export function installBeta(cloud) {
     const result = await cloud.callFunction('scribe-beta', { action: 'redeem', code, libraryKey: current });
     writeSession({ mask: result.mask, label: result.label || '', libraryKey: result.libraryKey, redeemedAt: new Date().toISOString() });
     notify();
+    // 这个内测码属于另一个书库时，必须真的切过去：否则本机还会继续用旧书库，
+    // 看起来就像“输入了内测码却看不到自己的数据”。切换前会留一份可回滚的备份。
+    if (current && result.libraryKey && result.libraryKey !== current && cloud.library && cloud.library.join) {
+      await cloud.library.join(result.libraryKey);
+    }
     return result;
   }
   function logout() {

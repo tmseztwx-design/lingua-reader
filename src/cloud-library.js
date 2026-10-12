@@ -44,6 +44,25 @@ export function installLibrary(cloud) {
     nativeSet.call(this,name,value);
     if(this===localStorage && name===STATE && !applying){collect();clearTimeout(timer);timer=setTimeout(()=>sync().catch(()=>{}),800);}
   };
+  // 切换到另一个书库（同步码或内测码带来的钥匙）：先给当前工作区留一份可回滚的备份，
+  // 再把本机内容替换成新书库的内容。本机旧内容仍在原书库与备份里，不会被抹掉。
+  async function joinLibrary(value,{reload=true}={}){
+    const next=String(value||'').trim().toLowerCase();
+    if(!/^[a-f0-9]{64}$/i.test(next))throw new Error('同步码格式不正确。');
+    if(next===key())return {switched:false};
+    await cloud.callFunction('scribe-library',{action:'validate',libraryKey:next});
+    await sync();
+    write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
+    generation++;
+    nativeSet.call(localStorage,KEY,next);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
+    const local=read(STATE,{});local.docs=[];local.cards=[];local.deletedDocs=[];write(STATE,local);
+    const cloudState=await libraryCall('sync',{changes:[]});
+    applying=true;write(STATE,applyEntries(local,cloudState.entries,stampPageUrls(cloudState.documents)));applying=false;
+    for(const row of cloudState.entries) metadata[row.kind+':'+row.entry_id]={kind:row.kind,id:row.entry_id,revision:row.revision,fingerprint:row.deleted?'deleted':fingerprint({value:row.value})};
+    write(META,metadata);
+    if(reload)location.reload();
+    return {switched:true};
+  }
   function backupConflict(change){
     const conflicts=read('scribe-sync-conflicts',[]);
     conflicts.push({...change,savedAt:new Date().toISOString()});write('scribe-sync-conflicts',conflicts.slice(-100));
@@ -128,7 +147,7 @@ export function installLibrary(cloud) {
       await pause(2500);
     }
   }
-  cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall};
+  cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key};
   window.addEventListener('scribe-reset-workspace',()=>{
     write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
     generation++;localStorage.removeItem(KEY);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
@@ -145,18 +164,7 @@ export function installLibrary(cloud) {
     document.querySelector('#showLibraryKey').onclick=async()=>{try{const value=await ensureLibrary();const output=document.querySelector('#libraryKeyValue');output.textContent=value;output.hidden=!output.hidden;}catch(error){say(error.message);}};
     document.querySelector('#joinLibrary').onclick=async()=>{
       const value=prompt('输入另一台设备“云端书库”中显示的 64 位同步码：');if(!value)return;
-      if(!/^[a-f0-9]{64}$/i.test(value.trim())){say('同步码格式不正确。');return;}
-      try {
-        await cloud.callFunction('scribe-library',{action:'validate',libraryKey:value.trim().toLowerCase()});
-        await sync();write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
-        generation++;
-        nativeSet.call(localStorage,KEY,value.trim().toLowerCase());metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
-        const local=read(STATE,{});local.docs=[];local.cards=[];local.deletedDocs=[];write(STATE,local);
-        const cloudState=await libraryCall('sync',{changes:[]});
-        applying=true;write(STATE,applyEntries(local,cloudState.entries,cloudState.documents));applying=false;
-        for(const row of cloudState.entries) metadata[row.kind+':'+row.entry_id]={kind:row.kind,id:row.entry_id,revision:row.revision,fingerprint:row.deleted?'deleted':fingerprint({value:row.value})};
-        write(META,metadata);location.reload();
-      }catch(error){say(error.message);}
+      try { await joinLibrary(value); }catch(error){ say(error.message); }
     };
     document.querySelector('#syncNow').onclick=()=>sync().catch(()=>{});
     const goCode=document.querySelector('#betaGoCode');

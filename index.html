@@ -706,7 +706,9 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       var paper=q('#paper');while(paper.firstChild)originalNodes.appendChild(paper.firstChild);sourcePaperActive=true;
     }
     function read(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(error){return {};}}
-    function write(value){localStorage.setItem(key,JSON.stringify(value));}
+    var storageWarning='';
+    function write(value){try{localStorage.setItem(key,JSON.stringify(value));}
+      catch(error){storageWarning='本机存储空间不足，这次的阅读进度可能没有保存下来。';console.warn('[scribe] 本地写入失败：'+(error&&error.message||error));}}
     function isImage(page){return /^image\//.test(String(page.type||''))||/\.(jpe?g|png|heic|heif)$/i.test(String(page.name||''));}
     function sourceDocument(id){var state=read(),docs=Array.isArray(state.docs)?state.docs:[];return docs.find(function(document){return document.id===id&&Array.isArray(document.sourcePages)&&document.sourcePages.length;})||null;}
     function activeSourceDocument(){var state=read();return sourceDocument(state.activeDocId);}
@@ -778,12 +780,12 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         var note=q('#sourceRestoreMessage');if(note)note.textContent='未能自动找回原图。书库记录和学习卡仍在；请保留原始图片，以便继续恢复。';
       }finally{delete recovering[document.id];}
     }
-    function renderSourceReader(id){
+    function renderSourceReader(id,indexOverride){
       var document=id?sourceDocument(id):activeSourceDocument();if(!document){restoreOriginalReader();return;}
       var paper=q('#paper');if(!paper)return;
       var pages=(document.sourcePages||[]).slice().sort(function(left,right){return (left.order||0)-(right.order||0);});
       if(!pages.length){restoreOriginalReader();return;}
-      var index=Math.max(0,Math.min(Number(document.lastPage)||0,pages.length-1)),page=pages[index];
+      var requested=Number.isFinite(indexOverride)?indexOverride:(Number(document.lastPage)||0),index=Math.max(0,Math.min(requested,pages.length-1)),page=pages[index];
       var availableCount=pages.filter(function(item){return item.url;}).length,hasPageUrl=availableCount>0;
       var refreshingDocs={},pageRefreshAttempts={},URL_TTL_MS=45*60*1000;
       function pageUrlStale(page){if(!page.cloud)return false;if(!page.url)return true;return !page.urlAt||Date.now()-Number(page.urlAt)>URL_TTL_MS;}
@@ -880,6 +882,7 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
       var paragraphs=page.text&&page.text.trim()?paragraphsOf(page):[],hasTranslation=paragraphs.some(function(item){return Boolean(item.translation);}),needsTranslation=paragraphs.length>0&&!hasTranslation;
       var reading=paragraphs.length?paragraphs.map(paragraphBlock).join(''):'<p class="para source-no-text">暂未能从这一页识别出正文文字。原文件仍已保留，可展开查看原始页面。</p>';
       var transNote=needsTranslation?'<div class="source-trans-note" id="sourceTransNote">正在生成这一页的逐段中文译文…</div>':'';
+      if(storageWarning)transNote='<div class="source-trans-note failed">'+escapeHtml(storageWarning)+'</div>'+transNote;
       var body='<section class="source-content">'+transNote+'<div class="source-reading-text">'+reading+'</div><details class="source-original"><summary>查看原始页面 · '+escapeHtml(page.name)+'</summary><div class="source-original-stage">'+original+'</div></details></section>';
       var thumbs=pages.map(function(item,position){
         var thumb='<button type="button" class="source-thumb '+(position===index?'active':'')+'" data-source-page="'+position+'" aria-label="查看第 '+(position+1)+' 页">'+(!item.url?'待补':isImage(item)?'<img src="'+escapeHtml(item.url)+'" alt="">':'▤')+'<span>'+ (position+1)+'</span></button>';
@@ -887,7 +890,12 @@ curriculum = 课程</textarea></div><button class="button primary" id="saveGloss
         return '<span class="source-thumb-wrap">'+thumb+'<span class="thumb-move"><button type="button" data-move-page="'+position+'" data-delta="-1" aria-label="前移一页"'+(position===0?' disabled':'')+'>◀</button><button type="button" data-move-page="'+position+'" data-delta="1" aria-label="后移一页"'+(position===pages.length-1?' disabled':'')+'>▶</button></span></span>';
       }).join('');
       paper.innerHTML='<section class="source-reader"><header class="source-reader-head"><div><div class="eyebrow">互动精读文本</div><h1>'+escapeHtml(document.title)+'</h1><p>已按上传顺序整理 '+pages.length+' 页；每段左下角可展开该段中文译文，点击英文单词查看音标与语境释义。'+(page.confidence?' 本页识别置信度 '+Math.round(page.confidence*100)+'%。':'')+(page.error?' '+escapeHtml(page.error):'')+'</p></div><span class="source-page-count">共 '+pages.length+' 页</span></header><div class="source-viewer"><div class="source-page-stage">'+body+'</div><div class="source-page-tools"><button class="button secondary small" type="button" data-source-prev '+(index===0?'disabled':'')+'>← 上一页</button><span class="source-page-position">第 '+(index+1)+' / '+pages.length+' 页</span><button class="button secondary small" type="button" data-source-next '+(index===pages.length-1?'disabled':'')+'>下一页 →</button><button class="button secondary small" type="button" data-source-reorder>'+(reorderMode?'完成调序':'调整顺序')+'</button></div><div class="source-thumbs" aria-label="页面缩略图">'+thumbs+'</div></div></section>';
-      function goPage(next){updateProgress(document,next);renderSourceReader(document.id);}
+      function goPage(next){
+        var target=Math.max(0,Math.min(next,pages.length-1));
+        updateProgress(document,target);
+        // 本地状态写入失败（存储已满、隐私模式）时仍然要能翻页：直接把目标页码交给渲染。
+        renderSourceReader(document.id,target);
+      }
       Array.prototype.forEach.call(paper.querySelectorAll('[data-source-page]'),function(button){button.onclick=function(){goPage(Number(button.dataset.sourcePage));};});
       Array.prototype.forEach.call(paper.querySelectorAll('[data-src-trans]'),function(button){button.onclick=function(){var target=q('#'+button.dataset.srcTrans,paper);if(!target)return;var open=target.classList.toggle('show');button.textContent=open?'⌃ 收起译文':'⌄ 显示译文';button.setAttribute('aria-expanded',open?'true':'false');};});
       var previous=q('[data-source-prev]',paper),next=q('[data-source-next]',paper);if(previous)previous.onclick=function(){goPage(index-1);};if(next)next.onclick=function(){goPage(index+1);};

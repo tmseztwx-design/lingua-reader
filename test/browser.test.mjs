@@ -460,6 +460,145 @@ test('a document with no usable page link asks the cloud once, and an image fail
   dom.window.close();
 });
 
+test('page turning keeps working on a multi-batch cloud document with aged links',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const aged=Date.now()-3*60*60*1000, refreshed=[];
+  w.__scribeCloud={callFunction:async(name,body)=>{
+    if(name==='scribe-mobile-upload'&&body.action==='pages'){
+      refreshed.push(body);
+      return {files:pages.map((page,index)=>({id:'f-'+index,url:'https://example.test/signed-'+index+'.png',order:index,name:'p'+index+'.png'}))};
+    }
+    return {};
+  },library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  // 27 页：前 9 页来自原批次目录，后 18 页来自续传批次目录，链接都已过期。
+  const pages=[...Array(27)].map((_item,index)=>({id:'cloud-f'+index,order:index+1,name:'page-'+(index+1)+'.png',type:'image/png',
+    url:'https://example.test/aged-'+(index<9?'a':'b')+'-'+index+'.png',urlAt:aged,
+    text:'Paragraph of page '+(index+1)+'.',
+    paragraphs:[{text:'Paragraph of page '+(index+1)+'.',translation:'第 '+(index+1)+' 页译文。'}],
+    sourceFileId:'f-'+index,pageIndex:index,cloud:true}));
+  const state={docs:[{id:'cloud-many',title:'电脑上传文献（9 个文件）',cloudSessionId:'12121212-3434-5656-7878-909090909090',status:'reading',color:'new',pages:27,progress:0,lastPage:17,sourcePages:pages}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-many',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','7'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();await tick();
+  const paper=w.document.querySelector('#paper');
+  assert.match(paper.textContent,/第 18 \/ 27 页/,'the reader opens on the remembered page');
+  const position=()=>w.document.querySelector('#paper .source-page-position').textContent;
+  const next=()=>w.document.querySelector('#paper [data-source-next]');
+  const prev=()=>w.document.querySelector('#paper [data-source-prev]');
+  next().click();
+  await tick();await tick();
+  assert.match(position(),/第 19 \/ 27 页/,'next page must advance even when the links were aged and re-signed');
+  prev().click();
+  await tick();await tick();
+  assert.match(position(),/第 18 \/ 27 页/,'previous page must go back');
+  prev().click();await tick();await tick();
+  assert.match(position(),/第 17 \/ 27 页/);
+  assert.ok(refreshed.length>=1,'aged links are re-signed, but that must not block page turning');
+  const saved=JSON.parse(w.localStorage.getItem('scribe-local-v1')).docs[0];
+  assert.equal(saved.lastPage,16,'the current page is persisted for the next visit');
+  assert.equal(saved.sourcePages.length,27,'no page may be dropped while re-signing');
+  assert.match(w.document.querySelector('#paper').textContent,/第 17 页译文。|第 17 页/,'the page body follows the page turn');
+  dom.window.close();
+});
+
+test('page turning still works when the browser refuses to save local state',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  w.__scribeCloud={callFunction:async()=>({}),library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const page=(index)=>({id:'cloud-f'+index,order:index+1,name:'page-'+(index+1)+'.png',type:'image/png',url:'https://example.test/'+index+'.png',urlAt:Date.now(),text:'Paragraph of page '+(index+1)+'.',paragraphs:[{text:'Paragraph of page '+(index+1)+'.',translation:'第 '+(index+1)+' 页译文。'}],sourceFileId:'f-'+index,pageIndex:index,cloud:true});
+  const state={docs:[{id:'cloud-full',title:'存储已满的文献',status:'reading',color:'new',pages:5,progress:0,lastPage:0,sourcePages:[0,1,2,3,4].map(page)}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-full',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  // 模拟配额写满：之后所有写入都会失败（用原型补丁，和 cloud-library 的拦截方式一致）。
+  const proto=Object.getPrototypeOf(w.localStorage);
+  const originalSet=proto.setItem;
+  let blocked=false;
+  proto.setItem=function(name,value){if(blocked&&name==='scribe-local-v1')throw new Error('QuotaExceededError');return originalSet.call(this,name,value);};
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  await tick();await tick();
+  blocked=true;
+  let threw=false;
+  try{w.localStorage.setItem('scribe-local-v1','{}');}catch(error){threw=true;}
+  assert.equal(threw,true,'the test must actually block writes');
+  const position=()=>w.document.querySelector('#paper .source-page-position').textContent;
+  assert.match(position(),/第 1 \/ 5 页/);
+  w.document.querySelector('#paper [data-source-next]').click();
+  await tick();await tick();
+  assert.match(position(),/第 2 \/ 5 页/,'下一頁 must still turn when the local write fails');
+  w.document.querySelector('#paper [data-source-next]').click();
+  await tick();await tick();
+  assert.match(position(),/第 3 \/ 5 页/);
+  w.document.querySelector('#paper [data-source-prev]').click();
+  await tick();await tick();
+  assert.match(position(),/第 2 \/ 5 页/);
+  assert.match(w.document.querySelector('#paper').textContent,/本机存储空间不足/,'the user is told the progress could not be saved');
+  assert.match(w.document.querySelector('#paper').textContent,/第 2 页译文。/,'the page body follows the turn');
+  dom.window.close();
+});
+
+test('redeeming a code from another library really switches the device over',async()=>{
+  const oldKey='1'.repeat(64),newKey='2'.repeat(64),calls=[];
+  const cloudDocs=[{id:'cloud-real',title:'真实书库文献',pages:27,sourcePages:[{id:'p1',order:1,name:'p1.png',type:'image/png',url:'https://example.test/p1.png',text:'Real page.'}]}];
+  const cloud={callFunction:async(name,body)=>{
+    calls.push([name,JSON.parse(JSON.stringify(body))]);
+    if(name==='scribe-beta')return {mask:'SCRIBE-****-4F2A',label:'内测用户 A',libraryKey:newKey};
+    if(name==='scribe-library'&&body.action==='validate')return {libraryId:'lib-real'};
+    if(name==='scribe-library'&&body.action==='sync'){
+      if(body.libraryKey===oldKey)return {entries:[],documents:[],conflicts:[]};
+      return {entries:[{kind:'doc',entry_id:'cloud-real',value:cloudDocs[0],revision:1,deleted:false}],documents:cloudDocs,conflicts:[]};
+    }
+    return {};
+  }};
+  // 这台设备原本连着另一个（旧的）书库，本机还有一份旧文献。
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.localStorage.setItem('scribe-library-key',oldKey);
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify({docs:[{id:'cloud-old',title:'旧书库文献',pages:9,sourcePages:[{id:'o1',order:1,name:'o1.png',type:'image/png',url:'https://example.test/o1.png',text:'Old page.'}]}],cards:[],deletedDocs:[],minutes:0,settings:{}}));
+  await betaPage(w,cloud);
+  assert.equal(calls.filter(([name,body])=>name==='scribe-library'&&body.action==='create').length,0);
+  w.document.querySelector('#betaInput-upload').value='SCRIBE-ABCD-4F2A';
+  w.document.querySelector('#betaRedeem-upload').click();
+  await tick();await tick();await tick();
+  assert.equal(w.localStorage.getItem('scribe-library-key'),newKey,'设备必须切到内测码所属的书库');
+  const session=JSON.parse(w.localStorage.getItem('scribe-beta-session'));
+  assert.equal(session.libraryKey,newKey);
+  const pulled=calls.filter(([name,body])=>name==='scribe-library'&&body.action==='sync'&&body.libraryKey===newKey);
+  assert.ok(pulled.length>=1,'切换后必须拉取新书库的数据');
+  const saved=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  assert.deepEqual(saved.docs.map(doc=>doc.id),['cloud-real'],'界面显示的是新书库的文献');
+  assert.equal(saved.docs[0].pages,27);
+  const backup=JSON.parse(w.localStorage.getItem('scribe-last-workspace'));
+  assert.equal(backup.libraryKey,oldKey,'切换前会留一份可回滚的备份');
+  dom.window.close();
+
+  // 另一种情况：内测码绑定的就是本机现有书库 —— 必须原地保留，不能清数据。
+  const dom2=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w2=dom2.window;
+  const sameCalls=[];
+  const keepKey='3'.repeat(64);
+  w2.localStorage.setItem('scribe-library-key',keepKey);
+  w2.localStorage.setItem('scribe-local-v1',JSON.stringify({docs:[{id:'cloud-mine',title:'我的 27 页文献',pages:27,sourcePages:[{id:'m1',order:1,name:'m1.png',type:'image/png',url:'https://example.test/m1.png',text:'My page.'}]}],cards:[{id:'card-1',type:'word',term:'inherit'}],deletedDocs:[],minutes:412,settings:{}}));
+  await betaPage(w2,{callFunction:async(name,body)=>{
+    sameCalls.push([name,JSON.parse(JSON.stringify(body))]);
+    if(name==='scribe-beta')return {mask:'SCRIBE-****-4F2A',label:'',libraryKey:keepKey,reused:true};
+    return {};
+  }});
+  w2.document.querySelector('#betaInput-upload').value='SCRIBE-ABCD-4F2A';
+  w2.document.querySelector('#betaRedeem-upload').click();
+  await tick();await tick();await tick();
+  assert.equal(w2.localStorage.getItem('scribe-library-key'),keepKey,'绑定到本机书库时钥匙不变');
+  const kept=JSON.parse(w2.localStorage.getItem('scribe-local-v1'));
+  assert.deepEqual(kept.docs.map(doc=>doc.id),['cloud-mine'],'绑定不能清掉本机文献');
+  assert.equal(kept.cards.length,1);
+  assert.equal(kept.minutes,412);
+  assert.equal(sameCalls.filter(([name,body])=>name==='scribe-library'&&body.action==='validate').length,0,'绑定本机书库时不应该走切换流程');
+  dom2.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};
