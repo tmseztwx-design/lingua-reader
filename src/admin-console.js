@@ -119,8 +119,26 @@ export function installAdminConsole(cloud) {
       + '<div class="actions"><button class="primary" type="button" id="copyCodes">复制全部</button><button class="secondary" type="button" id="downloadCodes">下载 TXT</button></div>';
     el('copyCodes').onclick = async () => {
       const text = generated.map((item) => item.code).join(NL);
-      try { await navigator.clipboard.writeText(text); el('copyCodes').textContent = '已复制'; }
-      catch { el('copyCodes').textContent = '请手动选中复制'; }
+      const button = el('copyCodes');
+      const fallback = () => {
+        // 剪贴板接口在部分浏览器/非 HTTPS 环境下不可用：退回到“临时输入框 + 选中复制”。
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', 'readonly');
+        area.style.position = 'fixed';
+        area.style.top = '-1000px';
+        document.body.appendChild(area);
+        area.select();
+        let done = false;
+        try { done = document.execCommand('copy'); } catch { done = false; }
+        area.remove();
+        button.textContent = done ? '已复制' : '请手动选中复制';
+      };
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('no clipboard');
+        await navigator.clipboard.writeText(text);
+        button.textContent = '已复制';
+      } catch { fallback(); }
     };
     el('downloadCodes').onclick = () => {
       const lines = ['Scribe 内测码', '生成时间：' + new Date().toLocaleString('zh-CN'), '备注：' + (el('label').value.trim() || '—'), ''].concat(generated.map((item) => item.code));

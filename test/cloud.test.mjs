@@ -120,6 +120,17 @@ test('PostgreSQL queue survives lost workers, preserves selected order, bounds r
   await db.close();
 });
 
+test('beta code hashing uses one canonical form on both creation and redemption',async()=>{
+  const source=await readFile(new URL('../supabase/functions/src/scribe-beta.ts',import.meta.url),'utf8');
+  // 生成端：先规范化再取哈希；显示给管理员的明文保留连字符形式。
+  assert.match(source,/const normalized = normalizeCode\(code\);/,'generation must normalise before hashing');
+  assert.match(source,/hashOf\.set\(normalized, await hashKey\(normalized\)\)/,'the stored hash must be the normalised form');
+  assert.match(source,/code_mask: maskOf\(normalized\)/,'the mask describes the same canonical string');
+  // 兑换端：按规范化后的码查，并兼容早期按显示形式入库的码。
+  assert.match(source,/const candidates = \[await hashKey\(code\)\];/,'redemption looks up the normalised hash');
+  assert.match(source,/if \(raw && raw !== code\) candidates\.push\(await hashKey\(raw\)\);/,'already-issued codes must stay redeemable');
+});
+
 test('beta codes, multi-credential libraries and the rate-limit guard stay service-role only',async()=>{
   const db=new PGlite();
   await db.exec('create role anon;create role authenticated;create role service_role;create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);');

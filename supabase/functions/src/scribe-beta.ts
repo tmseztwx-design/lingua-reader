@@ -91,8 +91,14 @@ async function redeem(db: ReturnType<typeof database>, body: Row) {
     await guardFail(db);
     return json({ error: "内测码不正确，请核对后重新输入。" }, 400);
   }
-  const { data: record, error } = await db.from("scribe_beta_codes").select("*").eq("code_hash", await hashKey(code)).maybeSingle();
+  // 规范化后的码是唯一哈希口径；同时兼容早期版本按“带连字符的显示形式”入库的码，
+  // 否则那批已经发出去的码永远兑换不了。
+  const raw = String(body.code || "").trim().toUpperCase();
+  const candidates = [await hashKey(code)];
+  if (raw && raw !== code) candidates.push(await hashKey(raw));
+  const { data: rows, error } = await db.from("scribe_beta_codes").select("*").in("code_hash", candidates);
   if (error) throw new Error(error.message);
+  const record = (rows || []).find((row: Row) => !row.revoked) || (rows || [])[0] || null;
   if (!record) {
     await guardFail(db);
     return json({ error: "内测码无效或已输入错误，请核对后重试。" }, 404);
@@ -152,31 +158,39 @@ function requestedCodes(body: Row) {
 
 async function adminCreate(db: ReturnType<typeof database>, body: Row) {
   const { codes, custom } = requestedCodes(body);
+  // 哈希口径必须与兑换一致：一律用规范化（大写、去掉分隔符）后的码，
+  // 而回给管理员的明文保留 SCRIBE-XXXX-XXXX 这种好读的形式。
+  const entries = new Map<string, string>();
   for (const code of codes) {
-    if (code.length < 6) return json({ error: `内测码「${code}」太短，请至少 6 位字母或数字。` }, 400);
+    const normalized = normalizeCode(code);
+    if (normalized.length < 6) return json({ error: `内测码「${code}」太短，请至少 6 位字母或数字。` }, 400);
+    entries.set(normalized, code);
   }
-  const unique = [...new Set(codes)];
-  if (unique.length !== codes.length) return json({ error: "生成的内测码重复，请重新生成。" }, 409);
+  if (entries.size !== codes.length) return json({ error: "生成的内测码重复，请重新生成。" }, 409);
 
-  const hashes = new Map<string, string>();
-  for (const code of unique) hashes.set(await hashKey(code), code);
-  const { data: existing, error: lookupError } = await db.from("scribe_beta_codes").select("code_hash").in("code_hash", [...hashes.keys()]);
+  const hashOf = new Map<string, string>();
+  for (const normalized of entries.keys()) hashOf.set(normalized, await hashKey(normalized));
+  const { data: existing, error: lookupError } = await db.from("scribe_beta_codes").select("code_hash").in("code_hash", [...hashOf.values()]);
   if (lookupError) throw new Error(lookupError.message);
   const taken = new Set((existing || []).map((row: Row) => String(row.code_hash)));
   if (taken.size) {
     if (custom) return json({ error: "这些内测码里有的已经存在，请换一个。" }, 409);
     // 随机码撞库的概率极低，重试一小批即可。
-    const retry = requestedCodes({ count: taken.size });
-    for (const code of retry.codes) hashes.set(await hashKey(code), code);
+    for (const code of requestedCodes({ count: taken.size }).codes) {
+      const normalized = normalizeCode(code);
+      if (normalized.length < 6) continue;
+      entries.set(normalized, code);
+      hashOf.set(normalized, await hashKey(normalized));
+    }
   }
 
-  const rows = [...hashes.entries()]
-    .filter(([hash]) => !taken.has(hash))
-    .map(([hash, code]) => ({ code_hash: hash, code_mask: maskOf(code), label: String(body.label || "").slice(0, 80) }));
+  const rows = [...entries.entries()]
+    .filter(([normalized]) => !taken.has(hashOf.get(normalized) as string))
+    .map(([normalized, pretty]) => ({ code_hash: hashOf.get(normalized) as string, code_mask: maskOf(normalized), label: String(body.label || "").slice(0, 80) }));
   if (!rows.length) return json({ error: "没有可生成的内测码。" }, 409);
   const { error: insertError } = await db.from("scribe_beta_codes").insert(rows);
   if (insertError) throw new Error(insertError.message);
-  const plaintext = rows.map((row) => hashes.get(row.code_hash)).filter(Boolean) as string[];
+  const plaintext = rows.map((row) => [...entries.entries()].find(([normalized]) => hashOf.get(normalized) === row.code_hash)?.[1]).filter(Boolean) as string[];
   console.log("[scribe-beta] create", plaintext.length, "codes");
   // 明文只在这里返回一次；库内只留哈希与尾号。
   return json({ codes: plaintext.map((code) => ({ code, mask: maskOf(code) })), label: String(body.label || "") });

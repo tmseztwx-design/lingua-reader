@@ -1,0 +1,2 @@
+-- 清理本次验收插入的两条合成内测码（label 为「验收合成码 · … · 可删除」，非用户数据）。
+delete from public.scribe_beta_codes where code_hash in ('beeb747468543e7ccf03fdafc5f34142941ca5c4aa41e05887b6f93333f56a82','cb55f0e18fb61144555402e2764ac17771678eb00e702c8fa790d4e385db747d');
