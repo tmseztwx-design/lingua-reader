@@ -700,6 +700,64 @@ test('captured words are re-marked right after a page render and the clicked wor
   dom.window.close();
 });
 
+test('the top pager turns pages and every page turn returns to the top of the page',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;
+  const scrolls=[];
+  w.scrollTo=(options)=>{scrolls.push(options);};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  w.__scribeCloud={callFunction:async()=>({}),library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const page=(index)=>({id:'tp'+index,order:index+1,name:'p'+(index+1)+'.png',type:'image/png',url:'https://example.test/'+index+'.png',urlAt:Date.now(),text:'Page number '+(index+1)+'.',paragraphs:[{text:'Page number '+(index+1)+'.',translation:'第 '+(index+1)+' 页。'}],sourceFileId:'tf'+index,pageIndex:index,cloud:true});
+  const state={docs:[{id:'cloud-pager',title:'顶部翻页',status:'reading',color:'new',pages:3,progress:0,lastPage:0,sourcePages:[0,1,2].map(page)}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-pager',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','k'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();
+  const paper=w.document.querySelector('#paper');
+  const pagers=[...paper.querySelectorAll('.source-page-position')];
+  assert.equal(pagers.length,2,'顶部和底部各有一条翻页条');
+  const position=pagers[0].textContent;
+  assert.match(position,/第 1 \/ 3 页/);
+  const topNext=paper.querySelector('.source-page-tools-top [data-source-next]');
+  assert.ok(topNext,'顶部翻页条要能翻页');
+  scrolls.length=0;
+  topNext.click();
+  await tick();await tick();
+  assert.match(w.document.querySelector('#paper .source-page-position').textContent,/第 2 \/ 3 页/,'顶部翻页条与底部同步');
+  assert.ok(scrolls.some(options=>options&&options.top===0),'翻页后回到页面顶端');
+  const bottomPrev=[...w.document.querySelectorAll('#paper [data-source-prev]')].pop();
+  bottomPrev.click();
+  await tick();await tick();
+  assert.match(w.document.querySelector('#paper .source-page-position').textContent,/第 1 \/ 3 页/,'底部翻页条也能用');
+  dom.window.close();
+});
+
+test('a word lookup that never answers times out with a retry hint',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  // 让所有定时器都尽快触发，用它验证 20 秒超时后的提示（真实环境就是等 20 秒）。
+  w.setTimeout=(fn,ms)=>globalThis.setTimeout(fn,Math.min(Number(ms)||0,5));
+  w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  w.__scribeCloud={callFunction:async(name,body)=>name==='scribe-study'&&body.action==='define'?new Promise(()=>{}):{},library:{call:async()=>({sessions:[]}),sync:async()=>{}}};
+  const paragraph='Students accumulate symbolic capital during seminars.';
+  const state={docs:[{id:'cloud-slow',title:'超时测试',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:'sp1',order:1,name:'p1.png',type:'image/png',url:'https://example.test/p1.png',urlAt:Date.now(),text:paragraph,paragraphs:[{text:paragraph,translation:'学生在研讨课上积累符号资本。'}],sourceFileId:'sf1',pageIndex:0,cloud:true}]}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',activeDocId:'cloud-slow',settings:{auto:true,timer:true,glossary:''}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
+  w.localStorage.setItem('scribe-library-key','l'.repeat(64));
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  await tick();await tick();
+  const target=[...w.document.querySelectorAll('#paper .word')].find(item=>item.textContent==='accumulate');
+  target.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
+  await new Promise(resolve=>globalThis.setTimeout(resolve,40));
+  await tick();await tick();
+  const card=JSON.parse(w.localStorage.getItem('scribe-local-v1')).cards.find(item=>item.term==='accumulate');
+  assert.ok(card,'点词先建卡');
+  assert.match(String(card.meaning),/查询超时/,'长时间没有响应要给出可重试的提示，而不是永远停在“正在查询”');
+  assert.equal(card.lookupFailed,true);
+  dom.window.close();
+});
+
 test('desktop upload submits the whole confirmed queue to cloud in user-selected order',async()=>{
   const dom=new JSDOM('<div id="upload"><div class="notice"></div><div id="drop"><input id="fileInput"><span class="tiny muted"></span></div><div id="fileRow"><span id="fileName"></span><span id="fileMeta"></span></div><button id="process"></button></div><div id="steps"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
   const w=dom.window;w.TextEncoder=TextEncoder;w.fetch=()=>{throw new Error('Must not call local server')};
