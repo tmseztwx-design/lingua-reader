@@ -1,0 +1,1362 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#17243e">
+<meta name="description" content="Scribe 英语专业文献精读学习平台"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Scribe · 英语深读</title>
+<style>
+:root{--ink:#19223a;--muted:#61708a;--paper:#f5f7fb;--line:#e1e7f0;--navy:#17243e;--blue:#5572cf;--bluep:#edf2ff;--gold:#d69a50;--goldp:#fff6e8;--green:#21816a;--serif:Georgia,"Noto Serif SC",serif;--sans:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;--shadow:0 12px 35px rgba(23,36,62,.08)}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans)}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #b9c9f3;outline-offset:2px}.shell{display:grid;grid-template-columns:var(--side-w,242px) minmax(0,1fr);min-height:100vh}.side{height:100vh;position:sticky;top:0;display:flex;flex-direction:column;background:var(--navy);color:#d9e3f8;padding:24px 14px 18px}.brand{display:flex;align-items:center;gap:10px;padding:0 10px 28px;color:#fff;text-decoration:none}.mark{width:31px;height:31px;display:grid;place-items:center;border-radius:10px 10px 4px;background:linear-gradient(135deg,#efbd72,#c97842);color:var(--navy);font:bold 21px var(--serif)}.brand b{font:21px var(--serif);display:block}.brand small{color:#a7b7d6;font-size:10px;letter-spacing:.15em}.nav-caption{color:#8292b7;font-size:10px;letter-spacing:.14em;padding:0 11px 7px}.nav{display:grid;gap:4px}.nav button{border:0;border-radius:9px;padding:10px 11px;background:none;color:#c7d2e9;display:flex;gap:11px;align-items:center;text-align:left;font-weight:600}.nav button:hover{background:#2a405f;color:#fff}.nav button.active{background:#304765;color:#fff;box-shadow:inset 3px 0 var(--gold)}.ico{width:17px;text-align:center;font-size:16px}.spacer{flex:1}.focus-box{margin:18px 4px 12px;padding:13px;border:1px solid #3c5172;border-radius:12px;background:#213653}.focus-box span{color:#aabbda;font-size:12px}.focus-box b{display:block;color:#fff;font:22px var(--serif);margin:3px 0 8px}.track{height:5px;background:#e8edf5;border-radius:99px;overflow:hidden}.track i{display:block;height:100%;width:38%;background:var(--gold);border-radius:inherit}.focus-box .track{background:#405675}.profile{border:0;border-top:1px solid #354b6b;background:none;color:#fff;text-align:left;padding:15px 8px 0;display:flex;gap:10px;align-items:center}.avatar{display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:#6680b8;font-weight:800}.profile b,.profile small{display:block}.profile small{color:#a9bad8;font-size:11px}.top{height:72px;position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:18px;padding:0 32px;border-bottom:1px solid var(--line);background:#ffffffeb;backdrop-filter:blur(11px)}.crumb{min-width:126px;font:19px var(--serif)}.search{position:relative;flex:1;max-width:460px}.search input{width:100%;border:1px solid var(--line);background:#f8fafc;border-radius:9px;padding:10px 38px 10px 13px}.search:after{content:"⌕";position:absolute;right:12px;top:7px;font-size:19px;color:#8491a8}.results{display:none;position:absolute;inset:calc(100% + 8px) 0 auto;padding:6px;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:var(--shadow);z-index:30}.results.show{display:block}.result{width:100%;text-align:left;border:0;border-radius:7px;background:none;padding:8px;color:var(--ink)}.result:hover{background:var(--bluep)}.top-actions{display:flex;gap:8px;margin-left:auto}.icon-btn{height:36px;width:36px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--muted)}.view{display:none;max-width:1440px;margin:auto;padding:32px}.view.active{display:block;animation:fade .22s}@keyframes fade{from{opacity:.35;transform:translateY(4px)}to{opacity:1;transform:none}}.heading{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 0 25px}.eyebrow{font-size:11px;color:var(--blue);font-weight:800;text-transform:uppercase;letter-spacing:.11em;margin-bottom:6px}h1,h2,h3,p{margin-top:0}h1{font:clamp(29px,3vw,39px)/1.14 var(--serif);letter-spacing:-.025em;margin-bottom:6px}h2{font:22px var(--serif);margin-bottom:5px}h3{margin-bottom:4px}.muted{color:var(--muted)}.tiny{font-size:12px}.button{display:inline-flex;justify-content:center;align-items:center;gap:7px;border:1px solid transparent;border-radius:9px;padding:10px 14px;text-decoration:none;font-weight:700}.primary{color:#fff;background:var(--navy);box-shadow:0 5px 15px #17243e24}.primary:hover{background:#2b4264}.gold{color:#243049;background:var(--gold)}.secondary{color:var(--ink);background:#fff;border-color:var(--line)}.ghost{padding:4px 0;color:var(--blue);background:none;border:0}.small{font-size:13px;padding:7px 10px;border-radius:7px}.card{background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:0 2px 7px #17243e08}.grid-main{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.85fr);gap:20px}.continue{position:relative;overflow:hidden;min-height:245px;padding:28px;background:radial-gradient(circle at 90% 18%,#f3dfbf,transparent 29%),#fff}.continue:after{content:"§";position:absolute;right:17px;bottom:-82px;color:#d69a5016;font:180px var(--serif)}.book-label{color:var(--gold);font-size:11px;letter-spacing:.1em;font-weight:850;text-transform:uppercase}.continue h2{font-size:29px;margin:7px 0 3px}.meta{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 20px;color:var(--muted);font-size:13px}.meta span+span:before{content:"·";margin-right:10px;color:#b4bdcc}.progress-row{display:flex;align-items:center;gap:12px;max-width:430px;margin:15px 0 20px}.progress-row .track{flex:1;background:#e7e3dc}.brief{padding:22px;display:flex;flex-direction:column}.big{font:52px/.95 var(--serif);margin:8px 0 3px}.chips{display:flex;flex-wrap:wrap;gap:7px;margin:13px 0 20px}.chip{padding:5px 8px;border-radius:99px;background:#f1f4f8;color:var(--muted);font-size:12px}.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--blue);margin-right:4px}.dot.gold{background:var(--gold)}.dot.green{background:var(--green)}.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}.metric{padding:17px;min-height:108px}.metric label{display:block;color:var(--muted);font-size:13px}.metric strong{display:block;font:29px/1 var(--serif);letter-spacing:-.03em;margin:10px 0 5px}.metric small{color:var(--green);font-size:12px}.lower{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(310px,.8fr);gap:20px}.panel{padding:21px}.panel-head{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:16px}.panel-head h2{margin:0;font-size:20px}.heat{display:grid;grid-template-columns:repeat(14,1fr);gap:6px}.heat i{aspect-ratio:1;border-radius:3px;background:#edf0f4;min-height:13px}.heat .l1{background:#d4e2fa}.heat .l2{background:#a9c0e9}.heat .l3{background:#6d8bce}.heat .l4{background:#334f91}.task{display:flex;gap:11px;align-items:center;padding:11px 0;border-bottom:1px solid #edf0f4}.task:last-child{border:0}.badge{width:29px;height:29px;display:grid;place-items:center;border-radius:8px;background:var(--goldp);color:var(--gold);font-weight:850}.task-copy{flex:1}.task strong,.task small{display:block}.task small{font-size:12px;color:var(--muted)}.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:21px}.pill{border:1px solid var(--line);border-radius:99px;background:#fff;padding:7px 11px;color:var(--muted);font-size:13px}.pill.active{background:var(--bluep);border-color:#bdc9ed;color:var(--blue);font-weight:750}.books{display:grid;grid-template-columns:repeat(3,minmax(210px,1fr));gap:16px}.book{overflow:hidden;transition:.2s}.book:hover{transform:translateY(-3px);box-shadow:var(--shadow)}.cover{min-height:181px;padding:19px;display:flex;flex-direction:column;justify-content:space-between;background:#31466c;color:#f9f0df;position:relative;overflow:hidden}.cover:after{content:"";position:absolute;width:150px;height:150px;border:1px solid #ffffff3c;border-radius:50%;right:-45px;top:-43px}.cover.alt{background:#4b625a}.cover.rose{background:#784e54}.cover.new{background:#4e6085}.cover small{font-size:10px;letter-spacing:.12em;text-transform:uppercase;z-index:1}.cover b{font:25px/1.06 var(--serif);z-index:1;max-width:180px}.book-info{padding:16px}.book-info h3{font:18px var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.book-info p{margin-bottom:12px;color:var(--muted);font-size:12px}.book-foot{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}.bookprog{height:4px;overflow:hidden;background:#edf0f4;border-radius:99px;margin:12px 0 7px}.bookprog i{display:block;background:var(--blue);height:100%}.empty{grid-column:1/-1;border:1px dashed #bcc8dd;border-radius:13px;padding:38px;text-align:center;color:var(--muted)}.upload-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(290px,.85fr);gap:20px}.drop{min-height:275px;padding:30px;display:grid;place-items:center;text-align:center;border:1.5px dashed #9daccc;border-radius:14px;background:linear-gradient(135deg,#fcfdff,#f4f7fd)}.drop.drag{background:var(--bluep);border-color:var(--blue)}.upload-symbol{width:52px;height:52px;margin:auto auto 13px;display:grid;place-items:center;border-radius:16px;background:var(--bluep);color:var(--blue);font-size:27px}.drop input{display:none}.file{display:none;text-align:left;align-items:center;gap:9px;padding:12px;margin-top:15px;border:1px solid var(--line);border-radius:9px;background:#fff}.file.show{display:flex}.steps{display:grid}.step{display:flex;gap:11px;align-items:center;padding:11px 0;border-bottom:1px solid #edf0f4;color:var(--muted)}.step:last-child{border:0}.state{width:20px;height:20px;border:1px solid #c6d0df;border-radius:50%;display:grid;place-items:center;font-size:11px}.step.done{color:var(--ink)}.step.done .state{background:var(--green);border-color:var(--green);color:#fff}.step.work{color:var(--blue);font-weight:700}.step.work .state{border:3px solid #dbe4f8;border-top-color:var(--blue);animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.notice{padding:12px;border-left:3px solid var(--gold);border-radius:0 8px 8px 0;background:var(--goldp);color:#73572e;font-size:13px}.reader-view{max-width:none;padding:0}.reader-top{position:sticky;top:72px;z-index:8;display:flex;align-items:center;gap:14px;min-height:67px;padding:12px 26px;background:#fff;border-bottom:1px solid var(--line)}.back{border:0;background:none;padding:4px 0;color:var(--muted);font-size:13px}.chapter{border-left:1px solid var(--line);padding-left:15px;font:17px var(--serif)}.readprog{width:135px;margin-left:auto}.readprog small{display:block;text-align:right;color:var(--muted);font-size:11px;margin-bottom:4px}.modes{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:8px}.modes button{border:0;border-radius:5px;background:none;color:var(--muted);padding:6px 8px;font-size:12px}.modes button.active{background:var(--navy);color:#fff}.reader-grid{display:grid;grid-template-columns:minmax(0,1fr) var(--aside-w,340px);min-height:calc(100vh - 139px)}.reader-main{padding:45px max(7vw,48px) 80px;background:#f5f6f9}.paper{max-width:765px;margin:auto;padding:clamp(30px,5vw,66px);background:#fffefa;border:1px solid #e9e2d6;box-shadow:0 7px 26px #46392512}.paper .kicker{text-align:center;color:#8d7859;font-size:11px;letter-spacing:.13em;text-transform:uppercase;margin-bottom:14px}.paper h1{text-align:center;font-size:clamp(29px,4vw,42px);margin-bottom:10px}.subtitle{text-align:center;color:var(--muted);margin-bottom:36px}.page{display:flex;align-items:center;gap:10px;color:#a49377;font-size:11px;letter-spacing:.08em;margin:34px 0 17px}.page:before,.page:after{content:"";height:1px;background:#ede6db;flex:1}.para{font:18px/1.9 var(--serif);color:#2b303c;margin:0 0 13px}.word{cursor:pointer;border-radius:3px}.word:hover,.word.focus{background:#ffecba}.trans-btn{border:0;border-radius:5px;background:none;padding:3px 5px;margin:-1px 0 16px;color:#75644d;font-size:12px}.trans-btn:hover{background:var(--goldp);color:#9a6b2d}.trans{display:none;padding:13px 16px;margin:0 0 21px;background:#fbf7f0;border-left:2px solid #dcb77e;color:#6a5d4b;line-height:1.8}.trans.show{display:block}.mode-en .trans-btn,.mode-en .trans{display:none!important}.mode-bi .trans{display:block}.mode-bi .trans-btn{display:none}.quote{margin:27px 0;padding:17px 20px;border-left:3px solid var(--gold);background:#fdf8ef;color:#5a5146;font:italic 18px/1.7 var(--serif)}.quote footer{margin-top:8px;color:#9a8c79;font:12px var(--sans)}.learn-side{height:calc(100vh - 139px);position:sticky;top:139px;overflow:auto;padding:23px;background:#fff;border-left:1px solid var(--line)}.side-head{display:flex;justify-content:space-between;gap:8px}.side-head h2{font-size:22px}.tabs{display:flex;gap:5px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:8px;margin:15px 0}.tab{border:0;border-radius:7px;background:none;color:var(--muted);padding:7px 10px;font-size:13px}.tab.active{background:var(--bluep);color:var(--blue);font-weight:750}.lcard{padding:15px;border:1px solid var(--line);border-radius:10px;margin:10px 0}.lcard.highlight{border-color:#e4c182;background:#fffdf8}.lcard h3{font:20px var(--serif)}.lcard p{font-size:13px;margin:7px 0}.label{color:var(--gold);font-size:10px;letter-spacing:.09em;font-weight:800;text-transform:uppercase}.lcard-actions{display:flex;gap:10px}.lcard-actions button{padding:0;border:0;background:none;color:var(--blue);font-size:12px}.ai-box{margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}.ai-box h3{font:17px var(--serif)}.ai-input{display:flex;gap:7px}.ai-input input{min-width:0;flex:1;padding:9px;border:1px solid var(--line);border-radius:7px}.ai-input button{border:0;border-radius:7px;background:var(--navy);color:#fff;padding:0 10px}.ai-answer{display:none;padding:10px;margin-top:9px;background:var(--bluep);border-radius:8px;color:#44537d;font-size:13px}.ai-answer.show{display:block}.knowledge-grid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px}.knav{height:fit-content;padding:10px}.knav button{width:100%;border:0;border-radius:7px;background:none;text-align:left;padding:10px;color:var(--muted)}.knav button.active{background:var(--bluep);color:var(--blue);font-weight:750}.knav span{float:right;font-size:12px}.klist{display:grid;gap:11px}.kitem{padding:18px;display:grid;grid-template-columns:1fr auto;gap:8px}.kitem h3{font:20px var(--serif)}.kitem p{color:var(--muted);font-size:13px;margin:5px 0}.source{padding:3px 6px;border-radius:4px;background:#f2f4f8;color:#5d6a81;font-size:11px}.kitem textarea{width:100%;min-height:45px;border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--ink);resize:vertical}.review-wrap{max-width:900px;margin:auto}.review-status{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;margin-bottom:18px}.review-status strong{font:19px var(--serif)}.review-card{min-height:390px;padding:clamp(24px,5vw,54px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.review-term{font:clamp(35px,7vw,63px)/1.1 var(--serif);letter-spacing:-.04em;margin:19px 0}.answer{display:none;max-width:570px;margin:20px auto 0;padding:15px;border-radius:9px;background:var(--goldp);color:#604d31;text-align:left}.answer.show{display:block}.quality{display:none;width:min(100%,620px);grid-template-columns:repeat(4,1fr);gap:8px;margin-top:23px}.quality.show{display:grid}.quality button{min-height:54px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--muted);font-size:12px}.quality button:hover{border-color:var(--blue);background:var(--bluep);color:var(--blue)}.quality b{display:block;color:var(--ink);font-size:13px}.analytics{display:grid;grid-template-columns:1.3fr .7fr;gap:20px}.chart{height:230px;display:flex;align-items:end;gap:11px;padding:15px 5px 0;border-bottom:1px solid var(--line)}.bar{height:var(--h);max-width:42px;flex:1;border-radius:7px 7px 0 0;background:linear-gradient(to top,#4969bf,#96aee7);position:relative}.bar small{position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);color:var(--muted);font-size:11px}.donut-wrap{min-height:230px;display:grid;place-items:center}.donut{display:grid;place-items:center;width:160px;height:160px;border-radius:50%;background:conic-gradient(var(--blue) 0 45%,var(--gold) 45% 70%,var(--green) 70% 88%,#e9edf3 88%)}.donut:after{content:"82%";display:grid;place-items:center;width:112px;height:112px;border-radius:50%;background:#fff;color:var(--navy);font:31px var(--serif)}.settings{display:grid;grid-template-columns:1fr 1fr;gap:20px}.setting{padding:22px}.setting h2{font-size:20px}.field{display:grid;gap:6px;margin:13px 0}.field label{color:var(--muted);font-size:13px}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink);background:#fff}.switch-row{display:flex;justify-content:space-between;gap:15px;align-items:center;border-top:1px solid #edf0f4;padding:13px 0}.switch{position:relative;width:40px;height:22px;border:0;border-radius:50px;background:#cbd3df}.switch:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s}.switch.on{background:var(--green)}.switch.on:after{transform:translateX(18px)}.selmenu{display:none;position:fixed;z-index:50;gap:4px;padding:4px;border:1px solid var(--line);border-radius:8px;background:var(--navy);box-shadow:var(--shadow)}.selmenu.show{display:flex}.selmenu button{border:0;border-radius:5px;background:none;color:#fff;padding:7px 8px;font-size:12px}.selmenu button:hover{background:#fff2}.modal{position:fixed;z-index:60;inset:0;display:none;place-items:center;padding:20px;background:#10192d6b}.modal.show{display:grid}.modal-card{width:min(100%,520px);max-height:90vh;overflow:auto;padding:28px;border-radius:15px;background:#fff;box-shadow:0 24px 70px #0c142548}.close{float:right;border:0;background:none;color:var(--muted);font-size:20px}.session-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:20px 0}.session-stat{padding:14px;border-radius:9px;background:#f5f7fb}.session-stat small,.session-stat b{display:block}.session-stat b{font:25px var(--serif);margin-top:3px}.toast{position:fixed;z-index:100;right:22px;bottom:22px;padding:12px 15px;border-radius:9px;background:var(--navy);color:#fff;box-shadow:var(--shadow);font-size:13px;opacity:0;transform:translateY(90px);transition:.3s}.toast.show{opacity:1;transform:none}
+@media(max-width:1120px){.metric-grid{grid-template-columns:repeat(2,1fr)}.books{grid-template-columns:repeat(2,1fr)}.reader-grid{grid-template-columns:minmax(0,1fr) 325px}.reader-main{padding-left:30px;padding-right:30px}.learn-side{padding:16px}.grid-main,.lower,.upload-grid,.analytics{grid-template-columns:1fr}}@media(max-width:820px){.shell{display:block}.side{position:fixed;z-index:40;left:0;right:0;bottom:0;top:auto;height:auto;padding:7px 8px;display:block;box-shadow:0 -4px 22px #0e193330}.brand,.nav-caption,.focus-box,.profile{display:none}.nav{grid-template-columns:repeat(7,1fr);gap:2px}.nav button{padding:7px 1px;gap:1px;align-items:center;justify-content:center;flex-direction:column;border-radius:7px;font-size:10px}.top{height:61px;padding:0 17px}.crumb{min-width:auto;font-size:18px}.search{display:none}.view{padding:22px 17px 86px}.heading{align-items:start;flex-direction:column}.books{grid-template-columns:1fr}.knowledge-grid,.settings{grid-template-columns:1fr}.knav{display:flex;overflow:auto}.knav button{min-width:140px}.reader-view{padding-bottom:61px}.reader-top{top:61px;padding:8px 13px;gap:8px}.chapter{display:none}.readprog{width:75px}.modes button{padding:5px;font-size:10px}.reader-grid{display:block}.reader-main{padding:21px 12px}.paper{padding:30px 23px}.para{font-size:17px}.learn-side{position:static;height:auto;border-left:0;border-top:1px solid var(--line)}.continue{padding:22px}.continue h2{font-size:25px}}
+html.scribe-booting body{visibility:hidden}
+</style><script src="/storage-vault.js"></script><script type="module" src="/src/cloud-bridge.js"></script></head>
+<body>
+  <script>
+    // 管理后台路由：先隐藏学生端界面，等 src/admin-page.js 接管（挂载完会去掉这个 class）。
+    if (/[?&]admin=1/.test(location.search)) document.documentElement.classList.add('alt-route');
+  </script>
+  <style>html.alt-route body{visibility:hidden!important}</style><div class="shell"><aside class="side"><a class="brand" href="#" data-go="dashboard"><span class="mark">S</span><span><b>Scribe</b><small>DEEP READING</small></span></a><div class="nav-caption">我的空间</div><nav class="nav"><button class="active" data-view="dashboard"><span class="ico">⌂</span>概览</button><button data-view="library"><span class="ico">▤</span>我的书库</button><button data-view="upload"><span class="ico">↥</span>导入文献</button><button data-view="reader"><span class="ico">▱</span>精读学习</button><button data-view="knowledge"><span class="ico">✦</span>知识库</button><button data-view="review"><span class="ico">⟳</span>复习中心</button><button data-view="analytics"><span class="ico">⌁</span>学习数据</button></nav><div class="spacer"></div><div class="focus-box"><span>今日专注</span><b id="sideMins">47 min</b><div class="track"><i></i></div><span>连续学习 12 天</span></div><button class="profile" data-view="settings"><span class="avatar">林</span><span><b>林知远</b><small>个人学习空间</small></span></button></aside>
+<main><header class="top"><div class="crumb" id="crumb">学习概览</div><div class="search"><input id="globalSearch" autocomplete="off" placeholder="搜索书籍、词汇、笔记…"><div class="results" id="results"></div></div><div class="top-actions"><button class="icon-btn" id="exportAll" title="导出数据">⇩</button><button class="icon-btn" data-go="settings" title="设置">⚙</button></div></header>
+<section class="view active" id="dashboard"><div class="heading"><div><div class="eyebrow" id="today">星期一 · 9 月 22 日</div><h1>早上好，林知远。</h1><p class="muted">今天用一点时间，把一段真正重要的文字读透。</p></div><button class="button secondary" data-go="analytics">查看学习报告 →</button></div><div class="grid-main"><article class="card continue"><div class="book-label">继续阅读</div><h2>The Sociology of Education</h2><p class="muted">Chapter 3 · Education, culture and agency</p><div class="meta"><span>上次学习 47 分钟</span><span>昨天 21:16</span></div><div class="progress-row"><div class="track"><i></i></div><b>38%</b></div><button class="button primary" data-go="reader">继续精读 →</button></article><article class="card brief"><div class="book-label">今日复习</div><div class="big" id="reviewCount">32</div><span class="muted">项目正等待你的再次相遇</span><div class="chips"><span class="chip"><i class="dot"></i>词汇 18</span><span class="chip"><i class="dot gold"></i>表达 8</span><span class="chip"><i class="dot green"></i>句子 6</span></div><button class="button gold" data-go="review">开始复习 →</button></article></div><div class="metric-grid"><article class="card metric"><label>今日阅读</label><strong id="metricMins">47 <small>min</small></strong><small>↑ 比昨天多 12 分钟</small></article><article class="card metric"><label>阅读页数</label><strong>12.4 <small>页</small></strong><small>本周 56.7 页</small></article><article class="card metric"><label>新增学习卡</label><strong id="metricCards">7 <small>张</small></strong><small>词汇 · 表达 · 句子</small></article><article class="card metric"><label>连续学习</label><strong>12 <small>天</small></strong><small>再坚持 2 天破纪录</small></article></div><div class="lower"><article class="card panel"><div class="panel-head"><div><h2>学习足迹</h2><p class="muted tiny">过去 14 周的投入，深色代表更长的专注阅读。</p></div><button class="ghost small" data-go="analytics">数据详情 →</button></div><div class="heat" id="heat"></div></article><article class="card panel"><div class="panel-head"><div><h2>下一步</h2><p class="muted tiny">把今天的学习完成一个小闭环</p></div></div><div class="task"><span class="badge">1</span><div class="task-copy"><strong>完成第 3 章 3.2 节</strong><small>预计 18 分钟 · 剩余 4 页</small></div><button class="ghost small" data-go="reader">阅读</button></div><div class="task"><span class="badge">2</span><div class="task-copy"><strong>复习近期收藏表达</strong><small>8 张表达卡 · 预计 6 分钟</small></div><button class="ghost small" data-go="review">复习</button></div><div class="task"><span class="badge">3</span><div class="task-copy"><strong>整理“agency”术语笔记</strong><small>关联 2 本书的阅读语境</small></div><button class="ghost small" data-go="knowledge">整理</button></div></article></div></section>
+<section class="view" id="library"><div class="heading"><div><div class="eyebrow">个人书库</div><h1>所有正在生长的阅读</h1><p class="muted">原始文件、校正文本、翻译和你的学习痕迹在同一项目里保存。</p></div><button class="button primary" data-go="upload">＋ 导入新文献</button></div><div class="filters"><button class="pill active" data-filter="all">全部 <span id="docCount">3</span></button><button class="pill" data-filter="reading">正在阅读</button><button class="pill" data-filter="finished">已读完</button><button class="pill" data-filter="paused">已暂停</button><span style="flex:1"></span><button class="pill" data-go="settings">术语库</button></div><div class="books" id="books"></div></section>
+<section class="view" id="upload"><div class="heading"><div><div class="eyebrow">新建阅读项目</div><h1>把专业文献变成可精读的文本</h1><p class="muted">每个项目都保留原文件，并为网页阅读建立段落、页码与译文的对应关系。</p></div></div><div class="upload-grid"><article class="card panel"><div class="drop" id="drop"><div><div class="upload-symbol">↥</div><h2>拖放文献到这里</h2><p class="muted">或从电脑中选择 PDF、DOCX、JPG、PNG、HEIC 文件</p><label class="button primary" for="fileInput">选择文件</label><input id="fileInput" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.txt"><p class="tiny muted" style="margin-top:14px">支持单个文件或书页图片；原文件只保存在当前浏览器的本地项目中。</p><div class="file" id="fileRow"><span class="badge">▤</span><div style="flex:1"><strong id="fileName">document.pdf</strong><small class="muted" id="fileMeta">等待处理</small></div><button class="ghost small" id="clearFile">移除</button></div></div></div><div class="notice" style="margin-top:18px"><b>本地体验说明：</b>本版本完整演示导入后的精读、学习卡与复习闭环；生产级 OCR 和全文翻译可在“设置 → AI 服务”接入经过验证的后端，避免把文件内容交给未知服务。</div></article><aside class="card panel"><div class="panel-head"><div><h2>处理进度</h2><p class="muted tiny">准确优先，保留每个可追溯版本</p></div></div><div class="steps" id="steps"><div class="step"><span class="state">1</span>文档类型识别</div><div class="step"><span class="state">2</span>页面与版面结构恢复</div><div class="step"><span class="state">3</span>OCR 原文识别</div><div class="step"><span class="state">4</span>上下文校正与风险标记</div><div class="step"><span class="state">5</span>术语提取与全文翻译</div><div class="step"><span class="state">6</span>中英段落对齐</div><div class="step"><span class="state">7</span>生成阅读页面</div></div><button class="button primary" id="process" style="width:100%;margin-top:17px" disabled>开始本地处理</button></aside></div></section>
+<section class="view reader-view" id="reader"><div class="reader-top"><button class="back" data-go="library">← 书库</button><span class="chapter">Chapter 3 · Education, culture and agency</span><div class="readprog"><small>阅读进度 38%</small><div class="track"><i></i></div></div><div class="modes"><button data-mode="en">英文</button><button data-mode="click" class="active">点击译文</button><button data-mode="bi">中英对照</button></div><button class="button secondary small" id="end">结束学习</button></div><div class="reader-grid"><div class="reader-main"><article class="paper" id="paper"><div class="kicker">The Sociology of Education · 3.2</div><h1>Education, culture and agency</h1><p class="subtitle">教育、文化与能动性</p><div class="page">p. 137</div><p class="para">The relationship between education and culture cannot be understood as a simple process of transmission. Educational institutions do more than pass established knowledge from one generation to the next; they also create the conditions in which learners may reinterpret, contest, and transform what they inherit.</p><button class="trans-btn" data-t="t1">⌄ 显示译文</button><div class="trans" id="t1">教育与文化之间的关系不能被理解为一个简单的传递过程。教育机构所做的不仅是把既有知识从一代传给下一代；它们也创造了条件，使学习者能够重新诠释、质疑并转化自己所继承的内容。</div><p class="para">This is why the concept of <span class="word" data-word="agency">agency</span> has become so <span class="word" data-word="substantial">substantial</span> in contemporary educational theory. It directs attention to the capacity of individuals to act purposefully within social and institutional constraints, rather than imagining them as merely passive recipients of culture.</p><button class="trans-btn" data-t="t2">⌄ 显示译文</button><div class="trans" id="t2">这正是“能动性”这一概念在当代教育理论中变得如此重要的原因。它将注意力引向个体在社会和制度约束中有目的地行动的能力，而不是把他们想象成文化的被动接受者。</div><blockquote class="quote">“Education is never neutral: it names both the reproduction of a world and the possibility of remaking it.”<footer>— Reading note, Chapter 3</footer></blockquote><p class="para">A <span class="word" data-word="pedagogy">pedagogy</span> that takes agency seriously must therefore make room for dialogue, uncertainty, and reflection. The teacher does not withdraw from responsibility; instead, the teacher provides <span class="word" data-word="scaffolding">scaffolding</span> through which students can gradually take greater ownership of their learning.</p><button class="trans-btn" data-t="t3">⌄ 显示译文</button><div class="trans" id="t3">因此，认真对待能动性的教学法必须为对话、不确定性和反思留出空间。教师并非放弃责任；相反，教师提供支架，使学生能够逐步对自己的学习承担更多主体责任。</div><div class="page">p. 138</div><p class="para">The distinction is far more complicated than it initially appears. Cultural resources are unequally distributed, and the ability to use them is shaped by prior experience. Yet this does not mean that educational action is predetermined. It means that good teaching must attend to the particular histories and possibilities that students bring into the classroom.</p><button class="trans-btn" data-t="t4">⌄ 显示译文</button><div class="trans" id="t4">这种区分远比最初看起来复杂。文化资源的分配并不均等，而使用这些资源的能力又受到既往经验塑造。但这并不意味着教育行动已被预先决定；它意味着，好的教学必须关注学生带入课堂的具体经历与可能性。</div><div class="notice">划选任何短语或句子，可直接翻译、解释或存入学习卡；点击带有底色的英文词即可查看当前语境释义。</div></article></div><aside class="learn-side"><div class="side-head"><div><div class="eyebrow">我的学习卡</div><h2>随阅读积累</h2></div><button class="ghost small" data-go="knowledge">查看全部</button></div><div class="tabs"><button class="tab active" data-tab="all">全部</button><button class="tab" data-tab="word">词汇</button><button class="tab" data-tab="phrase">表达</button><button class="tab" data-tab="sentence">句子</button></div><div id="learnCards"></div><div class="ai-box"><h3>问这本书</h3><p class="muted tiny">回答优先基于当前章节，并标出段落位置。</p><div class="ai-input"><input id="ask" placeholder="例如：作者如何理解 agency？"><button id="askBtn">发送</button></div><div class="ai-answer" id="aiAnswer"></div></div></aside></div></section>
+<section class="view" id="knowledge"><div class="heading"><div><div class="eyebrow">个人知识库</div><h1>从阅读里长出来的语言资产</h1><p class="muted">每一张卡都能回到它出现过的原文语境。</p></div><button class="button secondary" id="exportCards">导出学习卡</button></div><div class="knowledge-grid"><aside class="card knav"><button class="active" data-kind="all">全部 <span id="allCards">12</span></button><button data-kind="word">词汇 <span>6</span></button><button data-kind="phrase">表达 <span>4</span></button><button data-kind="sentence">句子 <span>2</span></button></aside><div class="klist" id="klist"></div></div></section>
+<section class="view" id="review"><div class="heading"><div><div class="eyebrow">间隔复习</div><h1>让遇见过的语言留下来</h1><p class="muted">按你当下的熟悉程度安排下一次复习，随时可以回到原文。</p></div></div><div class="review-wrap"><div class="card review-status"><div><strong id="reviewProgress">1 / 32</strong><span class="muted tiny"> · 今日待复习</span></div><span class="chip"><i class="dot green"></i>预计 9 分钟</span></div><article class="card review-card"><span class="label" id="reviewType">词汇 · 本文语境</span><div class="review-term" id="reviewTerm">substantial</div><p class="muted" id="reviewHint">想一想：这个词在作者讨论教育理论时，具体强调了什么？</p><button class="button primary" id="reveal">显示答案</button><div class="answer" id="answer"><b id="answerMeaning">显著的；重要的</b><p id="answerContext">本文：agency has become substantial in contemporary educational theory.</p><button class="ghost small" data-go="reader">↗ 回到原文 p.137</button></div><div class="quality" id="quality"><button data-q="again"><b>忘记了</b>1 天后</button><button data-q="hard"><b>有点模糊</b>3 天后</button><button data-q="good"><b>记得</b>7 天后</button><button data-q="easy"><b>非常熟悉</b>21 天后</button></div></article></div></section>
+<section class="view" id="analytics"><div class="heading"><div><div class="eyebrow">Learning analytics</div><h1>阅读不是消耗，是累积</h1><p class="muted">这一页只使用你本地保存的学习数据。</p></div><button class="button secondary" id="exportReport">导出本周报告</button></div><div class="metric-grid"><article class="card metric"><label>累计学习</label><strong>26.5 <small>小时</small></strong><small>近 7 天 4.8 小时</small></article><article class="card metric"><label>完成阅读</label><strong>286 <small>页</small></strong><small>共 3 个阅读项目</small></article><article class="card metric"><label>已积累词汇</label><strong id="wordCount">64 <small>个</small></strong><small>17 个已进入长期记忆</small></article><article class="card metric"><label>复习完成率</label><strong>82 <small>%</small></strong><small>本周已完成 49 次</small></article></div><div class="analytics"><article class="card panel"><div class="panel-head"><div><h2>本周专注时长</h2><p class="muted tiny">单位：分钟</p></div><span class="chip">总计 287 min</span></div><div class="chart"><i class="bar" style="--h:48%"><small>一</small></i><i class="bar" style="--h:72%"><small>二</small></i><i class="bar" style="--h:35%"><small>三</small></i><i class="bar" style="--h:88%"><small>四</small></i><i class="bar" style="--h:59%"><small>五</small></i><i class="bar" style="--h:78%"><small>六</small></i><i class="bar" style="--h:64%"><small>日</small></i></div></article><article class="card panel"><div class="panel-head"><div><h2>学习内容</h2><p class="muted tiny">本周新增卡片构成</p></div></div><div class="donut-wrap"><div class="donut"></div></div><div class="chips" style="justify-content:center"><span class="chip"><i class="dot"></i>词汇 45%</span><span class="chip"><i class="dot gold"></i>表达 25%</span><span class="chip"><i class="dot green"></i>句子 18%</span></div></article></div></section>
+<section class="view" id="settings"><div class="heading"><div><div class="eyebrow">个人设置</div><h1>让工具适应你的阅读方式</h1><p class="muted">AI 服务、术语习惯和本地数据都由你掌控。</p></div></div><div class="settings"><article class="card setting"><h2>翻译与术语</h2><p class="muted tiny">阅读页面优先使用文档术语表，保证同一概念前后一致。</p><div class="field"><label>译文风格</label><select><option>准确优先 · 学术中文</option><option>自然流畅 · 保留术语</option><option>逐句对照 · 学习模式</option></select></div><div class="field"><label>个人术语库</label><textarea id="glossary" rows="6">agency = 能动性
+scaffolding = 支架
+pedagogy = 教学法
+curriculum = 课程</textarea></div><button class="button primary" id="saveGlossary">保存术语习惯</button></article><article class="card setting"><h2>AI 服务</h2><p class="muted tiny">可选择将 OCR 校正、全文翻译和解释接到自己的服务端。密钥不会写入此演示项目。</p><div class="field"><label>服务提供方</label><select><option>未连接（本地演示）</option><option>OpenAI-compatible API</option><option>自建模型服务</option></select></div><div class="field"><label>服务地址</label><input placeholder="https://your-api.example/v1"></div><div class="switch-row"><div><b>阅读时自动展开译文</b><small class="muted">新段落默认展开中文对照</small></div><button class="switch on" id="autoTrans"></button></div><div class="switch-row"><div><b>活跃阅读计时</b><small class="muted">无操作 5 分钟后自动暂停</small></div><button class="switch on" id="activeTimer"></button></div></article><article class="card setting"><h2>本地数据</h2><p class="muted tiny">浏览器本地保存项目、学习卡、复习记录和设置。清空操作不可撤回。</p><div style="display:flex;gap:9px;flex-wrap:wrap"><button class="button secondary" id="exportSettings">导出全部数据</button><button class="button secondary" id="resetDemo">恢复示例数据</button><button class="button small" id="clearData" style="border-color:#e4b6b7;color:#b45052;background:#fff">清空本地数据</button></div></article><article class="card setting"><h2>原文与隐私</h2><p class="notice">所有上传内容仅用于个人阅读与学习。原文、OCR 结果、校正文本、网页阅读版和译文应始终分版本保留；本地版本不会自动公开任何文本。</p></article></div></section>
+</main></div><div class="selmenu" id="selmenu"><button data-sel="translate">翻译</button><button data-sel="save">收藏</button><button data-sel="explain">解释</button><button data-sel="copy">复制</button></div><div class="modal" id="modal"><div class="modal-card"><button class="close" id="closeModal">×</button><div class="eyebrow">本次学习总结</div><h2>读过的，正在成为你的。</h2><p class="muted">已根据有效操作记录这次学习，并将新内容安排到复习队列。</p><div class="session-stats"><div class="session-stat"><small>有效学习</small><b id="sessionTime">17 min</b></div><div class="session-stat"><small>阅读进度</small><b>4.3 页</b></div><div class="session-stat"><small>新增学习卡</small><b id="newCards">3 张</b></div><div class="session-stat"><small>学习笔记</small><b>1 条</b></div></div><button class="button primary" id="saveSession">保存并结束</button></div></div><div class="toast" id="toast"></div>
+<script type="scribe/boot">
+(function(){var KEY="scribe-local-v1",seed={docs:[{id:"s",title:"The Sociology of Education",author:"M. Richards",category:"教育学",status:"reading",progress:38,pages:342,time:"12.6 h",color:""},{id:"m",title:"Research Methods",author:"A. Williams",category:"研究方法",status:"reading",progress:16,pages:218,time:"5.1 h",color:"alt"},{id:"c",title:"Curriculum Studies",author:"D. Clarke",category:"课程论",status:"paused",progress:72,pages:195,time:"8.8 h",color:"rose"}],cards:[{id:"c1",type:"word",term:"substantial",meaning:"显著的；重要的",context:"agency has become substantial in contemporary educational theory.",source:"The Sociology of Education · p.137",note:"强调理论地位的重要性",due:true},{id:"c2",type:"word",term:"agency",meaning:"能动性；有目的行动的能力",context:"the capacity of individuals to act purposefully",source:"The Sociology of Education · p.137",note:"教育学中指主体在结构中行动的能力",due:true},{id:"c3",type:"phrase",term:"play a crucial role in",meaning:"在……中发挥关键作用",context:"Culture can play a crucial role in shaping educational outcomes.",source:"The Sociology of Education · p.136",note:"常与 research/evidence 搭配",due:true},{id:"c4",type:"word",term:"scaffolding",meaning:"支架；支持性引导",context:"the teacher provides scaffolding through which students...",source:"The Sociology of Education · p.137",note:"与 Vygotsky 理论关联",due:false},{id:"c5",type:"sentence",term:"The distinction is far more complicated than it initially appears.",meaning:"这种区分远比最初看起来复杂。",context:"比较结构：far more + adj. + than",source:"The Sociology of Education · p.138",note:"可积累的学术论证句式",due:true},{id:"c6",type:"phrase",term:"rather than",meaning:"而不是；而非",context:"rather than imagining them as merely passive recipients",source:"The Sociology of Education · p.137",note:"用于纠正或对比两种解释",due:true}],minutes:47,reviewed:0,filter:"all",tab:"all",kind:"all",settings:{auto:true,timer:true,glossary:"agency = 能动性\nscaffolding = 支架\npedagogy = 教学法\ncurriculum = 课程"}};var state;try{state=JSON.parse(localStorage.getItem(KEY))||seed}catch(e){state=seed}function q(s,r){return(r||document).querySelector(s)}function qa(s,r){return[].slice.call((r||document).querySelectorAll(s))}function save(){localStorage.setItem(KEY,JSON.stringify(state))}function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]})}function toast(s){var x=q("#toast");x.textContent=s;x.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(function(){x.classList.remove("show")},2400)}function label(t){return t==="word"?"词汇":t==="phrase"?"表达":t==="sentence"?"句子":"笔记"}function go(id){qa(".view").forEach(function(x){x.classList.toggle("active",x.id===id)});qa(".nav button").forEach(function(x){x.classList.toggle("active",x.dataset.view===id)});q("#crumb").textContent={dashboard:"学习概览",library:"我的书库",upload:"导入文献",reader:"精读学习",knowledge:"知识库",review:"复习中心",analytics:"学习数据",settings:"个人设置"}[id];if(id==="reader")startTimer();window.scrollTo({top:0,behavior:"smooth"})}qa("[data-go],[data-view]").forEach(function(b){b.addEventListener("click",function(e){e.preventDefault();go(b.dataset.go||b.dataset.view)})});function heat(){var a=[0,1,0,2,3,1,0,2,3,4,2,1,3,4,0,0,1,2,3,1,2,4,3,2,1,3,4,2,1,2,0,1,3,2,4,4,2,1,0,2,3,4,2,3,1,0,2,3,2,4,3,1,2,0,3,1,4,3,2,1,0,2,4,4,3,1,2,3,4,2,1,0,2,3,4,3,2,1,0,3,4,2,1,2,3,4,2,1,3,4,1,2,3,4,2,1,0,2];q("#heat").innerHTML=a.map(function(n){return"<i class='"+(n?"l"+n:"")+"'></i>"}).join("")}function books(){var a=state.docs.filter(function(d){return state.filter==="all"||d.status===state.filter});q("#docCount").textContent=state.docs.length;q("#books").innerHTML=a.length?a.map(function(d){var s=d.status==="reading"?"正在阅读":d.status==="finished"?"已读完":"已暂停";return"<article class='card book'><div class='cover "+esc(d.color)+"'><small>"+esc(d.category)+"</small><b>"+esc(d.title)+"</b><small>"+esc(d.author)+"</small></div><div class='book-info'><h3>"+esc(d.title)+"</h3><p>"+esc(d.author)+" · "+esc(d.pages)+" 页</p><div class='bookprog'><i style='width:"+d.progress+"%'></i></div><div class='book-foot'><span>"+d.progress+"% · "+s+"</span><button class='ghost small open'>打开 →</button></div></div></article>"}).join(""):"<div class='empty'><h2>这里还没有这个分类的文献</h2><p>导入一本书或一篇论文，开始建立自己的阅读语料库。</p><button class='button primary' data-go='upload'>导入文献</button></div>";qa(".open").forEach(function(b){b.onclick=function(){go("reader")}});qa("#books [data-go]").forEach(function(b){b.onclick=function(){go(b.dataset.go)}})}function learning(){var a=state.cards.filter(function(c){return state.tab==="all"||c.type===state.tab}).slice(0,4);q("#learnCards").innerHTML=a.map(function(c,i){return"<article class='lcard "+(i===0?"highlight":"")+"'><div class='label'>"+label(c.type)+" · "+esc(c.source.split("·").pop().trim())+"</div><h3>"+esc(c.term)+"</h3><p><b>"+esc(c.meaning)+"</b></p><p class='muted tiny'>"+esc(c.context)+"</p><div class='lcard-actions'><button data-source='"+c.id+"'>↗ 回到原文</button><button data-note='"+c.id+"'>编辑笔记</button></div></article>"}).join("")||"<p class='muted tiny'>这个分类还没有学习卡。</p>";qa("[data-source]").forEach(function(b){b.onclick=function(){toast("已定位到原文出处")}});qa("[data-note]").forEach(function(b){b.onclick=function(){go("knowledge")}})}function knowledge(){var a=state.cards.filter(function(c){return state.kind==="all"||c.type===state.kind});q("#allCards").textContent=state.cards.length;q("#klist").innerHTML=a.map(function(c){return"<article class='card kitem'><div><div class='label'>"+label(c.type)+"</div><h3>"+esc(c.term)+"</h3><p><b>"+esc(c.meaning)+"</b></p><p>“"+esc(c.context)+"”</p><span class='source'>"+esc(c.source)+"</span></div><div><button class='ghost small jump'>查看原文 →</button></div><div style='grid-column:1/-1'><label class='tiny muted'>我的笔记</label><textarea data-note-save='"+c.id+"'>"+esc(c.note||"")+"</textarea></div></article>"}).join("")||"<div class='empty'><h2>暂无学习卡</h2><p>在阅读页点击单词或划选句子即可收藏。</p></div>";qa("[data-note-save]").forEach(function(x){x.onchange=function(){state.cards.find(function(c){return c.id===x.dataset.noteSave}).note=x.value;save();toast("笔记已保存")}});qa(".jump").forEach(function(b){b.onclick=function(){go("reader")}})}function metrics(){q("#sideMins").textContent=Math.round(state.minutes)+" min";q("#metricMins").innerHTML=Math.round(state.minutes)+" <small>min</small>";q("#metricCards").innerHTML=state.cards.length+" <small>张</small>";q("#wordCount").innerHTML=(58+state.cards.filter(function(c){return c.type==="word"}).length)+" <small>个</small>";q("#reviewCount").textContent=Math.max(0,32-state.reviewed)}heat();books();learning();knowledge();metrics();qa("[data-filter]").forEach(function(b){b.onclick=function(){state.filter=b.dataset.filter;save();qa("[data-filter]").forEach(function(x){x.classList.toggle("active",x===b)});books()}});qa("[data-tab]").forEach(function(b){b.onclick=function(){state.tab=b.dataset.tab;qa("[data-tab]").forEach(function(x){x.classList.toggle("active",x===b)});learning()}});qa("[data-kind]").forEach(function(b){b.onclick=function(){state.kind=b.dataset.kind;qa("[data-kind]").forEach(function(x){x.classList.toggle("active",x===b)});knowledge()}});qa(".trans-btn").forEach(function(b){b.onclick=function(){var x=q("#"+b.dataset.t),on=x.classList.toggle("show");b.textContent=on?"⌃ 收起译文":"⌄ 显示译文";activity()}});qa("[data-mode]").forEach(function(b){b.onclick=function(){var p=q("#paper");p.classList.remove("mode-en","mode-bi");if(b.dataset.mode==="en")p.classList.add("mode-en");if(b.dataset.mode==="bi")p.classList.add("mode-bi");qa("[data-mode]").forEach(function(x){x.classList.toggle("active",x===b)})}});var definitions={agency:"能动性；个体在限制中有目的地行动的能力",substantial:"显著的；在此强调理论地位的重要性",pedagogy:"教学法；关于教学目的、方法与关系的理论",scaffolding:"支架；帮助学习者逐步独立的支持"};function add(type,term,meaning,context){var old=state.cards.find(function(c){return c.term.toLowerCase()===term.toLowerCase()});if(old){state.tab=old.type;learning();toast("“"+term+"” 已在学习卡中");return}state.cards.unshift({id:"c"+Date.now(),type:type,term:term,meaning:meaning,context:context||"来自当前精读段落",source:"The Sociology of Education · p.137",note:"",due:true});save();learning();knowledge();metrics();toast("已收藏为"+label(type)+"卡")}qa(".word").forEach(function(w){w.onclick=function(){qa(".word").forEach(function(x){x.classList.remove("focus")});w.classList.add("focus");add("word",w.dataset.word,definitions[w.dataset.word],w.closest(".para").textContent.trim())}});q("#askBtn").onclick=function(){var ask=q("#ask");if(!ask.value.trim()){toast("先写下你的问题");return}q("#aiAnswer").innerHTML="<b>基于 Chapter 3 · p.137–138</b><br>“agency”在这里不是抽象的自由，而是个体在制度与文化条件中仍能有目的地行动的能力。作者用它反对把学习者仅视为文化的被动接受者。可对照第 2 段与第 3 段。";q("#aiAnswer").classList.add("show");ask.value="";activity()};q("#ask").onkeydown=function(e){if(e.key==="Enter")q("#askBtn").click()};var chosen,drop=q("#drop");function choose(f){if(!f)return;chosen=f;q("#fileName").textContent=f.name;q("#fileMeta").textContent=(f.size/1048576).toFixed(1)+" MB · "+(f.type||"文档")+" · 等待处理";q("#fileRow").classList.add("show");q("#process").disabled=false}q("#fileInput").onchange=function(){choose(q("#fileInput").files[0])};["dragenter","dragover"].forEach(function(n){drop.addEventListener(n,function(e){e.preventDefault();drop.classList.add("drag")})});["dragleave","drop"].forEach(function(n){drop.addEventListener(n,function(e){e.preventDefault();drop.classList.remove("drag")})});drop.addEventListener("drop",function(e){choose(e.dataTransfer.files[0])});q("#clearFile").onclick=function(){chosen=null;q("#fileInput").value="";q("#fileRow").classList.remove("show");q("#process").disabled=true};q("#process").onclick=function(){if(!chosen)return;var a=qa(".step"),i=0,b=q("#process");b.disabled=true;b.textContent="正在处理…";var t=setInterval(function(){if(i>0){a[i-1].classList.remove("work");a[i-1].classList.add("done");a[i-1].querySelector(".state").textContent="✓"}if(i<a.length){a[i].classList.add("work");i++}else{clearInterval(t);var title=chosen.name.replace(/\.[^.]+$/,"")||"未命名文献";state.docs.unshift({id:"d"+Date.now(),title:title,author:"本地导入文献",category:"新导入",status:"reading",progress:0,pages:"—",time:"0 h",color:"new"});save();books();b.textContent="处理完成，开始阅读 →";b.disabled=false;b.onclick=function(){go("reader")};toast("已生成可精读项目："+title)}},600)};var selected="";document.addEventListener("mouseup",function(){var s=window.getSelection(),text=s?s.toString().trim():"",menu=q("#selmenu");if(text&&s.anchorNode&&q("#paper").contains(s.anchorNode)){selected=text;var r=s.getRangeAt(0).getBoundingClientRect();menu.style.left=Math.max(12,Math.min(innerWidth-260,r.left+r.width/2-90))+"px";menu.style.top=Math.max(12,r.top-43)+"px";menu.classList.add("show")}else menu.classList.remove("show")});qa("[data-sel]").forEach(function(b){b.onclick=function(){q("#selmenu").classList.remove("show");var act=b.dataset.sel;if(act==="save"){add(/[.!?。！？]$/.test(selected)?"sentence":"phrase",selected,/\.$/.test(selected)?"待复习的完整句子":"值得积累的表达",selected)}else if(act==="translate")toast("译文：已根据当前段落生成学习用释义");else if(act==="explain"){q("#ask").value="解释这段表达："+selected;q("#ask").focus();toast("已把问题放入“问这本书”")}else if(act==="copy"){navigator.clipboard&&navigator.clipboard.writeText(selected);toast("已复制到剪贴板")}activity()}});var rindex=0;function due(){var a=state.cards.filter(function(c){return c.due});return a.length?a:state.cards}function review(){var a=due(),c=a[rindex%a.length];if(!c){q("#reviewProgress").textContent="0 / 0";q("#reviewType").textContent="复习中心";q("#reviewTerm").textContent="还没有学习卡";q("#reviewHint").textContent="在精读区收集词汇、短语或句子后，即可开始复习。";q("#answer").classList.remove("show");q("#quality").classList.remove("show");q("#reveal").style.display="none";return;}q("#reviewProgress").textContent=(rindex+1)+" / "+Math.max(1,32-state.reviewed);q("#reviewType").textContent=label(c.type)+" · 本文语境";q("#reviewTerm").textContent=c.term;q("#reviewHint").textContent=c.type==="sentence"?"尝试自己说出这句话的逻辑和中文意思。":"先在脑中回忆“"+c.term+"”在本文中的含义。";q("#answerMeaning").textContent=c.meaning;q("#answerContext").textContent="本文："+c.context;q("#answer").classList.remove("show");q("#quality").classList.remove("show");q("#reveal").style.display="inline-flex"}q("#reveal").onclick=function(){q("#answer").classList.add("show");q("#quality").classList.add("show");q("#reveal").style.display="none";activity()};qa("[data-q]").forEach(function(b){b.onclick=function(){var c=due()[rindex%due().length],n={again:1,hard:3,good:7,easy:21}[b.dataset.q];if(!c)return;c.due=false;c.nextReview=n;state.reviewed++;save();rindex++;review();metrics();toast("下次复习已安排在 "+n+" 天后")}});review();var started=Date.now(),last=Date.now(),running=false;function activity(){last=Date.now()}["click","keydown","scroll","touchstart"].forEach(function(e){document.addEventListener(e,activity,{passive:true})});function startTimer(){if(running||!state.settings.timer)return;running=true;setInterval(function(){if(Date.now()-last<300000){state.minutes+=1/60;metrics()}},60000)}q("#end").onclick=function(){q("#sessionTime").textContent=Math.max(1,Math.round((Date.now()-started)/60000))+" min";q("#newCards").textContent=Math.max(1,state.cards.filter(function(c){return c.due}).length)+" 张";q("#modal").classList.add("show")};q("#closeModal").onclick=function(){q("#modal").classList.remove("show")};q("#saveSession").onclick=function(){state.minutes+=Math.max(1,Math.round((Date.now()-started)/60000));save();metrics();q("#modal").classList.remove("show");toast("学习报告已保存，明天见。")};function download(name,data){var a=document.createElement("a"),blob=new Blob([typeof data==="string"?data:JSON.stringify(data,null,2)],{type:"application/json;charset=utf-8"});a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);toast("已导出 "+name)}q("#exportAll").onclick=function(){download("scribe-learning-data.json",state)};q("#exportSettings").onclick=function(){download("scribe-learning-data.json",state)};q("#exportCards").onclick=function(){download("scribe-knowledge-cards.json",state.cards)};q("#exportReport").onclick=function(){download("scribe-weekly-report.json",{week:"2026-W39",minutes:287,pages:56.7,cards:state.cards.length,reviewed:49})};q("#glossary").value=state.settings.glossary;q("#saveGlossary").onclick=function(){state.settings.glossary=q("#glossary").value;save();toast("术语习惯已保存，后续译文将优先遵循。")};q("#autoTrans").classList.toggle("on",state.settings.auto!==false);q("#activeTimer").classList.toggle("on",state.settings.timer!==false);q("#autoTrans").onclick=function(){state.settings.auto=!state.settings.auto;this.classList.toggle("on",state.settings.auto);save()};q("#activeTimer").onclick=function(){state.settings.timer=!state.settings.timer;this.classList.toggle("on",state.settings.timer);save()};q("#resetDemo").onclick=function(){window.dispatchEvent(new Event("scribe-reset-workspace"));state=JSON.parse(JSON.stringify(seed));save();books();learning();knowledge();metrics();review();toast("已恢复示例学习空间")};q("#clearData").onclick=function(){if(confirm("确定清空当前浏览器中保存的所有项目和学习记录吗？")){window.dispatchEvent(new Event("scribe-reset-workspace"));localStorage.removeItem(KEY);state=JSON.parse(JSON.stringify(seed));books();learning();knowledge();metrics();review();toast("本地数据已清空并恢复示例数据。")}};q("#globalSearch").oninput=function(){var v=this.value.trim().toLowerCase(),box=q("#results");if(!v){box.classList.remove("show");return}var a=[];state.docs.forEach(function(d){if((d.title+" "+d.author).toLowerCase().indexOf(v)>-1)a.push({k:"书籍",n:d.title,g:"library"})});state.cards.forEach(function(c){if((c.term+" "+c.meaning+" "+c.note).toLowerCase().indexOf(v)>-1)a.push({k:label(c.type),n:c.term+" · "+c.meaning,g:"knowledge"})});if("pedagogy agency education culture".indexOf(v)>-1)a.push({k:"原文段落",n:"Chapter 3 · Education, culture and agency",g:"reader"});box.innerHTML=a.length?a.slice(0,6).map(function(x){return"<button class='result' data-result='"+x.g+"'><small class='muted'>"+esc(x.k)+"</small><br>"+esc(x.n)+"</button>"}).join(""):"<div class='tiny muted' style='padding:9px'>没有找到匹配内容</div>";box.classList.add("show");qa("[data-result]").forEach(function(b){b.onclick=function(){go(b.dataset.result);box.classList.remove("show");q("#globalSearch").value=""}})};document.addEventListener("click",function(e){if(!q(".search").contains(e.target))q("#results").classList.remove("show")});var d=new Date();q("#today").textContent=["星期日","星期一","星期二","星期三","星期四","星期五","星期六"][d.getDay()]+" · "+(d.getMonth()+1)+" 月 "+d.getDate()+" 日";window.addEventListener("scribe-cloud-updated",function(){try{state=JSON.parse(localStorage.getItem(KEY))||state;books();if(!document.activeElement||!["INPUT","TEXTAREA"].includes(document.activeElement.tagName))knowledge();metrics();}catch(error){console.error(error);}})})();
+</script>
+<script type="scribe/boot">
+(function(){
+  var key='scribe-local-v1';
+  try{
+    var raw=localStorage.getItem(key);if(!raw)return;
+    var state=JSON.parse(raw),changed=false;
+    if(!state||typeof state!=='object')return;
+    if(!Array.isArray(state.docs)){state.docs=[];changed=true;}
+    state.docs.forEach(function(item){if(Array.isArray(item.sourcePages)&&typeof item.pages==='string'&&/^\d+\s*页$/.test(item.pages)){item.pages=item.sourcePages.length;changed=true;}});
+    if(!Array.isArray(state.cards)){state.cards=[];changed=true;}
+    ['filter','tab','kind'].forEach(function(name){if(!state[name]){state[name]='all';changed=true;}});
+    if(typeof state.minutes!=='number'){state.minutes=0;changed=true;}
+    if(typeof state.reviewed!=='number'){state.reviewed=0;changed=true;}
+    if(!state.settings||typeof state.settings!=='object'){state.settings={auto:true,timer:true,glossary:''};changed=true;}
+    if(changed){localStorage.setItem(key,JSON.stringify(state));window.location.reload();}
+  }catch(error){}
+})();
+</script>
+<script type="scribe/boot">
+(function(){
+  function whenReady(fn){ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',fn); else fn(); }
+  whenReady(function(){
+    var STORE = 'scribe-local-v1';
+    var FRESH = 'scribe-fresh-experience-v1';
+    var style = document.createElement('style');
+    style.textContent = '.fresh-panel{display:none}.fresh-experience .sample-data{display:none!important}.fresh-experience #dashboard .grid-main,.fresh-experience #dashboard > .metric-grid,.fresh-experience #dashboard > .lower{display:none!important}.fresh-experience .focus-box .track i{width:0!important}.fresh-experience .fresh-panel{display:block}.reader-zero{display:none;min-height:calc(100vh - 139px);padding:clamp(40px,8vw,90px) 32px;background:#f5f6f9}.reader-zero .card{max-width:680px;margin:auto;text-align:center;padding:clamp(28px,5vw,56px)}#reader.reader-empty .reader-grid{display:none!important}#reader.reader-empty .reader-zero{display:block}.fresh-experience #knowledge .knowledge-grid{display:none!important}.fresh-experience #review .review-wrap{display:none!important}.fresh-experience #analytics .metric-grid,.fresh-experience #analytics .analytics{display:none!important}.experience-entry[disabled]{cursor:default;opacity:.75}.experience-entry[hidden]{display:none!important}.zero-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}.zero-metrics div{padding:14px;background:#f5f7fb;border-radius:9px}.zero-metrics b,.zero-metrics span{display:block}.zero-metrics b{font:25px Georgia,serif;margin-top:3px}@media(max-width:820px){.zero-metrics{grid-template-columns:repeat(2,1fr)}.reader-zero{min-height:calc(100vh - 122px);padding:35px 18px}}';
+    document.head.appendChild(style);
+    function q(s,r){ return (r||document).querySelector(s); }
+    function data(){
+      try { return JSON.parse(localStorage.getItem(STORE)); }
+      catch(e) { return null; }
+    }
+    function blank(){
+      return {docs:[],cards:[{id:'guide',type:'word',term:'',meaning:'',context:'',source:'',note:'',due:false}],minutes:0,vocabTotal:0,reviewed:0,filter:'all',tab:'all',kind:'all',settings:{auto:true,timer:true,glossary:''}};
+    }
+    function panel(target, html, className){
+      if(q('.' + className,target)) return q('.' + className,target);
+      var el=document.createElement('article');
+      el.className='card panel fresh-panel ' + className;
+      el.innerHTML=html;
+      target.appendChild(el);
+      return el;
+    }
+    function makeFreshPanels(){
+      var dash=q('#dashboard'), head=q('#dashboard .heading'), sample=q('#dashboard .grid-main');
+      if(dash && !q('.dashboard-zero',dash)){
+        var p=document.createElement('article');
+        p.className='card panel fresh-panel dashboard-zero';
+        p.innerHTML='<div class="book-label">全新学习空间</div><h2>从第一篇英文材料开始</h2><p class="muted">当前还没有阅读记录、学习卡或复习任务。导入一份材料，建立属于你的精读闭环。</p><div class="zero-metrics"><div><span class="tiny muted">阅读项目</span><b data-zero-docs>0</b></div><div><span class="tiny muted">有效学习</span><b data-zero-mins>0 min</b></div><div><span class="tiny muted">学习卡</span><b data-zero-cards>0</b></div><div><span class="tiny muted">待复习</span><b data-zero-due>0</b></div></div><button class="button primary" data-go="upload" style="margin-top:22px">导入第一份文献 →</button>';
+        if(sample) dash.insertBefore(p,sample); else dash.appendChild(p);
+      }
+      var reader=q('#reader');
+      if(reader && !q('.reader-zero',reader)){
+        var r=document.createElement('div');
+        r.className='reader-zero';
+        r.innerHTML='<article class="card"><div class="book-label">精读学习</div><h2>还没有可阅读的文献</h2><p class="muted">先导入一份 PDF、Word 或书页图片，完成本地处理后就能开始中英精读与语言积累。</p><button class="button primary" data-go="upload">导入文献 →</button></article>';
+        var top=q('.reader-top',reader);
+        top.insertAdjacentElement('afterend',r);
+      }
+      panel(q('#knowledge'),'<div class="book-label">个人知识库</div><h2>这里会积累你的语言资产</h2><p class="muted">在精读页面点击单词，或划选一段表达，就能把它保存为第一张学习卡。</p><button class="button primary" data-go="reader">开始阅读 →</button>','knowledge-zero');
+      panel(q('#review'),'<div class="book-label">间隔复习</div><h2>今天没有待复习内容</h2><p class="muted">当你收藏第一张学习卡后，系统会依据熟悉度安排下一次复习。</p><button class="button primary" data-go="upload">导入材料 →</button>','review-zero');
+      panel(q('#analytics'),'<div class="book-label">学习数据</div><h2>从 0 开始建立你的阅读轨迹</h2><p class="muted">完成第一次精读后，这里会显示有效学习时长、阅读页数、学习卡和复习完成率。</p><div class="zero-metrics"><div><span class="tiny muted">累计学习</span><b data-zero-mins>0 min</b></div><div><span class="tiny muted">阅读项目</span><b data-zero-docs>0</b></div><div><span class="tiny muted">学习卡</span><b data-zero-cards>0</b></div><div><span class="tiny muted">待复习</span><b data-zero-due>0</b></div></div>','analytics-zero');
+    }
+    function bindNewLinks(scope){
+      Array.prototype.forEach.call(scope.querySelectorAll('[data-go]'),function(btn){
+        if(btn.dataset.freshBound) return;
+        btn.dataset.freshBound='1';
+        btn.addEventListener('click',function(){
+          var nav=q('.nav button[data-view="' + btn.dataset.go + '"]');
+          if(nav) nav.click();
+        });
+      });
+    }
+    // 内置示例数据只认这几个固定 id；其余一律视为用户自己的数据，任何流程都不得清除。
+    var SAMPLE_DOC_IDS=['s','m','c'],SAMPLE_CARD_IDS=['c1','c2','c3','c4','c5','c6'];
+    function isSampleDoc(doc){return SAMPLE_DOC_IDS.indexOf(String(doc&&doc.id))>-1;}
+    function isSampleCard(card){return card&&card.id!=='guide'&&SAMPLE_CARD_IDS.indexOf(String(card.id))>-1;}
+    function userContent(current){
+      current=current||blank();
+      return {
+        docs:(current.docs||[]).filter(function(doc){return !isSampleDoc(doc);}),
+        cards:(current.cards||[]).filter(function(card){return card&&card.id!=='guide'&&!isSampleCard(card);}),
+        minutes:Number(current.minutes)||0,
+        reviewed:Number(current.reviewed)||0
+      };
+    }
+    // 只按「自己创建的内容」判断：示例数据里本来就带着示例学习时长，不能算用户数据。
+    function hasUserData(current){var own=userContent(current);return Boolean(own.docs.length||own.cards.length);}
+    function stripSamples(current){
+      var next=JSON.parse(JSON.stringify(current||blank()));
+      next.docs=(next.docs||[]).filter(function(doc){return !isSampleDoc(doc);});
+      next.cards=(next.cards||[]).filter(function(card){return !isSampleCard(card);});
+      return next;
+    }
+    function update(){
+      var fresh=localStorage.getItem(FRESH)==='1';
+      document.body.classList.toggle('fresh-experience',fresh);
+      var current=data()||blank();
+      var own=userContent(current);
+      var docs=own.docs.length;
+      var realCards=own.cards;
+      var due=realCards.filter(function(c){return c.due;}).length;
+      Array.prototype.forEach.call(document.querySelectorAll('[data-zero-docs]'),function(el){el.textContent=docs;});
+      Array.prototype.forEach.call(document.querySelectorAll('[data-zero-mins]'),function(el){el.textContent=Math.round(own.minutes)+' min';});
+      Array.prototype.forEach.call(document.querySelectorAll('[data-zero-cards]'),function(el){el.textContent=realCards.length;});
+      Array.prototype.forEach.call(document.querySelectorAll('[data-zero-due]'),function(el){el.textContent=due;});
+      var focus=q('.focus-box span:last-child');
+      if(focus && fresh) focus.textContent='连续学习 0 天';
+      var reader=q('#reader');
+      if(reader) reader.classList.toggle('reader-empty',fresh && docs===0);
+      var entry=q('#startExperience');
+      if(entry){
+        // 已经有自己的文献、学习卡或学习时长的用户不再看到这个入口：它只会把界面切到零数据模式，对老用户没有意义。
+        entry.hidden=hasUserData(current);
+        entry.disabled=fresh;
+        entry.textContent=fresh?'已进入全新体验':'进入体验';
+      }
+    }
+    function enter(){
+      var current=data()||blank();
+      if(hasUserData(current)){
+        // 有真实数据：只清掉内置示例，保留全部用户内容，也保留云端书库连接。
+        var kept=stripSamples(current);
+        localStorage.setItem(STORE,JSON.stringify(kept));
+        localStorage.removeItem(FRESH);
+        alert('已只移除内置示例数据。你自己导入的文献、学习卡、阅读进度与云端书库连接都完整保留。');
+        location.reload();
+        return;
+      }
+      if(!confirm('将清空内置示例数据，从 0 开始建立你自己的空间。是否继续？')) return;
+      localStorage.setItem(STORE,JSON.stringify(blank()));
+      localStorage.setItem(FRESH,'1');
+      location.reload();
+    }
+    function addEntry(){
+      var heading=q('#dashboard .heading');
+      if(!heading || q('#startExperience')) return;
+      var btn=document.createElement('button');
+      btn.id='startExperience';
+      btn.className='button primary experience-entry';
+      btn.type='button';
+      btn.addEventListener('click',enter);
+      var report=heading.querySelector('.secondary');
+      heading.insertBefore(btn,report||null);
+    }
+    makeFreshPanels();
+    addEntry();
+    bindNewLinks(document);
+    update();
+    setInterval(update,700);
+  });
+})();
+</script>
+<script type="scribe/boot">
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var activeLink=null,pollTimer=null,remoteFiles=[],batchComplete=false,batchProcessing=false,savedBatchDocument=null,processButton=document.querySelector('#process'),originalProcess=processButton&&processButton.onclick;
+    var style=document.createElement('style');
+    style.textContent='.phone-bridge{margin-top:18px;padding:18px;border:1px solid #ccd9ef;border-radius:13px;background:linear-gradient(135deg,#f7f9ff,#f2fbf7)}.phone-bridge h3{margin:0;font:20px Georgia,"Noto Serif SC",serif}.phone-bridge p{margin:6px 0 0}.phone-bridge-head{display:flex;justify-content:space-between;align-items:start;gap:14px}.phone-link{display:none;grid-template-columns:148px 1fr;gap:18px;align-items:center;margin-top:17px;padding-top:17px;border-top:1px solid #d8e2ed}.phone-link.show{display:grid}.phone-qr{display:grid;place-items:center;padding:7px;border:1px solid var(--line);border-radius:11px;background:#fff}.phone-qr img{display:block;width:134px;height:134px}.phone-state{padding:11px 13px;margin-top:14px;border-radius:9px;background:#fff;color:#52617b;font-size:13px}.phone-files{display:grid;gap:8px;margin-top:12px}.phone-file{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #dfe6ef;border-radius:9px;background:#fff}.phone-file-copy{min-width:0;flex:1}.phone-file-copy b,.phone-file-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phone-file-copy small{color:var(--muted);font-size:12px}.phone-order{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.phone-note{margin-top:14px!important;color:#5c6d83;font-size:12px}@media(max-width:640px){.phone-bridge-head{display:block}.phone-bridge-head .button{margin-top:14px}.phone-link.show{grid-template-columns:1fr}.phone-qr{width:150px}.phone-file{align-items:start;flex-wrap:wrap}}.channel-switch{display:inline-flex;gap:5px;margin-top:12px;padding:4px;border:1px solid #d5e0ef;border-radius:11px;background:#fff}.channel-switch button{border:0;border-radius:8px;padding:7px 11px;background:none;color:#5b6b85;font:600 12px var(--sans);cursor:pointer}.channel-switch button.active{background:#2f4d8a;color:#fff}.phone-order{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.phone-url{display:none;margin-top:8px;color:#355da9;font-size:12px;word-break:break-all}.phone-warn{display:none;margin-top:9px!important;padding:9px 11px;border-radius:9px;background:#fff4df;color:#745726;font-size:12px}.phone-url.show{display:block}.cloud-batches{display:grid;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #d8e2ed}.cloud-batches:empty{display:none}.cloud-batch{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid #dfe6ef;border-radius:10px;background:#fff}.cloud-batch-copy{flex:1;min-width:0}.cloud-batch-copy b{display:block;font-size:13px}.cloud-batch-copy small{color:var(--muted);font-size:12px}.cloud-batch-actions{display:flex;gap:6px;flex-wrap:wrap}.cloud-batch-actions .button{flex:none}';
+    document.head.appendChild(style);
+    var responsiveStyle=document.createElement('style');responsiveStyle.textContent='@media(max-width:1120px){.capture-groups{grid-template-columns:1fr!important}}';document.head.appendChild(responsiveStyle);
+    function q(selector,root){return (root||document).querySelector(selector);}
+    function bytes(value){return value<1024*1024?(value/1024).toFixed(0)+' KB':(value/1024/1024).toFixed(1)+' MB';}
+    function escapeHtml(value){return String(value).replace(/[&<>'"]/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];});}
+    function showStatus(message){var state=q('#phoneStatus');if(state)state.textContent=message;}
+    function restoreComputerProcess(){if(!processButton)return;processButton.onclick=originalProcess;processButton.textContent='开始本地处理';processButton.disabled=!q('#fileInput').files.length;}
+    function mount(){
+      var previous=q('#phoneBridge'),panel=q('#upload .upload-grid > article.card');if(!panel)return;
+      var bridge=document.createElement('section');bridge.id='phoneBridge';bridge.className='phone-bridge';
+      bridge.innerHTML='<div class="phone-bridge-head"><div><div class="eyebrow">手机传书页</div><h3 id="phoneTitle">微信扫码，把手机书页送到这里</h3><p class="muted tiny" id="phoneHint"></p><div class="channel-switch" id="channelSwitch"><button type="button" data-channel="cloud">云端中转 · 任意网络</button><button type="button" data-channel="local">本机直连 · 同一 Wi‑Fi</button></div></div><button class="button secondary small" id="createPhoneLink" type="button">生成二维码</button></div><div class="phone-link" id="phoneLink"><div class="phone-qr"><img id="phoneQr" alt="手机上传二维码"></div><div><b id="phoneScanHint"></b><p class="muted tiny" id="phoneQrNote"></p><div class="phone-state" id="phoneStatus">正在准备…</div><a class="phone-url" id="phoneUrl" target="_blank" rel="noreferrer"></a><p class="phone-warn" id="phoneWarn"></p><div class="phone-files" id="phoneFiles"></div><p class="phone-note" id="phoneNote"></p></div></div><div class="cloud-batches" id="cloudBatches"></div>';
+      if(previous)previous.replaceWith(bridge);else panel.appendChild(bridge);
+      q('#createPhoneLink').addEventListener('click',createLink);bindChannel();paintChannel();detectSelfHosted();if(channel==='cloud')refreshCloudBatches();
+    }
+    function renderQueue(){
+      var list=q('#phoneFiles');if(!list)return;
+      if(!remoteFiles.length){list.innerHTML='';restoreComputerProcess();return;}
+      list.innerHTML=remoteFiles.map(function(file,index){return '<div class="phone-file"><span class="phone-order">'+(index+1)+'</span><div class="phone-file-copy"><b>第 '+(index+1)+' 页 · '+escapeHtml(file.name)+'</b><small>'+bytes(file.size)+' · 已按手机端顺序加入处理队列</small></div></div>';}).join('');
+      if(!batchComplete&&!batchProcessing){var done=!!window.__scribePhoneComplete;processButton.disabled=!done;processButton.textContent=done?'开始处理 '+remoteFiles.length+' 个文件':'等待手机上传完成后处理';processButton.onclick=processBatch;}
+    }
+    async function createLink(){
+      if(channel==='cloud')return createCloudLink();
+      if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&!selfHosted){showStatus('此通道需要从 http://localhost:4174 或已配置的私人 Docker 服务打开应用。');return;}
+      var button=q('#createPhoneLink');button.disabled=true;button.textContent='正在生成…';clearInterval(pollTimer);remoteFiles=[];batchComplete=false;batchProcessing=false;savedBatchDocument=null;window.__scribePhoneComplete=false;restoreComputerProcess();
+      try{var response=await fetch('/api/mobile-links',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法生成扫码通道。');activeLink=result.id;q('#phoneQr').src=result.qrDataUrl;q('#phoneLink').classList.add('show');showStatus('二维码已就绪，等待手机端整理并上传整组文件…');button.textContent='重新生成二维码';button.disabled=false;pollTimer=setInterval(checkLink,1200);checkLink();}
+      catch(error){showStatus(error.message+' 请检查本机服务或私人 Docker 服务的地址与 HTTPS 配置。');q('#phoneLink').classList.add('show');button.textContent='重新生成二维码';button.disabled=false;}
+    }
+    async function checkLink(){
+      if(!activeLink)return;try{var response=await fetch('/api/mobile-links/'+activeLink),result=await response.json();if(response.status===410){clearInterval(pollTimer);showStatus('扫码通道已失效，请重新生成二维码。');return;}if(!response.ok)throw new Error();remoteFiles=(result.files||[]).slice().sort(function(left,right){return left.queueOrder-right.queueOrder||left.receivedOrder-right.receivedOrder;});window.__scribePhoneComplete=result.completed===true;renderQueue();if(result.completed&&remoteFiles.length&&!batchComplete&&!batchProcessing){showStatus('手机端顺序已确认，整批文件已进入处理区，正在逐页识别…');processBatch();return;}showStatus(!remoteFiles.length?'二维码已就绪，等待手机端整理并上传整组文件…':result.completed?'已收到并锁定 '+remoteFiles.length+' 个文件，顺序与手机队列一致。正在后台逐页识别。':'正在接收 '+remoteFiles.length+' 个文件；全部送达并确认后才会启用处理。');}
+      catch(error){showStatus('暂时无法获取手机上传状态。');}}
+    function setSteps(index){Array.prototype.forEach.call(document.querySelectorAll('#steps .step'),function(step,position){step.classList.remove('done','work');var mark=step.querySelector('.state');mark.textContent=position+1;if(position<index){step.classList.add('done');mark.textContent='✓';}else if(position===index){step.classList.add('work');}});}
+    function saveBatchDocument(savedDocument,recognizedPages,processingError){
+      var key='scribe-local-v1',state;try{state=JSON.parse(localStorage.getItem(key)||'{}')}catch(error){state={}};state.docs=Array.isArray(state.docs)?state.docs:[];var original=(savedDocument&&savedDocument.pages)||remoteFiles.map(function(file,index){return {order:index+1,name:file.name,size:file.size}}),documentId=savedDocument&&savedDocument.id,sourcePages=recognizedPages&&recognizedPages.length?recognizedPages.map(function(page){return {id:page.fileId+'-'+page.pageIndex,order:page.order,name:page.name+(recognizedPages.filter(function(item){return item.fileId===page.fileId}).length>1?' · 第 '+(page.pageIndex+1)+' 页':''),type:page.sourceType||'text/plain',url:page.sourceUrl||'',text:page.text||'',confidence:page.confidence||0,error:page.error||'',sourceFileId:page.fileId,pageIndex:page.pageIndex};}):original.map(function(page,index){return Object.assign({order:index+1},page,{url:page.url||''});}),recordId=documentId?'mobile-'+documentId:'m'+Date.now(),existing=state.docs.find(function(item){return item.id===recordId;}),document=existing||{id:recordId};Object.assign(document,{serverDocumentId:documentId||'',title:remoteFiles.length===1?remoteFiles[0].name.replace(/\.[^.]+$/,''):'手机扫描文献（'+remoteFiles.length+'页）',author:'手机直传',category:'图片文献',status:'reading',progress:Number(document.progress)||0,pages:sourcePages.length,time:document.time||'0 h',color:'new',sourcePages:sourcePages,processingState:processingError?'partial':recognizedPages&&recognizedPages.length?'ready':'pending',processingError:processingError||''});if(!existing)state.docs.unshift(document);state.activeDocId=document.id;localStorage.setItem(key,JSON.stringify(state));return document;}
+    async function commitBatch(){
+      if(!activeLink)throw new Error('未找到本次手机上传，请重新生成扫码通道。');
+      var response=await fetch('/api/mobile-links/'+activeLink+'/commit',{method:'POST'}),result=await response.json();if(!response.ok)throw new Error(result.error||'无法保存原始页面。');return result;
+    }
+    async function recognizeBatch(savedDocument){
+      var base='/api/documents/'+encodeURIComponent(savedDocument.id)+'/process',response=await fetch(base,{method:'POST'}),job=await response.json();if(!response.ok&&job.status!=='processing')throw new Error(job.error||'本机文字识别无法启动。');
+      while(job.status==='processing'){
+        showStatus('本机正在逐页识别 '+job.completed+' / '+job.total+' 页，请稍候…');setSteps(Math.min(6,2+Math.floor(4*job.completed/Math.max(1,job.total))));
+        await new Promise(function(resolve){setTimeout(resolve,900)});response=await fetch(base);job=await response.json();
+      }
+      if(job.status!=='complete')throw new Error(job.error||'文字识别未完成。');return job.pages||[];
+    }
+    async function retryRecognition(){
+      if(!savedBatchDocument)return;batchProcessing=true;processButton.disabled=true;processButton.textContent='正在重新识别…';
+      try{var recognized=await recognizeBatch(savedBatchDocument),failed=recognized.filter(function(page){return !page.text;}).length;saveBatchDocument(savedBatchDocument,recognized,failed?'有 '+failed+' 页未能识别，请检查原图。':'');batchComplete=true;processButton.disabled=false;processButton.textContent='处理完成，打开精读 →';showStatus('识别完成 '+recognized.length+' 页。'+(failed?' 有 '+failed+' 页需要核对原图。':''));setSteps(7);}
+      catch(error){processButton.disabled=false;processButton.textContent='重试文字识别';showStatus(error.message);}finally{batchProcessing=false;}
+    }
+    async function processBatch(){
+      if(!remoteFiles.length||batchComplete||batchProcessing||!window.__scribePhoneComplete)return;batchProcessing=true;processButton.disabled=true;var row=q('#fileRow');row.classList.add('show');q('#fileName').textContent='手机直传 · '+remoteFiles.length+' 个文件';q('#fileMeta').textContent='原始文件将按手机设定顺序保存并逐页识别';showStatus('正在保存整批原件…');setSteps(0);
+      try{savedBatchDocument=await commitBatch();clearInterval(pollTimer);batchComplete=true;saveBatchDocument(savedBatchDocument,[]);showStatus('原件已安全保存，正在启动本机文字识别…');var recognized=await recognizeBatch(savedBatchDocument),failed=recognized.filter(function(page){return !page.text;}).length;saveBatchDocument(savedBatchDocument,recognized,failed?'有 '+failed+' 页未能识别，请检查原图。':'');processButton.disabled=false;processButton.textContent='处理完成，打开精读 →';processButton.onclick=function(){var reader=q('.nav button[data-view="reader"]');if(reader)reader.click();};showStatus('已处理 '+recognized.length+' 页，可在精读区点词收藏、划选短语和句子。'+(failed?' 有 '+failed+' 页需要核对原图。':''));setSteps(7);}
+      catch(error){processButton.disabled=false;processButton.textContent=savedBatchDocument?'重试文字识别':'保存失败，重试处理';processButton.onclick=savedBatchDocument?retryRecognition:processBatch;showStatus(error.message);}finally{batchProcessing=false;}
+    }
+    // ---------- 云端中转通道（手机任意网络上传，识别在云端完成） ----------
+    var channel=localStorage.getItem('scribe-upload-channel')==='local'?'local':'cloud';
+    var selfHosted=false;
+    var activeCloudToken=null,cloudFiles=[],cloudBusy=false,mobileWarning='';
+    function renderMobileWarning(){var el=q('#phoneWarn');if(!el)return;el.textContent=mobileWarning;el.style.display=mobileWarning?'block':'none';}
+    var CHANNEL_COPY={
+      cloud:{title:'扫码上传书页，识别在云端完成',hint:'手机不必和电脑连同一个 Wi‑Fi，用移动网络也能上传。全部送达后云端会用 GPT 逐页识别，任何设备打开应用都能读。原页长期保留在云端，识别会消耗项目的 AI 额度。',scan:'请用手机相机或微信扫码',qr:'云端通道对任意网络开放，24 小时内有效；识别由云端完成，不需要电脑开机。',note:'可以从相册或文件里分多次加入；在手机端调整顺序后一次上传，随后云端自动逐页识别。',ready:'正在准备云端通道…'},
+      local:{title:'微信扫码，把手机文件直接送到这里',hint:'电脑与手机连接同一个 Wi‑Fi 后，直接用微信扫码即可打开上传页，不需要 VPN/梯子。可从相册或手机/微信可访问的文件中选择；如果微信相册每次限选 9 张，可以分批加入，最后统一排序并一次上传处理。',scan:'请用微信扫码',qr:'此二维码连接当前电脑的局域网地址；手机和电脑须在同一 Wi‑Fi，且电脑本地服务保持运行。',note:'可以多次从相册/文件选择器加入项目；队列会保留加入顺序，也可上移下移调整。点击手机页上传后，整批文件自动进入识别处理。',ready:'正在生成本地二维码…'}
+    };
+    async function detectSelfHosted(){
+      try{
+        var response=await fetch('/api/health',{cache:'no-store'}),info=await response.json();
+        if(!response.ok||info.service!=='scribe-local')return;
+        selfHosted=true;
+        if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))return;
+        CHANNEL_COPY.local={title:'微信扫码，直传你的独立服务器',hint:'手机和电脑可使用不同网络。文件由当前私人服务器接收并识别；此模式不提供 Enter 云端跨设备书库同步。',scan:'请用微信扫码',qr:'二维码指向当前服务器的公网 HTTPS 地址；服务器须持续运行并由你控制访问权限。',note:'可多次从相册/文件选择器加入，确认顺序后整批上传到当前服务器。',ready:'正在生成独立服务器二维码…'};
+        var button=q('[data-channel="local"]');if(button)button.textContent='独立服务器 · 任意网络';
+        if(!localStorage.getItem('scribe-upload-channel'))channel='local';
+        paintChannel();
+      }catch(error){}
+    }
+    function paintChannel(){
+      var copy=CHANNEL_COPY[channel],switchEl=q('#channelSwitch');
+      if(q('#phoneTitle'))q('#phoneTitle').textContent=copy.title;
+      if(q('#phoneHint'))q('#phoneHint').textContent=copy.hint;
+      if(q('#phoneScanHint'))q('#phoneScanHint').textContent=copy.scan;
+      if(q('#phoneQrNote'))q('#phoneQrNote').textContent=copy.qr;
+      if(q('#phoneNote'))q('#phoneNote').textContent=copy.note;
+      if(q('#phoneStatus')&&/^正在/.test(q('#phoneStatus').textContent||''))showStatus(copy.ready);
+      if(q('#cloudBatches'))q('#cloudBatches').style.display=channel==='cloud'?'grid':'none';
+      if(q('#createPhoneLink'))q('#createPhoneLink').textContent=channel==='cloud'?'生成云端二维码':selfHosted&&!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'生成服务器二维码':'生成局域网二维码';
+      if(switchEl)Array.prototype.forEach.call(switchEl.querySelectorAll('[data-channel]'),function(button){button.classList.toggle('active',button.dataset.channel===channel);});
+    }
+    function setChannel(next){
+      channel=next==='local'?'local':'cloud';localStorage.setItem('scribe-upload-channel',channel);
+      clearInterval(pollTimer);pollTimer=null;activeLink=null;activeCloudToken=null;
+      if(q('#phoneLink'))q('#phoneLink').classList.remove('show');
+      if(q('#phoneFiles'))q('#phoneFiles').innerHTML='';
+      if(q('#phoneUrl')){q('#phoneUrl').classList.remove('show');q('#phoneUrl').textContent='';}
+      mobileWarning='';renderMobileWarning();
+      restoreComputerProcess();paintChannel();
+      if(channel==='cloud')refreshCloudBatches();
+    }
+    function bindChannel(){var switchEl=q('#channelSwitch');if(!switchEl)return;Array.prototype.forEach.call(switchEl.querySelectorAll('[data-channel]'),function(button){button.addEventListener('click',function(){setChannel(button.dataset.channel);});});}
+    function cloudReady(){
+      if(window.__scribeCloud)return Promise.resolve(window.__scribeCloud);
+      return new Promise(function(resolve,reject){
+        var started=Date.now(),timer=setInterval(function(){
+          if(window.__scribeCloud){clearInterval(timer);resolve(window.__scribeCloud);}
+          else if(Date.now()-started>15000){clearInterval(timer);reject(new Error('云端组件尚未加载，请刷新页面后重试。'));}
+        },120);
+      });
+    }
+    async function cloudCall(name,body){var cloud=await cloudReady();return await cloud.callFunction(name,body);}
+    function renderCloudFiles(files){
+      var list=q('#phoneFiles');if(!list)return;
+      files=files||[];
+      if(!files.length){list.innerHTML='';return;}
+      list.innerHTML=files.map(function(file,index){
+        var state=file.ocrStatus==='complete'?'已识别':file.ocrStatus==='processing'?'识别中':file.ocrStatus==='error'?'识别失败，可重试':file.uploaded?'已到云端':'上传中';
+        return '<div class="phone-file"><span class="phone-order">'+(index+1)+'</span><div class="phone-file-copy"><b>第 '+(index+1)+' 页 · '+escapeHtml(file.name)+'</b><small>'+bytes(file.size)+' · '+state+'</small></div></div>';
+      }).join('');
+    }
+    // 手机要能打开二维码里的地址：本地地址、预览地址、未发布或已下线的站点都会让扫码失败，先在电脑端自检一次。
+    async function mobileReachability(url){
+      var host=location.hostname;
+      if(host==='localhost'||host==='127.0.0.1')return {ok:false,reason:'当前是电脑本地地址'};
+      if(/live-preview|preview\.enter/i.test(host))return {ok:false,reason:'当前是预览地址，不适合长期分享'};
+      try{
+        var response=await fetch(url,{method:'GET',cache:'no-store'});
+        if(!response.ok)return {ok:false,reason:'站点返回 '+response.status+'，可能尚未发布或已下线'};
+        var body=await response.text();
+        if(body.indexOf('pageTitle')<0)return {ok:false,reason:'返回的不是手机上传页'};
+        return {ok:true};
+      }catch(error){return {ok:false,reason:'网络无法连接'};}
+    }
+    async function phoneBase(){
+      if(/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)){
+        try{var response=await fetch('/api/lan-base'),info=await response.json();if(info&&info.base)return {base:info.base,lan:true};}catch(error){}
+      }
+      return {base:location.origin,lan:false};
+    }
+    async function createCloudLink(){
+      var button=q('#createPhoneLink');button.disabled=true;button.textContent='正在生成…';clearInterval(pollTimer);
+      try{
+        var cloudClient=await cloudReady();
+        var created=await cloudClient.library.createSession();
+        activeCloudToken=created.token;cloudFiles=[];rememberCloudLink(created.token);
+        var reachable=await phoneBase(),cloud=await cloudReady();
+        var url=reachable.base+'/mobile.html?t='+encodeURIComponent(created.token);
+        q('#phoneQr').src=await cloud.qrDataUrl(url);
+        var qrBox=q('#phoneQr').closest('.phone-qr');if(qrBox)qrBox.style.display='';
+        q('#phoneUrl').textContent=url;q('#phoneUrl').href=url;q('#phoneUrl').classList.add('show');
+        q('#phoneLink').classList.add('show');renderCloudFiles([]);
+        if(reachable.lan){
+          q('#phoneQrNote').textContent='本页是本机地址，二维码已改用电脑的局域网地址；微信扫码时手机需与电脑连接同一 Wi‑Fi。如需移动网络上传，请从正式发布后的 https 地址打开本页再生成二维码。';
+          mobileWarning='';renderMobileWarning();
+          showStatus('云端通道已就绪，等待手机上传…');
+        }else{
+          var check=await mobileReachability(url);
+          mobileWarning=check.ok?'':'注意：手机可能打不开这个地址（'+check.reason+'）。请先发布站点或把站点恢复上线，再重新生成二维码。';
+          renderMobileWarning();
+          showStatus(check.ok?'云端通道已就绪，等待手机上传…':'注意：手机可能打不开这个地址（'+check.reason+'）。');
+        }
+        button.textContent='重新生成二维码';button.disabled=false;
+        pollTimer=setInterval(checkCloud,2500);checkCloud();
+      }catch(error){
+        q('#phoneQr').removeAttribute('src');
+        var qrBox=q('#phoneQr').closest('.phone-qr');if(qrBox)qrBox.style.display='none';
+        q('#phoneUrl').classList.remove('show');q('#phoneUrl').textContent='';
+        q('#phoneLink').classList.add('show');
+        if(error&&error.code==='BETA_REQUIRED'){
+          showStatus('云端通道需要内测码：请在上方「用内测码开启云端」输入内测码后再生成二维码；也可以先切换到“本机直连 · 同一 Wi‑Fi”通道。');
+          var betaCard=q('#betaCard-upload'),betaInput=q('#betaInput-upload');
+          if(betaCard)betaCard.scrollIntoView({behavior:'smooth',block:'center'});
+          if(betaInput)setTimeout(function(){betaInput.focus();},260);
+        }else{
+          showStatus('云端通道暂时不可用：'+error.message+'（云端识别所需的函数可能尚未发布，可先切换到“本机直连 · 同一 Wi‑Fi”通道。）');
+        }
+        button.textContent='重新生成二维码';button.disabled=false;
+      }
+    }
+    async function checkCloud(){
+      if(!activeCloudToken)return;
+      try{
+        var status=await cloudCall('scribe-mobile-upload',{action:'status',token:activeCloudToken});
+        cloudFiles=(status.files||[]).filter(function(file){return file.uploaded;}).sort(function(left,right){return left.order-right.order;});
+        renderCloudFiles(cloudFiles);
+        if(!status.completed){showStatus('已收到 '+cloudFiles.length+' 页，等待手机完成上传…');return;}
+        clearInterval(pollTimer);pollTimer=null;
+        showStatus('全部 '+cloudFiles.length+' 页已送达云端，开始逐页识别…');
+        await runCloudRecognition(activeCloudToken,processButton,cloudFiles);
+      }catch(error){
+        if(error.status===410){clearInterval(pollTimer);pollTimer=null;showStatus('云端通道已失效，请重新生成二维码。');return;}
+        showStatus(error.message);
+      }
+    }
+    async function runCloudRecognition(token,button,files){
+      if(cloudBusy)return;cloudBusy=true;
+      var list=(files&&files.length?files:cloudFiles)||[];
+      try{
+        if(button){button.disabled=true;button.textContent='云端识别中…';}
+        var cloudClient=await cloudReady();
+        if(list.some(function(file){return file.ocrStatus==='error';}))await cloudCall('scribe-ocr',{token:token,retry:true});
+        await cloudClient.library.awaitBatch(token,function(progress){
+          var received=progress.files.filter(function(file){return file.uploaded;});
+          var finished=received.filter(function(file){return file.ocrStatus==='complete'||file.ocrStatus==='error';}).length;
+          showStatus('云端后台识别 · '+finished+' / '+received.length+' 页；可以关闭页面，稍后从书库查看');
+          renderCloudFiles(received);setSteps(3);
+        });
+        var finalStatus=await cloudCall('scribe-mobile-upload',{action:'status',token:token});
+        var pages=(finalStatus.files||[]).filter(function(file){return file.uploaded;}).sort(function(left,right){return left.order-right.order;});
+        var failed=pages.filter(function(file){return file.ocrStatus!=='complete';}).length;
+        var appendInto=null;try{appendInto=JSON.parse(sessionStorage.getItem('scribe-append-into')||'null');}catch(error){}
+        if(appendInto&&appendInto.sessionId){
+          showStatus('识别完成，正在并入《'+appendInto.title+'》…');
+          var libraryKey=localStorage.getItem('scribe-library-key');
+          await cloudCall('scribe-mobile-upload',{action:'absorb',token:token,into:appendInto.sessionId,libraryKey:libraryKey});
+          sessionStorage.removeItem('scribe-append-into');
+          forgetCloudLink(token);
+          await cloudClient.library.sync();
+          document.querySelectorAll('#steps .step').forEach(function(step){step.classList.remove('work');step.classList.add('done');});
+          showStatus('已把 '+pages.length+' 页追加到《'+appendInto.title+'》末尾，正在打开精读…');
+          sessionStorage.setItem('scribe-open-import-reader','1');window.location.reload();return;
+        }
+        var results=await cloudCall('scribe-mobile-upload',{action:'results',token:token});
+        var urls=await cloudCall('scribe-mobile-upload',{action:'pageUrl',token:token});
+        saveCloudDocument(finalStatus,pages,(urls.files||[]),(results.files||[]));
+        await cloudClient.library.sync();
+        document.querySelectorAll('#steps .step').forEach(function(step){step.classList.remove('work');step.classList.add('done');});
+        if(button){button.disabled=false;button.textContent='处理完成，打开精读 →';button.onclick=function(){sessionStorage.setItem('scribe-open-import-reader','1');window.location.reload();};}
+        showStatus(failed?'识别完成，但有 '+failed+' 页需要核对原图。':'云端识别完成，正在打开精读…');
+        refreshCloudBatches();
+        if(!failed){sessionStorage.setItem('scribe-open-import-reader','1');window.location.reload();}
+      }catch(error){
+        if(button){button.disabled=false;button.textContent='重试云端识别';button.onclick=function(){runCloudRecognition(token,button,list);};}
+        showStatus(error.message);
+      }finally{cloudBusy=false;}
+    }
+    function saveCloudDocument(status,pages,urls,texts){
+      var key='scribe-local-v1',state;try{state=JSON.parse(localStorage.getItem(key)||'{}')}catch(error){state={}};
+      state.docs=Array.isArray(state.docs)?state.docs:[];state.cards=Array.isArray(state.cards)?state.cards:[];
+      var urlById={},textById={},paragraphsById={};
+      urls.forEach(function(file){urlById[file.id]=file.url;});
+      texts.forEach(function(file){var paragraphs=Array.isArray(file.paragraphs)?file.paragraphs:[];textById[file.id]=paragraphs.length?'':(file.text||'');paragraphsById[file.id]=paragraphs;});
+      var sourcePages=pages.map(function(file,index){return {id:'cloud-'+file.id,order:index+1,name:file.name,type:file.mime||'text/plain',url:urlById[file.id]||'',text:textById[file.id]||'',paragraphs:paragraphsById[file.id]||[],confidence:file.ocrStatus==='complete'?1:0,error:file.ocrError||'',sourceFileId:file.id,pageIndex:index,cloud:true};});
+      var recordId='cloud-'+status.id,existing=state.docs.find(function(item){return item.id===recordId;}),document=existing||{id:recordId};
+      var title=pages.length===1?pages[0].name.replace(/\.[^.]+$/,''):'云端上传文献（'+pages.length+' 页）';
+      var failed=pages.filter(function(file){return file.ocrStatus!=='complete';}).length;
+      Object.assign(document,{cloudSessionId:status.id,title:title,author:'手机上传 · 云端识别',category:'云端文献',status:'reading',progress:Number(document.progress)||0,pages:sourcePages.length,time:document.time||'0 h',color:'new',sourcePages:sourcePages,processingState:failed?'partial':'ready',processingError:failed?'有 '+failed+' 页未能识别，请检查原图。':''});
+      if(!existing)state.docs.unshift(document);
+      state.activeDocId=document.id;
+      localStorage.setItem(key,JSON.stringify(state));
+      return document;
+    }
+    function readCloudLinks(){try{var value=JSON.parse(localStorage.getItem('scribe-cloud-links')||'[]');return Array.isArray(value)?value:[];}catch(error){return [];}}
+    function writeCloudLinks(list){try{localStorage.setItem('scribe-cloud-links',JSON.stringify(list.slice(0,20)));}catch(error){}}
+    function rememberCloudLink(token){var list=readCloudLinks().filter(function(item){return item.token!==token;});list.unshift({token:token,createdAt:Date.now()});writeCloudLinks(list);}
+    function forgetCloudLink(token){writeCloudLinks(readCloudLinks().filter(function(item){return item.token!==token;}));}
+    async function refreshCloudBatches(){
+      var container=q('#cloudBatches');if(!container||channel!=='cloud')return;
+      var client=await cloudReady();
+      var librarySessions=await client.library.call('sessions');
+      var list=(librarySessions.sessions||[]).map(function(item){return {token:item.token,createdAt:item.created_at};});
+      if(!list.length){container.innerHTML='';return;}
+      var rows=[];
+      for(var index=0;index<list.length;index++){
+        try{var status=await cloudCall('scribe-mobile-upload',{action:'status',token:list[index].token});rows.push({token:list[index].token,createdAt:list[index].createdAt,status:status});}
+        catch(error){rows.push({token:list[index].token,createdAt:list[index].createdAt,error:error.message,gone:error.status===410||error.status===404});}
+      }
+      renderCloudBatches(rows);
+    }
+    function renderCloudBatches(rows){
+      var container=q('#cloudBatches');if(!container)return;
+      container.innerHTML=rows.map(function(row,index){
+        var when=new Date(row.createdAt).toLocaleString();
+        if(row.error){return '<div class="cloud-batch"><div class="cloud-batch-copy"><b>'+when+'</b><small>'+escapeHtml(row.gone?'云端已不存在或已删除':row.error)+'</small></div><div class="cloud-batch-actions"><button class="button small secondary" type="button" data-forget="'+index+'">从列表移除</button></div></div>';}
+        var files=row.status.files||[],uploaded=files.filter(function(file){return file.uploaded;}).length,state=row.status.ocrStatus==='complete'?'全部识别完成':row.status.ocrStatus==='partial'?'部分页识别失败':uploaded?'已收到 '+uploaded+' 页':'等待手机上传';
+        return '<div class="cloud-batch"><div class="cloud-batch-copy"><b>'+when+' · '+uploaded+' 页</b><small>'+state+'</small></div><div class="cloud-batch-actions"><button class="button small secondary" type="button" data-recall="'+index+'">'+(row.status.ocrStatus==='complete'?'重新识别':'取回并识别')+'</button><button class="button small secondary" type="button" data-remove="'+index+'">删除云端副本</button></div></div>';
+      }).join('');
+      Array.prototype.forEach.call(container.querySelectorAll('[data-recall]'),function(button){button.addEventListener('click',function(){var row=rows[Number(button.dataset.recall)];if(!row||!row.status)return;var files=(row.status.files||[]).filter(function(file){return file.uploaded;});showStatus('正在从云端取回并识别 '+files.length+' 页…');runCloudRecognition(row.token,button,files);});});
+      Array.prototype.forEach.call(container.querySelectorAll('[data-remove]'),function(button){button.textContent='移入最近删除';button.addEventListener('click',async function(){var row=rows[Number(button.dataset.remove)];if(!row)return;button.disabled=true;button.textContent='正在移入…';try{var client=await cloudReady();var moved=false,lastError=null;for(var attempt=0;attempt<3&&!moved;attempt+=1){try{await client.library.sync();await client.library.call('trash',{sessionId:row.status.id});moved=true;}catch(error){lastError=error;}}if(!moved)throw lastError||new Error('移入失败，请重试。');forgetCloudLink(row.token);await refreshCloudBatches();showStatus('文献已移入最近删除，30 天内可以恢复。');}catch(error){showStatus(error.message);button.disabled=false;button.textContent='移入最近删除';}});});
+      Array.prototype.forEach.call(container.querySelectorAll('[data-forget]'),function(button){button.addEventListener('click',async function(){var row=rows[Number(button.dataset.forget)];if(!row)return;forgetCloudLink(row.token);await refreshCloudBatches();});});
+    }
+    mount();
+  });
+})();
+</script>
+<script type="scribe/boot">
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var key='scribe-local-v1',menu;
+    var wordDetails={the:['/ðə; ðiː/','这；那（定冠词）'],relationship:['/rɪˈleɪʃənʃɪp/','关系'],between:['/bɪˈtwiːn/','在……之间'],education:['/ˌedʒʊˈkeɪʃən/','教育'],and:['/ænd; ən/','和；以及'],culture:['/ˈkʌltʃə(r)/','文化'],cannot:['/ˈkænɒt/','不能'],be:['/biː/','是；成为'],understood:['/ˌʌndəˈstʊd/','被理解'],as:['/æz; əz/','作为；如同'],a:['/ə; eɪ/','一（个）'],simple:['/ˈsɪmpl/','简单的'],process:['/ˈprəʊses/','过程'],of:['/ɒv; əv/','……的'],transmission:['/trænzˈmɪʃn/','传递；传播'],educational:['/ˌedʒʊˈkeɪʃənl/','教育的'],institutions:['/ˌɪnstɪˈtjuːʃnz/','机构；制度'],do:['/duː/','做；确实'],more:['/mɔː(r)/','更多'],than:['/ðæn; ðən/','比；超过'],pass:['/pɑːs/','传递；通过'],established:['/ɪˈstæblɪʃt/','已确立的'],knowledge:['/ˈnɒlɪdʒ/','知识；学识'],from:['/frɒm; frəm/','从；来自'],one:['/wʌn/','一；一个'],generation:['/ˌdʒenəˈreɪʃn/','一代人'],to:['/tuː; tə/','向；到'],next:['/nekst/','下一个；接下来'],they:['/ðeɪ/','他们'],also:['/ˈɔːlsəʊ/','也；同样'],create:['/kriˈeɪt/','创造；形成'],conditions:['/kənˈdɪʃnz/','条件；环境'],in:['/ɪn/','在……中'],which:['/wɪtʃ/','其中；哪一个'],learners:['/ˈlɜːnəz/','学习者'],may:['/meɪ/','可以；可能'],reinterpret:['/ˌriːɪnˈtɜːprɪt/','重新诠释'],contest:['/kənˈtest/','质疑；反对'],transform:['/trænsˈfɔːm/','改变；转化'],what:['/wɒt/','什么；……的事物'],inherit:['/ɪnˈherɪt/','继承'],this:['/ðɪs/','这；这个'],is:['/ɪz/','是'],why:['/waɪ/','为什么；……的原因'],concept:['/ˈkɒnsept/','概念'],agency:['/ˈeɪdʒənsi/','能动性；个体有目的行动的能力'],has:['/hæz/','有；已经'],become:['/bɪˈkʌm/','成为'],so:['/səʊ/','如此；因此'],substantial:['/səbˈstænʃl/','实质性的；重要的'],contemporary:['/kənˈtempərəri/','当代的'],theory:['/ˈθɪəri/','理论'],it:['/ɪt/','它'],directs:['/dəˈrekts/','引导；指向'],attention:['/əˈtenʃn/','注意；关注'],capacity:['/kəˈpæsəti/','能力'],individuals:['/ˌɪndɪˈvɪdʒuəlz/','个体'],act:['/ækt/','行动'],purposefully:['/ˈpɜːpəsfəli/','有目的地'],within:['/wɪˈðɪn/','在……之内'],social:['/ˈsəʊʃl/','社会的'],institutional:['/ˌɪnstɪˈtjuːʃənl/','制度性的'],constraints:['/kənˈstreɪnts/','限制；约束'],rather:['/ˈrɑːðə(r)/','而是；宁可'],imagining:['/ɪˈmædʒɪnɪŋ/','想象；设想'],them:['/ðem/','他们；它们'],merely:['/ˈmɪəli/','仅仅；只不过'],passive:['/ˈpæsɪv/','被动的'],recipients:['/rɪˈsɪpiənts/','接受者'],pedagogy:['/ˈpedəɡɒdʒi/','教学法'],that:['/ðæt/','那；……的'],takes:['/teɪks/','采取；需要'],seriously:['/ˈsɪəriəsli/','认真地；严肃地'],must:['/mʌst/','必须'],therefore:['/ˈðeəfɔː(r)/','因此'],make:['/meɪk/','使；做'],room:['/ruːm/','空间；余地'],for:['/fɔː(r); fə(r)/','为了；给'],dialogue:['/ˈdaɪəlɒɡ/','对话'],uncertainty:['/ʌnˈsɜːtnti/','不确定性'],reflection:['/rɪˈflekʃn/','反思'],teacher:['/ˈtiːtʃə(r)/','教师'],does:['/dʌz/','做；确实'],not:['/nɒt/','不'],withdraw:['/wɪðˈdrɔː/','退出；撤回'],responsibility:['/rɪˌspɒnsəˈbɪləti/','责任'],instead:['/ɪnˈsted/','相反；而是'],provides:['/prəˈvaɪdz/','提供'],scaffolding:['/ˈskæfəldɪŋ/','支架式支持'],through:['/θruː/','通过'],students:['/ˈstjuːdnts/','学生'],can:['/kæn; kən/','可以；能够'],gradually:['/ˈɡrædʒuəli/','逐渐地'],take:['/teɪk/','采取；获得'],greater:['/ˈɡreɪtə(r)/','更大的'],ownership:['/ˈəʊnəʃɪp/','主体责任；所有权'],their:['/ðeə(r)/','他们的'],learning:['/ˈlɜːnɪŋ/','学习'],distinction:['/dɪˈstɪŋkʃn/','区别'],far:['/fɑː(r)/','远；非常'],complicated:['/ˈkɒmplɪkeɪtɪd/','复杂的'],initially:['/ɪˈnɪʃəli/','最初；起初'],appears:['/əˈpɪəz/','看似；出现'],cultural:['/ˈkʌltʃərəl/','文化的'],resources:['/rɪˈzɔːsɪz/','资源'],are:['/ɑː(r)/','是'],unequally:['/ʌnˈiːkwəli/','不平等地'],distributed:['/dɪˈstrɪbjʊtɪd/','分配的'],ability:['/əˈbɪləti/','能力'],use:['/juːs/','使用'],shaped:['/ʃeɪpt/','塑造的'],by:['/baɪ/','被；通过'],prior:['/ˈpraɪə(r)/','先前的'],experience:['/ɪkˈspɪəriəns/','经历；经验'],yet:['/jet/','然而；还'],mean:['/miːn/','意味着'],action:['/ˈækʃn/','行动'],predetermined:['/ˌpriːdɪˈtɜːmɪnd/','预先决定的'],means:['/miːnz/','意味着；手段'],good:['/ɡʊd/','好的；良好的'],teaching:['/ˈtiːtʃɪŋ/','教学'],attend:['/əˈtend/','关注；出席'],particular:['/pəˈtɪkjələ(r)/','特定的'],histories:['/ˈhɪstəriz/','历史；经历'],possibilities:['/ˌpɒsəˈbɪlətiz/','可能性'],bring:['/brɪŋ/','带来'],into:['/ˈɪntuː/','进入……中'],classroom:['/ˈklɑːsruːm/','教室；课堂']};
+    var style=document.createElement('style');
+    style.textContent='.learn-side .capture-head{display:flex;justify-content:space-between;gap:10px;align-items:start;padding-bottom:14px;border-bottom:1px solid var(--line)}.learn-side .capture-head h2{font-size:22px}.capture-tip{margin:8px 0 0;color:var(--muted);font-size:12px}.capture-groups{display:grid;gap:11px;margin-top:14px}.capture-group{overflow:hidden;border:1px solid var(--line);border-radius:11px;background:#fff}.capture-group-head{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border-bottom:1px solid #edf0f4;background:#fafbfd}.capture-group-head b{font-size:14px}.capture-count{min-width:22px;padding:1px 7px;border-radius:99px;background:var(--bluep);color:var(--blue);font-size:12px;text-align:center}.capture-list{display:grid;gap:1px}.capture-empty{padding:12px;color:var(--muted);font-size:12px}.capture-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;padding:11px 12px;border-bottom:1px solid #edf0f4}.capture-card:last-child{border:0}.capture-card b,.capture-card small{display:block}.capture-card b{font:17px Georgia,"Noto Serif SC",serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.capture-card small{margin-top:2px;color:var(--muted);font-size:12px;line-height:1.45}.capture-remove{border:0;border-radius:6px;background:none;color:#7a879c;padding:4px 5px;font-size:12px}.capture-remove:hover{background:#fff1ef;color:#a34e45}.word.captured{background:#dce9ff;box-shadow:inset 0 -2px #5572cf}.classify-menu{position:fixed;z-index:70;width:min(340px,calc(100vw - 24px));padding:13px;border:1px solid #bdcbe8;border-radius:12px;background:#fff;box-shadow:0 16px 42px #17243e2b}.classify-menu .selection-summary{margin-bottom:10px;color:var(--muted);font-size:12px}.classify-menu .selection-text{max-height:45px;overflow:hidden;margin:0 0 11px;color:var(--ink);font:15px/1.5 Georgia,"Noto Serif SC",serif}.classify-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.classify-choice{padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-weight:750;text-align:left}.classify-choice small{display:block;margin-top:2px;color:var(--muted);font-size:11px;font-weight:400}.classify-choice.recommended{border-color:#9fb3ea;background:#eef3ff;color:#3857a8}.classify-cancel{width:100%;margin-top:8px;border:0;background:none;color:var(--muted);font-size:12px;padding:4px}.reader-capture-ai{margin-top:16px;padding-top:15px;border-top:1px solid var(--line)}.reader-capture-ai h3{font:17px Georgia,"Noto Serif SC",serif;margin-bottom:5px}.reader-capture-ai .ai-input{margin-top:8px}@media(max-width:1120px){.capture-groups{grid-template-columns:repeat(3,minmax(0,1fr))}.capture-card b{font-size:15px}}@media(max-width:820px){.capture-groups{grid-template-columns:1fr}.classify-menu{position:fixed}.learn-side .capture-head{padding-top:4px}}';
+    document.head.appendChild(style);
+    window.__scribeWordDetails=wordDetails;
+    var definitions={agency:wordDetails.agency[1],substantial:wordDetails.substantial[1],pedagogy:wordDetails.pedagogy[1],scaffolding:wordDetails.scaffolding[1]};
+    function q(selector,root){return (root||document).querySelector(selector);}
+    function qa(selector,root){return Array.prototype.slice.call((root||document).querySelectorAll(selector));}
+    function escapeHtml(value){return String(value||'').replace(/[&<>'"]/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];});}
+    function state(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(error){return {}}}
+    function cards(){var current=state();return (current.cards||[]).filter(function(card){return card&&card.id!=='guide'&&card.term&&['word','phrase','sentence'].indexOf(card.type)>-1});}
+    function saveCards(next){var current=state();current.cards=next;localStorage.setItem(key,JSON.stringify(current));}
+    function kindLabel(kind){return {word:'词汇',phrase:'短语',sentence:'句子'}[kind];}
+    function buildSide(){
+      var side=q('.learn-side');if(!side)return;
+      side.innerHTML='<div class="capture-head"><div><div class="eyebrow">随读收集</div><h2>学习区</h2><p class="capture-tip">点击单词收进词汇；划选内容后自行归类。</p></div><button class="ghost small" id="captureKnowledge">查看全部</button></div><div class="capture-groups" id="captureGroups"></div><div class="reader-capture-ai"><h3>问这本书</h3><p class="muted tiny">回答优先基于当前章节，并标出段落位置。</p><div class="ai-input"><input id="captureAsk" placeholder="例如：作者如何理解 agency？"><button id="captureAskBtn" type="button">发送</button></div><div class="ai-answer" id="captureAnswer"></div></div>';
+      q('#captureKnowledge').onclick=function(){var button=q('.nav button[data-view="knowledge"]');if(button)button.click();};
+      q('#captureAskBtn').onclick=function(){var input=q('#captureAsk'),answer=q('#captureAnswer');if(!input.value.trim())return;answer.innerHTML='<b>基于 Chapter 3 · p.137–138</b><br>“agency”在这里指个体在社会与制度条件中仍能有目的地行动的能力。请对照当前段落中它与 culture 的关系。';answer.classList.add('show');input.value='';};
+      renderSide();
+    }
+    function renderSide(){
+      var target=q('#captureGroups');if(!target)return;var all=cards();
+      target.innerHTML=['word','phrase','sentence'].map(function(kind){var items=all.filter(function(card){return card.type===kind});return '<section class="capture-group"><div class="capture-group-head"><b>'+kindLabel(kind)+'</b><span class="capture-count">'+items.length+'</span></div><div class="capture-list">'+(items.length?items.map(function(card){return '<article class="capture-card"><div><b>'+escapeHtml(card.term)+'</b><small>'+escapeHtml(card.meaning||'来自当前阅读')+'</small></div><button class="capture-remove" type="button" data-capture-remove="'+escapeHtml(card.id)+'">删除</button></article>';}).join(''):'<div class="capture-empty">'+(kind==='word'?'点击原文中的单词即可收集。':'按住鼠标左键划选文本后归类到这里。')+'</div>')+'</div></section>';}).join('');
+      qa('[data-capture-remove]').forEach(function(button){button.onclick=function(){var id=button.dataset.captureRemove;saveCards(cards().filter(function(card){return card.id!==id;}));renderSide();markCollectedWords();};});
+      markCollectedWords();
+    }
+    function markCollectedWords(){var terms=cards().filter(function(card){return card.type==='word';}).map(function(card){return card.term.toLowerCase();});qa('.word').forEach(function(word){word.classList.toggle('captured',terms.indexOf(word.textContent.trim().toLowerCase())>-1);});}
+    function addCard(type,term,meaning,context){
+      var current=cards(),normalized=term.trim().toLowerCase();if(current.some(function(card){return card.type===type&&card.term.trim().toLowerCase()===normalized;})){renderSide();return false;}
+      current.unshift({id:'capture-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),type:type,term:term.trim(),meaning:meaning||'来自当前阅读',context:context||'当前阅读段落',source:'The Sociology of Education · Chapter 3',note:'',due:true});saveCards(current);renderSide();return true;
+    }
+    function interceptWords(){qa('.word').forEach(function(word){word.onclick=function(event){event.preventDefault();event.stopPropagation();var term=word.textContent.trim(),context=(word.closest('.para')||{}).textContent||'当前阅读段落';addCard('word',term,definitions[word.dataset.word]||'来自当前阅读',context);};});}
+    function countWords(text){var words=text.match(/[A-Za-z]+(?:[’'-][A-Za-z]+)*/g);return words?words.length:Math.max(1,text.trim().split(/\s+/).length);}
+    function hideMenu(){if(menu)menu.remove();menu=null;var old=q('#selmenu');if(old)old.classList.remove('show');}
+    function showClassifier(text,rect){
+      hideMenu();var wordCount=countWords(text),recommended=(wordCount>=9||/[.!?。！？][”’']?$/.test(text.trim()))?'sentence':'phrase';menu=document.createElement('div');menu.className='classify-menu';menu.innerHTML='<div class="selection-summary">已划选 '+wordCount+' 个词 · 推荐归为'+kindLabel(recommended)+'</div><p class="selection-text">“'+escapeHtml(text)+'”</p><div class="classify-actions"><button class="classify-choice '+(recommended==='phrase'?'recommended':'')+'" type="button" data-capture-kind="phrase">收为短语'+(recommended==='phrase'?'<small>推荐</small>':'<small>自行选择</small>')+'</button><button class="classify-choice '+(recommended==='sentence'?'recommended':'')+'" type="button" data-capture-kind="sentence">收为句子'+(recommended==='sentence'?'<small>推荐</small>':'<small>自行选择</small>')+'</button></div><button class="classify-cancel" type="button" data-capture-cancel>暂不收藏</button>';
+      menu.style.left=Math.max(12,Math.min(innerWidth-352,rect.left+rect.width/2-165))+'px';menu.style.top=Math.max(12,rect.top-164)+'px';document.body.appendChild(menu);
+      qa('[data-capture-kind]',menu).forEach(function(button){button.onmousedown=function(event){event.preventDefault();};button.onclick=function(){var type=button.dataset.captureKind;addCard(type,text,type==='phrase'?'自选短语 · '+wordCount+' 词':'自选句子 · '+wordCount+' 词',text);window.getSelection().removeAllRanges();hideMenu();};});q('[data-capture-cancel]',menu).onclick=function(){window.getSelection().removeAllRanges();hideMenu();};
+    }
+    document.addEventListener('mouseup',function(){setTimeout(function(){var selection=window.getSelection(),text=selection?selection.toString().trim():'',range=selection&&selection.rangeCount?selection.getRangeAt(0):null,paper=q('#paper');if(!text||!range||!paper||!paper.contains(range.commonAncestorContainer)){hideMenu();return;}var rect=range.getBoundingClientRect();if(rect.width||rect.height)showClassifier(text,rect);},0);});
+    document.addEventListener('mousedown',function(event){if(menu&&!menu.contains(event.target))hideMenu();},true);
+    buildSide();interceptWords();markCollectedWords();
+  });
+})();
+</script>
+<script type="scribe/boot">
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var key='scribe-local-v1',activeKind='word',selectionMenu=null,focusCardId=null;
+    var definitions={agency:'能动性；个体在限制中有目的地行动的能力',substantial:'显著的；在此强调理论地位的重要性',pedagogy:'教学法；关于教学目的、方法与关系的理论',scaffolding:'支架；帮助学习者逐步独立的支持'};
+    var wordDetails=window.__scribeWordDetails||{relationship:['/rɪˈleɪʃənʃɪp/','关系'],education:['/ˌedʒʊˈkeɪʃən/','教育'],culture:['/ˈkʌltʃə(r)/','文化'],understood:['/ˌʌndəˈstʊd/','被理解'],simple:['/ˈsɪmpl/','简单的'],process:['/ˈprəʊses/','过程'],transmission:['/trænzˈmɪʃn/','传递；传播'],educational:['/ˌedʒʊˈkeɪʃənl/','教育的'],institutions:['/ˌɪnstɪˈtjuːʃnz/','机构；制度'],established:['/ɪˈstæblɪʃt/','已确立的'],knowledge:['/ˈnɒlɪdʒ/','知识；学识'],generation:['/ˌdʒenəˈreɪʃn/','一代人'],create:['/kriˈeɪt/','创造；形成'],conditions:['/kənˈdɪʃnz/','条件；环境'],learners:['/ˈlɜːnəz/','学习者'],reinterpret:['/ˌriːɪnˈtɜːprɪt/','重新诠释'],contest:['/kənˈtest/','质疑；反对'],transform:['/trænsˈfɔːm/','改变；转化'],inherit:['/ɪnˈherɪt/','继承'],concept:['/ˈkɒnsept/','概念'],agency:['/ˈeɪdʒənsi/','能动性；个体有目的行动的能力'],substantial:['/səbˈstænʃl/','实质性的；重要的'],contemporary:['/kənˈtempərəri/','当代的'],theory:['/ˈθɪəri/','理论'],directs:['/dəˈrekts/','引导；指向'],attention:['/əˈtenʃn/','注意；关注'],capacity:['/kəˈpæsəti/','能力'],individuals:['/ˌɪndɪˈvɪdʒuəlz/','个体'],act:['/ækt/','行动'],purposefully:['/ˈpɜːpəsfəli/','有目的地'],social:['/ˈsəʊʃl/','社会的'],institutional:['/ˌɪnstɪˈtjuːʃənl/','制度性的'],constraints:['/kənˈstreɪnts/','限制；约束'],imagining:['/ɪˈmædʒɪnɪŋ/','想象；设想'],merely:['/ˈmɪəli/','仅仅；只不过'],passive:['/ˈpæsɪv/','被动的'],recipients:['/rɪˈsɪpiənts/','接受者'],pedagogy:['/ˈpedəɡɒdʒi/','教学法'],seriously:['/ˈsɪəriəsli/','认真地；严肃地'],dialogue:['/ˈdaɪəlɒɡ/','对话'],uncertainty:['/ʌnˈsɜːtnti/','不确定性'],reflection:['/rɪˈflekʃn/','反思'],teacher:['/ˈtiːtʃə(r)/','教师'],withdraw:['/wɪðˈdrɔː/','退出；撤回'],responsibility:['/rɪˌspɒnsəˈbɪləti/','责任'],provides:['/prəˈvaɪdz/','提供'],scaffolding:['/ˈskæfəldɪŋ/','支架式支持'],students:['/ˈstjuːdnts/','学生'],gradually:['/ˈɡrædʒuəli/','逐渐地'],greater:['/ˈɡreɪtə(r)/','更大的'],ownership:['/ˈəʊnəʃɪp/','主体责任；所有权'],learning:['/ˈlɜːnɪŋ/','学习'],distinction:['/dɪˈstɪŋkʃn/','区别'],complicated:['/ˈkɒmplɪkeɪtɪd/','复杂的'],initially:['/ɪˈnɪʃəli/','最初；起初'],appears:['/əˈpɪəz/','看似；出现'],cultural:['/ˈkʌltʃərəl/','文化的'],resources:['/rɪˈzɔːsɪz/','资源'],unequally:['/ʌnˈiːkwəli/','不平等地'],distributed:['/dɪˈstrɪbjʊtɪd/','分配的'],ability:['/əˈbɪləti/','能力'],shaped:['/ʃeɪpt/','塑造的'],prior:['/ˈpraɪə(r)/','先前的'],experience:['/ɪkˈspɪəriəns/','经历；经验'],action:['/ˈækʃn/','行动'],predetermined:['/ˌpriːdɪˈtɜːmɪnd/','预先决定的'],teaching:['/ˈtiːtʃɪŋ/','教学'],attend:['/əˈtend/','关注；出席'],particular:['/pəˈtɪkjələ(r)/','特定的'],histories:['/ˈhɪstəriz/','历史；经历'],possibilities:['/ˌpɒsəˈbɪlətiz/','可能性'],classroom:['/ˈklɑːsruːm/','教室；课堂']};
+    var style=document.createElement('style');
+    style.textContent='#paper .word{cursor:pointer;border-radius:3px;transition:background .12s,box-shadow .12s}#paper .word:hover{background:#fff0c7;box-shadow:inset 0 -2px #d69a50}#paper .word.captured{background:#dce9ff;box-shadow:inset 0 -2px #5572cf}.learn-side .capture-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;margin:14px 0;border:1px solid var(--line);border-radius:9px;background:#f5f7fb}.learn-side .capture-tab{border:0;border-radius:6px;padding:8px 4px;background:none;color:var(--muted);font-size:13px;font-weight:750}.learn-side .capture-tab.active{background:var(--navy);color:#fff}.learn-side .capture-tab span{margin-left:3px;font-size:11px;opacity:.8}.capture-tab-panel{overflow:hidden;border:1px solid var(--line);border-radius:11px;background:#fff}.capture-tab-panel-head{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid #edf0f4;background:#fafbfd}.capture-tab-panel-head b{font-size:15px}.capture-tab-panel-head small{color:var(--muted);font-size:12px}.capture-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;padding:12px;border-bottom:1px solid #edf0f4;outline:0}.capture-card:last-child{border:0}.capture-card b,.capture-card small{display:block}.capture-card b{font:17px Georgia,"Noto Serif SC",serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.capture-card small{margin-top:3px;color:var(--muted);font-size:12px;line-height:1.45}.capture-card:focus{background:#f8fbff}.capture-phonetic{color:#5572cf!important;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.capture-translation{color:var(--ink)!important;font-weight:650}.capture-context{color:#7a879c!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.capture-context strong{font-weight:700}.capture-translation.lookup-pending{color:var(--muted)!important;font-weight:500}.capture-translation.lookup-failed{color:#a3512f!important;font-weight:600}.capture-example{display:grid;grid-template-rows:0fr;grid-column:1/-1;margin:0;transition:grid-template-rows .18s ease}.capture-example-inner{min-height:0;overflow:hidden}.capture-example p{margin:8px 0 0;padding:8px 9px;border-left:2px solid #9fb3ea;border-radius:0 7px 7px 0;background:#f5f8ff;color:#52627f;font:12px/1.55 Georgia,"Noto Serif SC",serif;opacity:0;transform:translateY(-3px);transition:opacity .16s ease,transform .16s ease}.capture-example .example-label{display:block;margin:8px 0 0;color:#667998;font-size:11px;font-weight:750}.capture-card:hover .capture-example,.capture-card:focus .capture-example,.capture-card:focus-within .capture-example{grid-template-rows:1fr}.capture-card:hover .capture-example p,.capture-card:focus .capture-example p,.capture-card:focus-within .capture-example p{opacity:1;transform:translateY(0)}.capture-empty{padding:16px 12px;color:var(--muted);font-size:13px}.capture-remove{border:0;border-radius:6px;background:none;color:#7a879c;padding:4px 5px;font-size:12px}.capture-remove:hover{background:#fff1ef;color:#a34e45}.reader-classify-menu{position:fixed;z-index:80;width:min(340px,calc(100vw - 24px));padding:13px;border:1px solid #bdcbe8;border-radius:12px;background:#fff;box-shadow:0 16px 42px #17243e2b}.reader-classify-menu .summary{margin-bottom:9px;color:var(--muted);font-size:12px}.reader-classify-menu .quoted{max-height:47px;overflow:hidden;margin:0 0 11px;color:var(--ink);font:15px/1.5 Georgia,"Noto Serif SC",serif}.reader-classify-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.reader-classify-choice{padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-weight:750;text-align:left}.reader-classify-choice small{display:block;margin-top:2px;color:var(--muted);font-size:11px;font-weight:400}.reader-classify-choice.recommended{border-color:#9fb3ea;background:#eef3ff;color:#3857a8}.reader-classify-cancel{width:100%;margin-top:8px;border:0;background:none;color:var(--muted);font-size:12px;padding:4px}.capture-meaning{color:var(--muted)!important;font-weight:500}.capture-storage-warn{padding:11px 12px;border-bottom:1px solid #f0dcc0;background:#fff8ec;color:#7a5a28;font-size:12px;line-height:1.6}.capture-card.card-flash{animation:cardFlash 1.5s ease}@keyframes cardFlash{0%,55%{background:#fff4dd}100%{background:#fff}}#paper .word.word-flash{animation:wordFlash 1.3s ease}@keyframes wordFlash{0%,45%{background:#ffd98e;box-shadow:inset 0 -2px #d69a50}100%{background:transparent;box-shadow:none}}';
+    document.head.appendChild(style);
+    function q(selector,root){return (root||document).querySelector(selector);}
+    function qa(selector,root){return Array.prototype.slice.call((root||document).querySelectorAll(selector));}
+    function escapeHtml(value){return String(value||'').replace(/[&<>'"]/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];});}
+    function read(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(error){return {}}}
+    var captureStorageWarning='';
+    function write(value){
+      try{localStorage.setItem(key,JSON.stringify(value));captureStorageWarning='';}
+      catch(error){
+        // 存储写满（配额耗尽、Safari 无痕）时不能静默失败：面板会明确说明这次没能保存。
+        captureStorageWarning=(error&&error.message)||'本机存储写入失败';
+        console.warn('[scribe] 学习卡写入失败：'+captureStorageWarning);
+      }
+    }
+    function cards(){var current=read();return (current.cards||[]).filter(function(card){return card&&card.id!=='guide'&&card.term&&['word','phrase','sentence'].indexOf(card.type)>-1;});}
+    function label(kind){return {word:'词汇',phrase:'短语',sentence:'句子'}[kind];}
+    function wordDetail(term){var detail=wordDetails[String(term||'').trim().toLowerCase()];return {phonetic:detail?detail[0]:'',translation:detail?detail[1]:''};}
+    // 早期版本把查不到的词写成「/—/ 本文词汇」占位，这里视为空值，交由云端词典补齐。
+    function cleanStoredDetail(value){var text=String(value||'').trim();return text==='/—/'||text==='本文词汇'||text==='本文短语'?'':text;}
+    // 词典缓存：同一词在同一句中的音标与释义只查询一次，之后的点击立刻显示。
+    function wordCacheKey(term,sentence){return String(term||'').trim().toLowerCase()+'|'+String(sentence||'').replace(/\s+/g,' ').trim().toLowerCase();}
+    function readWordCache(){try{var value=JSON.parse(localStorage.getItem('scribe-word-cache-v1')||'{}');return value&&typeof value==='object'?value:{};}catch(error){return {};}}
+    function writeWordCache(value){try{localStorage.setItem('scribe-word-cache-v1',JSON.stringify(value));}catch(error){}}
+    async function cloudStudyCall(body){
+      var libraryKey=localStorage.getItem('scribe-library-key');
+      if(!libraryKey)throw new Error('先输入内测码开启云端，才能查询音标与释义。');
+      var client=window.__scribeCloud;
+      if(!client)throw new Error('云端组件尚未加载，请刷新页面后重试。');
+      var timeout=new Promise(function(_,reject){setTimeout(function(){reject(new Error('查询超时，请检查网络后点该词重试。'));},20000);});
+      return await Promise.race([client.callFunction('scribe-study',Object.assign({},body,{libraryKey:libraryKey})),timeout]);
+    }
+    function applyWordDetail(id,detail){
+      var current=read(),card=(current.cards||[]).find(function(item){return item.id===id;});
+      if(!card)return;
+      card.phonetic=detail.phonetic||'';card.gloss=detail.gloss||card.gloss||'';card.translation=detail.meaning||'';if(detail.meaning)card.meaning=detail.meaning;
+      delete card.lookupFailed;write(current);render();
+    }
+    // 点词即时查询：每张卡各自发一次请求，互不排队；同一张卡重复点击不会重复请求。
+    var wordLookups={},wordLookupStarted={};
+    function lookupWordCard(id,term,context){
+      if(!id||wordLookups[id])return;
+      var sentence=exampleFor(term,context),key=wordCacheKey(term,sentence),cache=readWordCache();
+      if(cache[key]){applyWordDetail(id,cache[key]);return;}
+      var known=wordDetail(term);
+      if(known.translation){applyWordDetail(id,{phonetic:known.phonetic,meaning:known.translation,gloss:''});return;}
+      wordLookups[id]=true;wordLookupStarted[id]=Date.now();
+      cloudStudyCall({action:'define',words:[{word:term,sentence:sentence}]}).then(function(result){
+        var entry=(result.words||[])[0];
+        if(!entry||(!entry.phonetic&&!entry.meaning&&!entry.gloss))throw new Error('这个词暂时查不到释义。');
+        var detail={phonetic:entry.phonetic||'',gloss:entry.gloss||'',meaning:entry.meaning||''};
+        var fresh=readWordCache();fresh[key]=detail;writeWordCache(fresh);
+        wordDetails[String(term||'').trim().toLowerCase()]=[detail.phonetic,detail.meaning];
+        applyWordDetail(id,detail);
+      }).catch(function(error){
+        var current=read(),card=(current.cards||[]).find(function(item){return item.id===id;});
+        if(!card||card.translation)return;
+        card.meaning=error.message||'暂时无法查询音标与释义。';card.lookupFailed=true;write(current);render();
+      }).finally(function(){delete wordLookups[id];delete wordLookupStarted[id];});
+    }
+    // 一次请求补齐所有缺释义的词卡（新收藏的词与历史遗留的占位卡片都走这里），失败的卡片保留重试状态。
+    var healingWords=false;
+    function healWordCards(shown){
+      if(healingWords)return;
+      healingWords=true;
+      var started=false;
+      try{
+        var cache=readWordCache(),pending=[];
+        (shown||[]).forEach(function(card){
+          if(card.type!=='word'||card.lookupFailed)return;
+          if(wordLookups[card.id])return;
+          if(cleanStoredDetail(card.translation))return;
+          var known=wordDetail(card.term);
+          if(known.translation){applyWordDetail(card.id,{phonetic:known.phonetic,meaning:known.translation});return;}
+          var sentence=card.example||exampleFor(card.term,card.context),key=wordCacheKey(card.term,sentence);
+          if(cache[key]){applyWordDetail(card.id,cache[key]);return;}
+          pending.push({id:card.id,term:card.term,key:key,sentence:sentence});
+        });
+        if(!pending.length)return;
+        var targets=pending.slice(0,24);
+        started=true;
+        cloudStudyCall({action:'define',words:targets.map(function(item){return {word:item.term,sentence:item.sentence};})}).then(function(result){
+          var words=result.words||[],fresh=readWordCache();
+          targets.forEach(function(target,index){
+            var entry=words[index];
+            if(!entry||(!entry.phonetic&&!entry.meaning))return;
+            var detail={phonetic:entry.phonetic||'',gloss:entry.gloss||'',meaning:entry.meaning||''};
+            fresh[target.key]=detail;wordDetails[String(target.term).trim().toLowerCase()]=[detail.phonetic,detail.meaning];
+            applyWordDetail(target.id,detail);
+          });
+          writeWordCache(fresh);
+        }).catch(function(error){
+          var current=read(),byId={};(current.cards||[]).forEach(function(card){byId[card.id]=card;});
+          var changed=false;
+          targets.forEach(function(target){var card=byId[target.id];if(!card||card.translation)return;card.meaning=error.message||'暂时无法查询音标与释义。';card.lookupFailed=true;changed=true;});
+          if(changed){write(current);render();}
+        }).finally(function(){healingWords=false;});
+      }finally{
+        if(!started)healingWords=false;
+      }
+    }
+    function articleInfo(context){var index=qa('#paper .para').findIndex(function(paragraph){return String(paragraph.textContent||'').trim()===String(context||'').trim();});return 'Chapter 3 · 第 '+(index>-1?index+1:'当前')+' 段';}
+    function exampleFor(term,context){var parts=String(context||'').match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[String(context||'')],needle=String(term||'').trim().toLowerCase();return (parts.find(function(part){return part.toLowerCase().indexOf(needle)>-1;})||parts[0]||'').trim();}
+    var expressionTranslations={'rather than':'而不是；而非','the relationship between education and culture':'教育与文化之间的关系','a simple process of transmission':'一个简单的传递过程','established knowledge':'既有知识；已确立的知识','the conditions in which learners may reinterpret, contest, and transform what they inherit':'学习者可以重新诠释、质疑并改变其继承内容的条件','the concept of agency':'能动性的概念','the capacity of individuals to act purposefully':'个体有目的地行动的能力','social and institutional constraints':'社会与制度约束','passive recipients of culture':'文化的被动接受者','make room for dialogue, uncertainty, and reflection':'为对话、不确定性与反思留出空间','take greater ownership of their learning':'对自己的学习承担更多主导责任','the distinction is far more complicated than it initially appears.':'这种区分远比最初看起来复杂。','cultural resources are unequally distributed':'文化资源的分配并不平等','educational action is predetermined':'教育行动是被预先决定的','good teaching must attend to':'好的教学必须关注','the particular histories and possibilities':'特定的历史经历与可能性','the relationship between education and culture cannot be understood as a simple process of transmission.':'教育与文化的关系不能被理解为一个简单的传递过程。','educational institutions do more than pass established knowledge from one generation to the next; they also create the conditions in which learners may reinterpret, contest, and transform what they inherit.':'教育机构的作用不止是把既有知识代代相传；它们还创造条件，让学习者重新诠释、质疑并改变自己所继承的内容。','this is why the concept of agency has become so substantial in contemporary educational theory.':'这就是为什么能动性的概念在当代教育理论中变得如此重要。','it directs attention to the capacity of individuals to act purposefully within social and institutional constraints, rather than imagining them as merely passive recipients of culture.':'它关注的是个体在社会与制度约束中仍有目的地行动的能力，而不是把他们想象成文化的被动接受者。','a pedagogy that takes agency seriously must therefore make room for dialogue, uncertainty, and reflection.':'认真对待能动性的教育学必须为对话、不确定性与反思留出空间。','the teacher does not withdraw from responsibility; instead, the teacher provides scaffolding through which students can gradually take greater ownership of their learning.':'教师并非放弃责任；相反，教师提供支架式支持，让学生逐渐对自己的学习承担更多主导责任。','cultural resources are unequally distributed, and the ability to use them is shaped by prior experience.':'文化资源的分配并不平等，使用这些资源的能力也受到先前经验的塑造。','yet this does not mean that educational action is predetermined.':'但这并不意味着教育行动是预先决定的。','it means that good teaching must attend to the particular histories and possibilities that students bring into the classroom.':'这意味着好的教学必须关注学生带入课堂的特定历史经历与可能性。'};
+    expressionTranslations['they also create the conditions in which learners may reinterpret, contest, and transform what they inherit']='它们还创造条件，让学习者重新诠释、质疑并改变自己所继承的内容。';
+    function normalizedExpression(value){return String(value||'').trim().replace(/\s+/g,' ').replace(/[.!?。！？]+$/,'').toLowerCase();}
+    function sourceContextFor(card){var term=String(card.term||'').trim(),context=String(card.context||'').trim();if(!context||normalizedExpression(context)===normalizedExpression(term)){var paragraph=qa('#paper .para').find(function(item){return normalizedExpression(item.textContent).indexOf(normalizedExpression(term))>-1;});if(paragraph)context=paragraph.textContent.trim();}return context||'当前阅读段落';}
+    function translatedExpression(term,context){var normalized=normalizedExpression(term),keys=Object.keys(expressionTranslations),source=keys.find(function(key){return normalizedExpression(key)===normalized;});if(source)return expressionTranslations[source];var partial=keys.filter(function(key){var candidate=normalizedExpression(key);return normalized&&(candidate.indexOf(normalized)>-1||normalized.indexOf(candidate)>-1);}).sort(function(left,right){return Math.abs(normalizedExpression(left).length-normalized.length)-Math.abs(normalizedExpression(right).length-normalized.length);})[0];if(partial)return expressionTranslations[partial];var sentences=String(context||'').match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[],parent=sentences.find(function(sentence){return normalizedExpression(sentence).indexOf(normalized)>-1;});return parent&&normalizedExpression(parent)!==normalized?translatedExpression(parent):'';}
+    function expressionDetail(card){var context=sourceContextFor(card),translation=cleanStoredDetail(card.translation)||translatedExpression(card.term,context);if(card.type==='sentence')return {translation:translation||(card.lookupPending?'正在生成解释…':'这一句的译文可在这页的段落译文里对照查看'),info:articleInfo(context),example:context,exampleLabel:'本文上下文'};var words=(String(card.term||'').match(/[A-Za-z]+(?:[’'-][A-Za-z]+)*/g)||[]).map(function(word){return wordDetail(word).translation;}).filter(function(item){return Boolean(item);});if(!translation)translation=card.lookupPending?'正在生成解释…':words.length?'关键词：'+words.slice(0,6).join(' · '):'已存入学习卡，可结合本页译文理解';return {translation:translation,info:articleInfo(context),example:exampleFor(card.term,context),exampleLabel:'例句'};}
+    // 短语/句子没有内置译文时，经云端快速生成解释并写回卡片。
+    async function enrichExpression(card){
+      if(!card||card.type==='word')return;
+      if(cleanStoredDetail(card.translation)||translatedExpression(card.term,card.context))return;
+      var current=read(),target=(current.cards||[]).find(function(item){return item.id===card.id;});
+      if(!target)return;target.lookupPending=true;write(current);render();
+      try{
+        var result=await cloudStudyCall({action:'explain',items:[{term:card.term,kind:card.type,sentence:sourceContextFor(card)}]});
+        var found=(result.items||[])[0];
+        current=read();target=(current.cards||[]).find(function(item){return item.id===card.id;});
+        if(target){delete target.lookupPending;if(found&&found.translation)target.translation=found.translation;write(current);render();}
+      }catch(error){
+        current=read();target=(current.cards||[]).find(function(item){return item.id===card.id;});
+        if(target){delete target.lookupPending;write(current);render();}
+      }
+    }
+    // 存量短语/句子卡补齐译文：打开对应分类页签时批量生成一次；失败标记防止反复请求。
+    var healingExpressions=false;
+    function healExpressionCards(shown){
+      if(healingExpressions)return;
+      var targets=(shown||[]).filter(function(card){return card.type!=='word'&&!card.explainFailed&&!card.lookupPending&&!cleanStoredDetail(card.translation)&&!translatedExpression(card.term,card.context);}).slice(0,12);
+      if(!targets.length)return;
+      healingExpressions=true;
+      cloudStudyCall({action:'explain',items:targets.map(function(card){return {term:card.term,kind:card.type,sentence:sourceContextFor(card)};})}).then(function(result){
+        var items=result.items||[],changed=false,current=read();
+        targets.forEach(function(card,index){
+          var target=(current.cards||[]).find(function(item){return item.id===card.id;});
+          if(!target)return;
+          var found=items[index];
+          if(found&&found.translation){target.translation=found.translation;delete target.lookupPending;changed=true;}
+          else target.explainFailed=true;
+        });
+        if(changed){write(current);render();}
+      }).catch(function(){
+        var current=read();
+        targets.forEach(function(card){var target=(current.cards||[]).find(function(item){return item.id===card.id;});if(target){target.explainFailed=true;delete target.lookupPending;}});
+        write(current);
+      }).finally(function(){healingExpressions=false;});
+    }
+    function addCard(type,term,meaning,context){var current=read(),all=Array.isArray(current.cards)?current.cards:[],normalized=term.trim().toLowerCase(),detail=type==='word'?wordDetail(term):null;var existing=all.find(function(card){return card&&card.type===type&&String(card.term||'').trim().toLowerCase()===normalized;});if(existing){activeKind=type;focusCardId=existing.id;if(type==='word'&&!cleanStoredDetail(existing.translation)&&!wordLookups[existing.id]){delete existing.lookupFailed;lookupWordCard(existing.id,existing.term,existing.context);}render();return false;}var id='collect-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),card={id:id,type:type,term:term.trim(),meaning:detail&&detail.translation?detail.translation:(meaning||'来自当前阅读'),phonetic:detail?detail.phonetic:'',translation:detail?detail.translation:'',context:context||'当前阅读段落',articleInfo:detail?articleInfo(context):'',example:detail?exampleFor(term,context):'',source:'The Sociology of Education · Chapter 3',note:'',due:true};if(type==='word'&&!card.translation)card.meaning='正在查询音标与语境释义…';all.push(card);current.cards=all;write(current);activeKind=type;focusCardId=id;if(type==='word'&&!card.translation)lookupWordCard(id,card.term,card.context);render();return true;}
+    function removeCard(id){var current=read();current.cards=(current.cards||[]).filter(function(card){return card.id!==id;});write(current);render();}
+    function makeWordsClickable(){
+      qa('#paper .para').forEach(function(paragraph){var walker=document.createTreeWalker(paragraph,NodeFilter.SHOW_TEXT),nodes=[],node;while(node=walker.nextNode())if(!node.parentElement.closest('.word'))nodes.push(node);nodes.forEach(function(textNode){var source=textNode.nodeValue,match,pattern=/[A-Za-z]+(?:[’'-][A-Za-z]+)*/g,last=0,fragment=document.createDocumentFragment();while(match=pattern.exec(source)){if(match.index>last)fragment.appendChild(document.createTextNode(source.slice(last,match.index)));var word=document.createElement('span');word.className='word capture-word';word.dataset.captureTerm=match[0];word.textContent=match[0];word.title='点击收进词汇';fragment.appendChild(word);last=match.index+match[0].length;}if(last===0)return;if(last<source.length)fragment.appendChild(document.createTextNode(source.slice(last)));textNode.replaceWith(fragment);});});
+    }
+    function markWords(){var terms=cards().filter(function(card){return card.type==='word';}).map(function(card){return card.term.toLowerCase();});qa('#paper .word').forEach(function(word){word.classList.toggle('captured',terms.indexOf(word.textContent.trim().toLowerCase())>-1);});}
+    function buildSide(){var side=q('.learn-side');if(!side)return;side.innerHTML='<div class="capture-head"><div><div class="eyebrow">随读收集</div><h2>学习区</h2><p class="capture-tip">点击任意英文词即可收藏；划选文本后自行归类。</p></div><button class="ghost small" id="captureKnowledge">查看全部</button></div><div class="capture-tabs" id="captureTabs"></div><section class="capture-tab-panel" id="captureTabPanel"></section><div class="reader-capture-ai"><h3>问这本书</h3><p class="muted tiny">回答优先基于当前章节，并标出段落位置。</p><div class="ai-input"><input id="captureAsk" placeholder="例如：作者如何理解 agency？"><button id="captureAskBtn" type="button">发送</button></div><div class="ai-answer" id="captureAnswer"></div></div>';q('#captureKnowledge').onclick=function(){var button=q('.nav button[data-view="knowledge"]');if(button)button.click();};q('#captureAskBtn').onclick=function(){var input=q('#captureAsk'),answer=q('#captureAnswer');if(!input.value.trim())return;answer.innerHTML='<b>基于 Chapter 3 · p.137–138</b><br>“agency”在这里指个体在社会与制度条件中仍能有目的地行动的能力。';answer.classList.add('show');input.value='';};render();}
+    function render(){
+      var all=cards(),tabs=q('#captureTabs'),panel=q('#captureTabPanel'),tips={word:'点击任意英文词即可加入',phrase:'划选后选择“收为短语”',sentence:'划选后选择“收为句子”'},empty={word:'点击正文中任意英文词，将它收进词汇。',phrase:'按住鼠标左键划选多个词，再选择归为短语。',sentence:'划选一段完整表达，再选择归为句子。'};
+      if(!tabs||!panel)return;
+      tabs.innerHTML=['word','phrase','sentence'].map(function(kind){return '<button class="capture-tab '+(activeKind===kind?'active':'')+'" type="button" data-reader-tab="'+kind+'">'+label(kind)+' <span>'+all.filter(function(card){return card.type===kind;}).length+'</span></button>';}).join('');
+      qa('[data-reader-tab]',tabs).forEach(function(button){button.onclick=function(){activeKind=button.dataset.readerTab;render();};});
+      var shown=all.filter(function(card){return card.type===activeKind;});
+      var cardHtml=shown.map(function(card){
+        if(card.type==='word'){
+          var detail=wordDetail(card.term),storedTranslation=cleanStoredDetail(card.translation)||detail.translation,phonetic=cleanStoredDetail(card.phonetic)||detail.phonetic,info=card.articleInfo||articleInfo(card.context),example=card.example||exampleFor(card.term,card.context);
+          var lookupPending=!storedTranslation&&!card.lookupFailed;
+          var waited=lookupPending&&wordLookupStarted[card.id]?Math.round((Date.now()-wordLookupStarted[card.id])/1000):0;
+          var pendingLabel=waited>=8?('正在查询音标与语境释义…已等待 '+waited+' 秒，可再点该词立即重试'):'正在查询音标与语境释义…';
+          var primary=String(card.gloss||'').trim()||storedTranslation||cleanStoredDetail(card.meaning)||(lookupPending?pendingLabel:'来自当前阅读');
+          var secondary=String(card.gloss||'').trim()&&storedTranslation?storedTranslation:'';
+          var lookupState=card.lookupFailed?' lookup-failed':(lookupPending?' lookup-pending':'');
+          return '<article class="capture-card" tabindex="0" data-card-id="'+escapeHtml(card.id)+'"><div><b>'+escapeHtml(card.term)+'</b>'+(phonetic?'<small class="capture-phonetic">'+escapeHtml(phonetic)+'</small>':'')+'<small class="capture-translation'+lookupState+'">'+escapeHtml(primary)+'</small>'+(secondary?'<small class="capture-meaning">'+escapeHtml(secondary)+'</small>':'')+'<small class="capture-context"><strong>本文：</strong>'+escapeHtml(info)+'</small></div><button class="capture-remove" type="button" data-remove-card="'+escapeHtml(card.id)+'">删除</button><div class="capture-example"><div class="capture-example-inner"><span class="example-label">例句</span><p>'+escapeHtml(example)+'</p></div></div></article>';
+        }
+        var expression=expressionDetail(card),sentenceStyle=card.type==='sentence'?' style="white-space:normal;line-height:1.42;font-size:15px"':'',translationLabel=card.type==='sentence'?'译文：':'释义：';
+        return '<article class="capture-card '+(card.type==='sentence'?'sentence-card':'phrase-card')+'" tabindex="0" data-card-id="'+escapeHtml(card.id)+'"><div><b'+sentenceStyle+'>'+escapeHtml(card.term)+'</b><small class="capture-translation"><strong>'+translationLabel+'</strong>'+escapeHtml(expression.translation)+'</small><small class="capture-context"><strong>本文：</strong>'+escapeHtml(expression.info)+'</small></div><button class="capture-remove" type="button" data-remove-card="'+escapeHtml(card.id)+'">删除</button><div class="capture-example"><div class="capture-example-inner"><span class="example-label">'+escapeHtml(expression.exampleLabel)+'</span><p>'+escapeHtml(expression.example)+'</p></div></div></article>';
+      }).join('');
+      var panelWarn=captureStorageWarning?'<div class="capture-storage-warn">本机存储空间不足，这次收藏没能保存：请清理本机缓存后重试（云端数据不受影响）。</div>':'';
+      panel.innerHTML='<div class="capture-tab-panel-head"><b>'+label(activeKind)+'</b><small>'+tips[activeKind]+'</small></div>'+panelWarn+(cardHtml||'<div class="capture-empty">'+empty[activeKind]+'</div>');
+      qa('[data-remove-card]',panel).forEach(function(button){button.onclick=function(){removeCard(button.dataset.removeCard);};});
+      if(focusCardId){var focusTarget=panel.querySelector('[data-card-id="'+focusCardId+'"]');if(focusTarget){if(typeof focusTarget.scrollIntoView==='function')focusTarget.scrollIntoView({block:'nearest',behavior:'smooth'});focusTarget.classList.add('card-flash');setTimeout(function(){focusTarget.classList.remove('card-flash');},1600);}focusCardId=null;}
+      markWords();
+      panelSignature=cardSignature(shown);
+      if(activeKind==='word')healWordCards(shown);else healExpressionCards(shown);
+    }
+    // 面板按「状态」对账：只要存储里已经有新结果，最多 2 秒内一定会显示出来，
+    // 不依赖某一次回调是否成功渲染；查得慢时同时刷新等待秒数。
+    var panelSignature=null;
+    function cardSignature(list){
+      return JSON.stringify((list||[]).map(function(card){return [card.id,card.term,card.translation,card.gloss,card.phonetic,card.meaning,card.lookupFailed?1:0];}));
+    }
+    function panelNeedsRepaint(list){
+      if(cardSignature(list)!==panelSignature)return true;
+      return (list||[]).some(function(card){return card&&wordLookupStarted[card.id]&&Date.now()-wordLookupStarted[card.id]>=8000;});
+    }
+    setInterval(function(){
+      if(!q('#captureTabPanel'))return;
+      var list=cards().filter(function(card){return card.type===activeKind;});
+      if(panelNeedsRepaint(list))render();
+    },2000);
+    function countWords(text){var words=text.match(/[A-Za-z]+(?:[’'-][A-Za-z]+)*/g);return words?words.length:Math.max(1,text.trim().split(/\s+/).length);}
+    function hideClassifier(){qa('.classify-menu').forEach(function(item){item.remove();});if(selectionMenu)selectionMenu.remove();selectionMenu=null;var old=q('#selmenu');if(old)old.classList.remove('show');}
+    function classify(text,rect){hideClassifier();var amount=countWords(text),suggested=(amount>=9||/[.!?。！？][”’']?$/.test(text.trim()))?'sentence':'phrase';selectionMenu=document.createElement('div');selectionMenu.className='reader-classify-menu';selectionMenu.innerHTML='<div class="summary">已划选 '+amount+' 个词 · 推荐归为'+label(suggested)+'</div><p class="quoted">“'+escapeHtml(text)+'”</p><div class="reader-classify-actions"><button class="reader-classify-choice '+(suggested==='phrase'?'recommended':'')+'" type="button" data-kind="phrase">收为短语'+(suggested==='phrase'?'<small>推荐，但由你决定</small>':'<small>自行选择</small>')+'</button><button class="reader-classify-choice '+(suggested==='sentence'?'recommended':'')+'" type="button" data-kind="sentence">收为句子'+(suggested==='sentence'?'<small>推荐，但由你决定</small>':'<small>自行选择</small>')+'</button></div><button class="reader-classify-cancel" type="button" data-cancel>暂不收藏</button>';selectionMenu.style.left=Math.max(12,Math.min(innerWidth-352,rect.left+rect.width/2-165))+'px';selectionMenu.style.top=Math.max(12,rect.top-164)+'px';document.body.appendChild(selectionMenu);qa('[data-kind]',selectionMenu).forEach(function(button){button.onmousedown=function(event){event.preventDefault();};button.onclick=function(){var kind=button.dataset.kind;addCard(kind,text,kind==='phrase'?'自选短语 · '+amount+' 词':'自选句子 · '+amount+' 词',text);var current=read(),card=(current.cards||[]).find(function(item){return item&&item.type===kind&&String(item.term||'').trim().toLowerCase()===text.trim().toLowerCase();});if(card)enrichExpression(card);window.getSelection().removeAllRanges();hideClassifier();};});q('[data-cancel]',selectionMenu).onclick=function(){window.getSelection().removeAllRanges();hideClassifier();};}
+    document.addEventListener('click',function(event){var word=event.target.closest&&event.target.closest('#paper .word');if(!word)return;var sel=window.getSelection(),selected=sel?sel.toString().trim():'';if(selected&&sel&&sel.removeAllRanges)sel.removeAllRanges();event.preventDefault();event.stopImmediatePropagation();var term=word.textContent.trim(),context=(word.closest('.para')||{}).textContent||'当前阅读段落';addCard('word',term,wordDetail(term).translation,context);word.classList.add('word-flash');setTimeout(function(){word.classList.remove('word-flash');},1300);},true);
+    document.addEventListener('mouseup',function(){setTimeout(function(){var selection=window.getSelection(),text=selection?selection.toString().trim():'',range=selection&&selection.rangeCount?selection.getRangeAt(0):null,paper=q('#paper');if(!text||!range||!paper||!paper.contains(range.commonAncestorContainer)){hideClassifier();return;}var rect=range.getBoundingClientRect();if(rect.width||rect.height)classify(text,rect);},0);});
+    document.addEventListener('mousedown',function(event){if(selectionMenu&&!selectionMenu.contains(event.target))hideClassifier();},true);
+    makeWordsClickable();buildSide();
+    // 翻页/换页会重排 #paper，重排后立刻重新标记已收藏词汇，不需要再点一次才高亮。
+    var paperEl=q('#paper');
+    if(paperEl&&window.MutationObserver)new MutationObserver(function(){markWords();}).observe(paperEl,{childList:true});
+  });
+})();
+</script>
+<script type="scribe/boot">
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var key='scribe-local-v1',recovering={},reorderMode=false,savingOrder=false;
+    var style=document.createElement('style');
+    style.textContent='.source-reader-paper{max-width:none!important;padding:0!important;overflow:hidden;background:#f6f8fb!important}.source-reader-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 24px 16px;background:#fff;border-bottom:1px solid #e0e7f0}.source-reader-head h1{margin:4px 0 0;font:700 25px/1.25 Georgia,"Noto Serif SC",serif;color:var(--ink)}.source-reader-head p{margin:5px 0 0;color:var(--muted);font-size:13px}.source-page-count{flex:none;padding:8px 11px;border-radius:999px;background:#edf3ff;color:#4261b2;font-size:13px;font-weight:750}.source-viewer{display:grid;grid-template-columns:1fr;min-height:460px;padding:20px}.source-page-stage{display:grid;place-items:center;min-height:440px;padding:16px;border:1px solid #dce4ee;border-radius:12px;background:repeating-conic-gradient(#f6f8fb 0% 25%,#f0f3f7 0% 50%) 50%/22px 22px}.source-page-stage img{display:block;max-width:100%;max-height:min(73vh,900px);height:auto;border-radius:3px;background:#fff;box-shadow:0 10px 30px #17243e20}.source-file-fallback{max-width:430px;padding:30px;text-align:center;color:var(--muted);background:#fff;border-radius:10px}.source-file-fallback b{display:block;margin-bottom:7px;color:var(--ink);font:20px Georgia,"Noto Serif SC",serif}.source-file-fallback a{display:inline-block;margin-top:12px;color:#4668c5;font-weight:750}.source-page-tools{display:flex;align-items:center;justify-content:center;gap:11px;padding:15px 0 6px}.source-page-tools-top{padding:0 0 14px;margin-bottom:14px;border-bottom:1px solid #e4eaf2}.source-page-tools button{min-width:88px}.source-page-tools button:disabled{opacity:.42;cursor:not-allowed}.source-page-position{min-width:88px;text-align:center;color:var(--ink);font-size:14px;font-weight:750}.source-thumbs{display:flex;gap:9px;overflow-x:auto;padding:14px 1px 1px}.source-thumb-wrap{flex:0 0 66px}.source-thumb{width:100%}.thumb-move{display:flex;gap:3px;margin-top:3px}.thumb-move button{flex:1;border:1px solid #c9d4e6;border-radius:5px;background:#fff;color:#4664b7;font-size:11px;padding:2px 0;cursor:pointer}.thumb-move button:disabled{opacity:.35;cursor:not-allowed}.source-thumb-move-on .source-thumb{border-style:dashed}.source-thumb{flex:0 0 66px;height:86px;padding:3px;border:1px solid #d5deeb;border-radius:7px;background:#fff;color:#687993;font-size:11px;overflow:hidden}.source-thumb.active{border:2px solid #5878d1;color:#3156ae;background:#f2f5ff}.source-thumb img{display:block;width:100%;height:58px;object-fit:cover;margin-bottom:3px}.source-unavailable{display:grid;place-items:center;min-height:440px;padding:32px;text-align:center;background:#fff}.source-unavailable h2{margin:0 0 8px;font:24px Georgia,"Noto Serif SC",serif;color:var(--ink)}.source-unavailable p{max-width:460px;margin:0;color:var(--muted);line-height:1.7}.source-unavailable .button{margin-top:16px}@media(max-width:760px){.source-reader-head{padding:18px}.source-reader-head h1{font-size:21px}.source-viewer{padding:12px}.source-page-stage{min-height:330px;padding:8px}.source-page-tools{gap:7px}.source-page-tools button{min-width:74px;padding-left:8px;padding-right:8px}.source-thumbs{gap:7px}.source-thumb{flex-basis:55px;height:72px}.source-thumb img{height:47px}}';
+    document.head.appendChild(style);
+    var interactiveStyle=document.createElement('style');interactiveStyle.textContent='.source-page-stage{display:block!important;min-height:0!important;background:#f6f8fb!important}.source-content{display:grid;gap:14px;width:100%;max-width:1320px;margin:0 auto}.reader-main:has(.source-reader-paper){padding-left:max(3vw,20px);padding-right:max(3vw,20px)}.source-reading-text{width:100%;padding:clamp(20px,2.6vw,52px);background:#fff;color:#253047;border:1px solid #e3e8ef;border-radius:9px;box-shadow:0 10px 30px #17243e0a;font:clamp(19px,1.6vw,24px)/1.85 Georgia,"Noto Serif SC",serif;white-space:normal;overflow-wrap:anywhere}.source-reading-text .para{margin:0 0 1.15em}.source-reading-text .para:last-child{margin-bottom:0}.source-reading-text .word{cursor:pointer;border-radius:3px}.source-reading-text .word:hover{background:#edf3ff}.source-reading-text .word.captured{background:#dce8ff;box-shadow:inset 0 -2px #5b79ce}.src-para{margin:0 0 clamp(18px,2.2vw,30px)}.src-para:last-child{margin-bottom:0}.src-para .para{margin:0}.src-para .para+.src-trans-btn{margin-top:9px}.src-trans-btn{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid #dbe3f1;border-radius:99px;background:#f7f9fe;color:#4c5f8c;font:650 12px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;letter-spacing:.01em}.src-trans-btn:hover{border-color:#9fb3ea;background:#eef3ff;color:#35509c}.src-trans{display:none;margin:9px 0 0;padding:12px 15px;background:#f7f9fd;border-left:2px solid #9fb3ea;border-radius:0 9px 9px 0;color:#3c4a63;font:15px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}.src-trans.show{display:block}.source-trans-note{padding:10px 14px;border:1px solid #dbe4f4;border-radius:9px;background:#f5f8ff;color:#4c5f8c;font:13px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}.source-trans-note.failed{border-color:#eed7cb;background:#fff7f3;color:#8a4a35}.source-no-text{color:#687993;font:16px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}.source-original{overflow:hidden;border:1px solid #dce4ee;border-radius:10px;background:#fff}.source-original summary{padding:12px 16px;color:#52617b;font-size:13px;font-weight:700;cursor:pointer}.source-original-stage{display:grid;place-items:center;padding:16px;border-top:1px solid #e4eaf2}.source-original-stage img{display:block;max-width:100%;max-height:min(73vh,900px);height:auto;box-shadow:0 10px 30px #17243e20}.source-original-stage .source-file-fallback{max-width:100%}.reader-top .button,.reader-top .modes button,.reader-top .reader-font-ctl .button{white-space:nowrap}.reader-top .chapter{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media(max-width:900px){.reader-top{flex-wrap:wrap;row-gap:8px;padding:10px 14px}.reader-top .chapter,.reader-top .readprog{display:none}.reader-top .back{margin-right:auto}}';document.head.appendChild(interactiveStyle);
+    function q(selector,root){return (root||document).querySelector(selector);}
+    function escapeHtml(value){return String(value||'').replace(/[&<>'"]/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];});}
+    var originalPaper=q('#paper'),originalNodes=document.createDocumentFragment(),sourcePaperActive=false;
+    var originalChapter=q('#reader .chapter')?.textContent||'',originalProgress=q('#reader .readprog small')?.textContent||'',originalBar=q('#reader .readprog i')?.style.width||'';
+    function restoreOriginalReader(){
+      if(!sourcePaperActive)return;
+      var paper=q('#paper');paper.replaceChildren(originalNodes);paper.classList.remove('source-reader-paper');sourcePaperActive=false;
+      var chapter=q('#reader .chapter'),progress=q('#reader .readprog small'),bar=q('#reader .readprog i');
+      if(chapter)chapter.textContent=originalChapter;if(progress)progress.textContent=originalProgress;if(bar)bar.style.width=originalBar;
+      updateAppendButton(null);
+    }
+    function preserveOriginalReader(){
+      if(sourcePaperActive)return;
+      var paper=q('#paper');while(paper.firstChild)originalNodes.appendChild(paper.firstChild);sourcePaperActive=true;
+    }
+    function read(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(error){return {};}}
+    var storageWarning='';
+    function write(value){try{localStorage.setItem(key,JSON.stringify(value));}
+      catch(error){storageWarning='本机存储空间不足，这次的阅读进度可能没有保存下来。';console.warn('[scribe] 本地写入失败：'+(error&&error.message||error));}}
+    function isImage(page){return /^image\//.test(String(page.type||''))||/\.(jpe?g|png|heic|heif)$/i.test(String(page.name||''));}
+    function sourceDocument(id){var state=read(),docs=Array.isArray(state.docs)?state.docs:[];return docs.find(function(document){return document.id===id&&Array.isArray(document.sourcePages)&&document.sourcePages.length;})||null;}
+    function activeSourceDocument(){var state=read();return sourceDocument(state.activeDocId);}
+    function setActive(document){var state=read();state.activeDocId=document.id;write(state);}
+    function setDocumentPages(id,saved){var state=read(),document=(state.docs||[]).find(function(item){return item.id===id;});if(!document)return null;document.serverDocumentId=saved.id;document.sourcePages=saved.pages||[];document.pages=(saved.pages||[]).length;document.lastPage=0;write(state);return document;}
+    function updateProgress(document,index){var state=read(),entry=(state.docs||[]).find(function(item){return item.id===document.id;});if(!entry)return;entry.lastPage=index;entry.progress=Math.max(Number(entry.progress)||0,Math.round((index+1)/Math.max(1,entry.sourcePages.length)*100));state.activeDocId=entry.id;write(state);}
+    // 续传：阅读云端文献时可随时补拍书页，新批次识别完成后并入本书末尾（见 runCloudRecognition / import-queue.js）。
+    var appendButton=null;
+    function updateAppendButton(doc){
+      var top=q('.reader-top');if(!top)return;
+      if(!appendButton){
+        appendButton=document.createElement('button');
+        appendButton.className='button secondary small';appendButton.id='appendPages';appendButton.type='button';appendButton.textContent='＋ 添加页面';
+        var modes=q('.modes',top);top.insertBefore(appendButton,modes||null);
+        appendButton.onclick=function(){
+          var current=activeSourceDocument();
+          if(!current||!current.cloudSessionId)return;
+          sessionStorage.setItem('scribe-append-into',JSON.stringify({sessionId:current.cloudSessionId,title:current.title}));
+          var nav=document.querySelector('.nav button[data-view="upload"]');if(nav)nav.click();
+        };
+      }
+      appendButton.style.display=doc&&doc.cloudSessionId?'':'none';
+    }
+    // 阅读区调序：最后一重纠错。本地立即生效；云端文献必须把新顺序写回服务端——
+    // 书库同步会以服务端 queue_order 重建页序，只改本地会被下一次同步覆盖。
+    async function movePage(doc,from,delta){
+      if(savingOrder)return;
+      var current=(doc.sourcePages||[]).slice().sort(function(left,right){return (left.order||0)-(right.order||0);});
+      var to=from+delta;
+      if(to<0||to>=current.length)return;
+      var moved=current[from];current[from]=current[to];current[to]=moved;
+      var state=read(),entry=(state.docs||[]).find(function(item){return item.id===doc.id;});
+      if(!entry)return;
+      var previous=entry.sourcePages;
+      entry.sourcePages=current.map(function(page,position){return Object.assign({},page,{order:position+1});});
+      write(state);
+      if(doc.cloudSessionId){
+        savingOrder=true;
+        try{
+          var client=window.__scribeCloud;
+          if(!client)throw new Error('云端组件尚未加载，请刷新后重试。');
+          await client.callFunction('scribe-mobile-upload',{action:'reorder',sessionId:doc.cloudSessionId,order:current.map(function(page){return page.sourceFileId;}),libraryKey:localStorage.getItem('scribe-library-key')});
+        }catch(error){
+          var fresh=read(),target=(fresh.docs||[]).find(function(item){return item.id===doc.id;});
+          if(target){target.sourcePages=previous;write(fresh);}
+          savingOrder=false;
+          var message=String(error&&error.message||'');
+          if(/不支持的操作|已失效|通道/.test(message)){console.warn('[scribe] 调序接口返回：'+message);message='云端服务暂时不可用，请刷新页面后重试。';}
+          window.alert('页面顺序未能保存到云端：'+message);
+          renderSourceReader(doc.id);return;
+        }
+        savingOrder=false;
+      }
+      var newIndex=current.findIndex(function(page){return page.id===moved.id;});
+      updateProgress(doc,newIndex<0?to:newIndex);
+      renderSourceReader(doc.id);
+    }
+    async function recoverSourceDocument(document){
+      if(recovering[document.id]||document.serverDocumentId||!document.sourcePages.length)return;
+      recovering[document.id]=true;
+      try{
+        var names=document.sourcePages.map(function(page){return page.name;}),query='?count='+encodeURIComponent(document.sourcePages.length)+'&names='+encodeURIComponent(JSON.stringify(names));
+        var response=await fetch('/api/mobile-links/recover'+query),session=await response.json();
+        if(!response.ok)throw new Error(session.error||'未找到可恢复的原页。');
+        response=await fetch('/api/mobile-links/'+session.id+'/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({names:names})});var saved=await response.json();
+        if(!response.ok)throw new Error(saved.error||'原页恢复失败。');
+        var restored=setDocumentPages(document.id,saved);if(restored&&read().activeDocId===restored.id)renderSourceReader(restored.id);
+      }catch(error){
+        var note=q('#sourceRestoreMessage');if(note)note.textContent='未能自动找回原图。书库记录和学习卡仍在；请保留原始图片，以便继续恢复。';
+      }finally{delete recovering[document.id];}
+    }
+    function renderSourceReader(id,indexOverride){
+      var document=id?sourceDocument(id):activeSourceDocument();if(!document){restoreOriginalReader();return;}
+      var paper=q('#paper');if(!paper)return;
+      var pages=(document.sourcePages||[]).slice().sort(function(left,right){return (left.order||0)-(right.order||0);});
+      if(!pages.length){restoreOriginalReader();return;}
+      var requested=Number.isFinite(indexOverride)?indexOverride:(Number(document.lastPage)||0),index=Math.max(0,Math.min(requested,pages.length-1)),page=pages[index];
+      var availableCount=pages.filter(function(item){return item.url;}).length,hasPageUrl=availableCount>0;
+      var refreshingDocs={},pageRefreshAttempts={},URL_TTL_MS=45*60*1000;
+      function pageUrlStale(page){if(!page.cloud)return false;if(!page.url)return true;return !page.urlAt||Date.now()-Number(page.urlAt)>URL_TTL_MS;}
+      function showPageFallback(stage,page){
+        if(!stage)return;
+        stage.innerHTML='<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>原页链接暂时取不到；正文与译文仍可正常阅读，稍后可再试。</span><a href="'+escapeHtml(page.url||'#')+'" target="_blank" rel="noopener">尝试打开原页</a></div>';
+      }
+      // 云端原页用的是限时签名地址，会过期；续传并入的页面也可能还没有地址。
+      // 这里按书库凭证重新签发，并把新地址写回本地文档后再渲染，避免“图片全没了”的假象。
+      async function refreshPageUrls(document,fileId){
+        if(!document||!document.cloudSessionId||refreshingDocs[document.id])return false;
+        var client=window.__scribeCloud,libraryKey=localStorage.getItem('scribe-library-key');
+        if(!client||!libraryKey)return false;
+        refreshingDocs[document.id]=true;
+        try{
+          var result=await client.callFunction('scribe-mobile-upload',{action:'pages',sessionId:document.cloudSessionId,libraryKey:libraryKey,fileId:fileId});
+          var files=Array.isArray(result.files)?result.files:[];
+          if(!files.length)return false;
+          var urlById={};
+          files.forEach(function(file){if(file&&file.id&&file.url)urlById[file.id]=file.url;});
+          var state=read(),entry=(state.docs||[]).find(function(item){return item.id===document.id;});
+          if(!entry||!Array.isArray(entry.sourcePages))return false;
+          var changed=false;
+          entry.sourcePages.forEach(function(page){
+            var url=urlById[page.sourceFileId];
+            if(url&&url!==page.url){page.url=url;page.urlAt=Date.now();changed=true;}
+          });
+          if(changed){write(state);if(read().activeDocId===document.id)renderSourceReader(document.id);}
+          return changed;
+        }catch(error){
+          console.warn('[scribe] 重签原页地址失败：'+(error&&error.message||error));
+          return false;
+        }finally{delete refreshingDocs[document.id];}
+      }
+      function handlePageImageError(image,page,document){
+        var stage=image.parentNode,key=page.id+'@'+(page.url||'');
+        if(!pageRefreshAttempts[key]){
+          pageRefreshAttempts[key]=true;
+          refreshPageUrls(document,page.sourceFileId).then(function(changed){if(!changed)showPageFallback(stage,page);});
+          return;
+        }
+        showPageFallback(stage,page);
+      }
+      preserveOriginalReader();
+      paper.classList.add('source-reader-paper');
+      var chapter=q('#reader .chapter');if(chapter)chapter.textContent='手机扫描文献 · '+document.title;
+      updateAppendButton(document);
+      var progress=q('#reader .readprog small'),bar=q('#reader .readprog i'),percent=Math.round((index+1)/pages.length*100);if(progress)progress.textContent='阅读进度 '+percent+'%';if(bar)bar.style.width=percent+'%';
+      if(!hasPageUrl){
+        if(document.cloudSessionId&&!refreshingDocs[document.id]){
+          paper.innerHTML='<section class="source-unavailable"><div><div class="eyebrow">正在获取原页</div><h2>正在重新获取这 '+pages.length+' 页的原页链接</h2><p>原页用的是限时地址，过期后会自动重签；已经识别好的正文与译文不受影响。</p></div></section>';
+          refreshPageUrls(document).then(function(changed){if(changed)renderSourceReader(document.id);});
+          return;
+        }
+        paper.innerHTML='<section class="source-unavailable"><div><div class="eyebrow">正在恢复原页</div><h2>正在寻找这 '+pages.length+' 页扫描件</h2><p id="sourceRestoreMessage">旧版本只保存了页数。若扫码通道仍有效，系统会自动把这批原页补回文献中。</p></div></section>';
+        recoverSourceDocument(document);return;
+      }
+      function splitParagraphs(value){return String(value||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/\r\n?/g,'\n').split(/\n[ \t]*\n+/).map(function(paragraph){return paragraph.replace(/[ \t]*\n[ \t]*/g,' ').replace(/[ \t]{2,}/g,' ').trim();}).filter(Boolean);}
+      function paragraphsOf(page){
+        var list=[];
+        (Array.isArray(page.paragraphs)?page.paragraphs:[]).forEach(function(item){var text=String(item&&item.text||'').trim();if(text)list.push({text:text,translation:String(item&&item.translation||'').trim()});});
+        if(list.length)return list;
+        return splitParagraphs(page.text).map(function(text){return {text:text,translation:''};});
+      }
+      function interactiveParagraph(text){return escapeHtml(text).replace(/[A-Za-z]+(?:[’'-][A-Za-z]+)*/g,function(word){return '<span class="word capture-word" title="点击查看音标与语境释义">'+word+'</span>';});}
+      // 每段一个折叠标志：默认点击展开译文，与顶部「英文 / 点击译文 / 中英对照」三种模式共用同一套样式。
+      function paragraphBlock(paragraph,index){
+        var id='srcTrans'+index,translation=paragraph.translation;
+        return '<div class="src-para"><p class="para">'+interactiveParagraph(paragraph.text)+'</p>'+(translation?'<button class="trans-btn src-trans-btn" type="button" data-src-trans="'+id+'" aria-expanded="false">⌄ 显示译文</button><div class="trans src-trans" id="'+id+'">'+escapeHtml(translation)+'</div>':'')+'</div>';
+      }
+      function savePageParagraphs(documentId,pageId,paragraphs){var state=read(),entry=(state.docs||[]).find(function(item){return item.id===documentId;});if(!entry||!Array.isArray(entry.sourcePages))return;var target=entry.sourcePages.find(function(item){return item.id===pageId;});if(!target)return;target.paragraphs=paragraphs;write(state);}
+      var translatingPages={};
+      // 识别阶段未能生成译文的页面（旧文献、翻译失败、断网），在打开这一页时自动补齐，用户不需要手动触发。
+      async function ensurePageTranslation(document,page){
+        var note=q('#sourceTransNote');
+        if(!page||!page.sourceFileId||translatingPages[page.id])return;
+        var libraryKey=localStorage.getItem('scribe-library-key'),client=window.__scribeCloud;
+        if(!libraryKey||!client){if(note)note.textContent='这一页还没有中文译文。连接云端书库后，打开页面会自动补齐。';return;}
+        translatingPages[page.id]=true;
+        try{
+          var result=await client.callFunction('scribe-study',{action:'translate',libraryKey:libraryKey,fileId:page.sourceFileId});
+          var paragraphs=Array.isArray(result.paragraphs)?result.paragraphs:[];
+          if(!paragraphs.length)throw new Error(result.error||'译文生成失败，请稍后重试。');
+          savePageParagraphs(document.id,page.id,paragraphs);
+          // 成功后就保留占位标记：这一页在本次会话里不再重复请求，避免重复消耗额度。
+          if(read().activeDocId===document.id)renderSourceReader(document.id);
+          return;
+        }catch(error){
+          if(note){note.classList.add('failed');note.textContent='这一页的译文暂时没有生成：'+(error.message||'请稍后重试。');}
+        }
+        delete translatingPages[page.id];
+      }
+      var original=!page.url?'<div class="source-file-fallback"><b>第 '+(index+1)+' 页原件暂缺</b><span>'+escapeHtml(page.name)+' 尚未在本机找到；其他已恢复页面可以继续阅读。</span></div>':isImage(page)?'<img src="'+escapeHtml(page.url)+'" alt="第 '+(index+1)+' 页：'+escapeHtml(page.name)+'" id="sourcePageImage">':'<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>可提取文本已整理；如需核对版式，可打开原文件。</span><a href="'+escapeHtml(page.url)+'" target="_blank" rel="noopener">打开原文件</a></div>';
+      var paragraphs=paragraphsOf(page),hasTranslation=paragraphs.some(function(item){return Boolean(item.translation);}),needsTranslation=paragraphs.length>0&&!hasTranslation;
+      var reading=paragraphs.length?paragraphs.map(paragraphBlock).join(''):'<p class="para source-no-text">暂未能从这一页识别出正文文字。原文件仍已保留，可展开查看原始页面。</p>';
+      var transNote=needsTranslation?'<div class="source-trans-note" id="sourceTransNote">正在生成这一页的逐段中文译文…</div>':'';
+      if(storageWarning)transNote='<div class="source-trans-note failed">'+escapeHtml(storageWarning)+'</div>'+transNote;
+      var body='<section class="source-content">'+transNote+'<div class="source-reading-text">'+reading+'</div><details class="source-original"><summary>查看原始页面 · '+escapeHtml(page.name)+'</summary><div class="source-original-stage">'+original+'</div></details></section>';
+      var thumbs=pages.map(function(item,position){
+        var thumb='<button type="button" class="source-thumb '+(position===index?'active':'')+'" data-source-page="'+position+'" aria-label="查看第 '+(position+1)+' 页">'+(!item.url?'待补':isImage(item)?'<img src="'+escapeHtml(item.url)+'" alt="">':'▤')+'<span>'+ (position+1)+'</span></button>';
+        if(!reorderMode)return thumb;
+        return '<span class="source-thumb-wrap">'+thumb+'<span class="thumb-move"><button type="button" data-move-page="'+position+'" data-delta="-1" aria-label="前移一页"'+(position===0?' disabled':'')+'>◀</button><button type="button" data-move-page="'+position+'" data-delta="1" aria-label="后移一页"'+(position===pages.length-1?' disabled':'')+'>▶</button></span></span>';
+      }).join('');
+      var pager='<button class="button secondary small" type="button" data-source-prev '+(index===0?'disabled':'')+'>← 上一页</button><span class="source-page-position">第 '+(index+1)+' / '+pages.length+' 页</span><button class="button secondary small" type="button" data-source-next '+(index===pages.length-1?'disabled':'')+'>下一页 →</button>';
+      paper.innerHTML='<section class="source-reader"><header class="source-reader-head"><div><div class="eyebrow">互动精读文本</div><h1>'+escapeHtml(document.title)+'</h1><p>已按上传顺序整理 '+pages.length+' 页；每段左下角可展开该段中文译文，点击英文单词查看音标与语境释义。'+(page.confidence?' 本页识别置信度 '+Math.round(page.confidence*100)+'%。':'')+(page.error?' '+escapeHtml(page.error):'')+'</p></div><span class="source-page-count">共 '+pages.length+' 页</span></header><div class="source-viewer"><div class="source-page-tools source-page-tools-top">'+pager+'</div><div class="source-page-stage">'+body+'</div><div class="source-page-tools">'+pager+'<button class="button secondary small" type="button" data-source-reorder>'+(reorderMode?'完成调序':'调整顺序')+'</button></div><div class="source-thumbs" aria-label="页面缩略图">'+thumbs+'</div></div></section>';
+      function goPage(next){
+        var target=Math.max(0,Math.min(next,pages.length-1));
+        updateProgress(document,target);
+        // 翻页后回到页面顶端；滚动位置记忆只用于「离开后回来」的场景，翻页不恢复旧位置。
+        window.__scribeReaderTurnAt=Date.now();
+        renderSourceReader(document.id,target);
+        window.scrollTo({top:0});
+      }
+      Array.prototype.forEach.call(paper.querySelectorAll('[data-source-page]'),function(button){button.onclick=function(){goPage(Number(button.dataset.sourcePage));};});
+      Array.prototype.forEach.call(paper.querySelectorAll('[data-src-trans]'),function(button){button.onclick=function(){var target=q('#'+button.dataset.srcTrans,paper);if(!target)return;var open=target.classList.toggle('show');button.textContent=open?'⌃ 收起译文':'⌄ 显示译文';button.setAttribute('aria-expanded',open?'true':'false');};});
+      Array.prototype.forEach.call(paper.querySelectorAll('[data-source-prev]'),function(button){button.onclick=function(){goPage(index-1);};});
+      Array.prototype.forEach.call(paper.querySelectorAll('[data-source-next]'),function(button){button.onclick=function(){goPage(index+1);};});
+      var reorderToggle=q('[data-source-reorder]',paper);if(reorderToggle)reorderToggle.onclick=function(){reorderMode=!reorderMode;renderSourceReader(document.id);};
+      Array.prototype.forEach.call(paper.querySelectorAll('[data-move-page]'),function(button){button.onclick=function(event){event.preventDefault();event.stopPropagation();movePage(document,Number(button.dataset.movePage),Number(button.dataset.delta));};});
+      var image=q('#sourcePageImage',paper);if(image)image.onerror=function(){handlePageImageError(image,page,document);};
+      // 打开这一页时如果地址缺失或已经接近过期，先补一次，用户不需要手动刷新。
+      if(document.cloudSessionId&&pages.some(pageUrlStale))refreshPageUrls(document);
+      if(needsTranslation)ensurePageTranslation(document,page);
+    }
+    document.addEventListener('click',function(event){
+      var target=event.target&&event.target.closest?event.target.closest('#books .open'):null;if(!target)return;
+      var book=target.closest('.book'),title=book&&q('h3',book)?q('h3',book).textContent.trim():'';
+      var state=read(),document=(state.docs||[]).find(function(item){return item.title===title;});
+      if(document){setActive(document);setTimeout(function(){renderSourceReader(document.id);},0);}
+    },true);
+    document.addEventListener('click',function(event){
+      var target=event.target&&event.target.closest?event.target.closest('[data-view="reader"], [data-go="reader"]'):null;
+      if(target)setTimeout(function(){renderSourceReader();},0);
+    },true);
+    renderSourceReader();
+  });
+})();
+</script>
+<style>
+.books[hidden]{display:none!important}
+.book-actions{display:flex;align-items:center;gap:12px}
+.book-delete{border:0;background:transparent;color:#8b5260;cursor:pointer;font:inherit;font-size:14px;padding:8px 4px}
+.book-delete:hover,.book-delete:focus-visible{color:#ba344d;text-decoration:underline}
+.deleted-books{margin-top:28px}
+.deleted-toolbar[hidden]{display:none!important}
+.deleted-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:26px;flex-wrap:wrap}
+.deleted-toolbar p{margin:0;color:#60708b;font-size:14px}
+.empty-trash{border:1px solid #d5a6ae;background:#fff;color:#a63349;border-radius:12px;padding:10px 16px;font:inherit;cursor:pointer}
+.empty-trash:hover:not(:disabled),.empty-trash:focus-visible:not(:disabled){background:#fff0f2}
+.empty-trash:disabled{opacity:.5;cursor:not-allowed}
+.deleted-empty{padding:52px 24px;text-align:center;color:#60708b;background:#fff;border:1px solid #dce4f2;border-radius:20px}
+.deleted-empty h3{margin:0 0 8px;color:#1d2941}
+.deleted-book{padding:24px;min-height:190px;display:flex;flex-direction:column;justify-content:space-between}
+.deleted-book h3{margin:8px 0;color:#1d2941;overflow-wrap:anywhere}
+.deleted-book p{margin:0;color:#60708b}
+.deleted-book .book-foot{margin-top:20px}
+</style>
+<script type="scribe/boot">
+(function(){
+  'use strict';
+  var key='scribe-local-v1',returnKey='scribe-library-return',messageKey='scribe-trash-message',retentionMs=30*24*60*60*1000;
+  function read(){try{var value=JSON.parse(localStorage.getItem(key)||'{}');return value&&typeof value==='object'?value:{};}catch(error){return {};}}
+  function save(value){localStorage.setItem(key,JSON.stringify(value));}
+  function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(character){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];});}
+  function deletedKey(doc){return String(doc.id)+'|'+String(doc.deletedAt);}
+  function deletedAt(doc){return Date.parse(doc.deletedAt);}
+  function expiryLabel(doc){var time=deletedAt(doc);return Number.isFinite(time)?new Date(time+retentionMs).toLocaleString('zh-CN',{year:'numeric',month:'long',day:'numeric'}):'30 天后';}
+  function boot(){
+    var list=document.getElementById('books'),filters=document.querySelector('#library .filters');
+    if(!list||!filters)return;
+    var trashButton=document.createElement('button');trashButton.type='button';trashButton.className='pill';trashButton.id='deletedBooksTab';
+    var trashToolbar=document.createElement('div');trashToolbar.className='deleted-toolbar';trashToolbar.hidden=true;
+    trashToolbar.innerHTML='<p>删除后保留 30 天，过期自动永久清理。</p><button type="button" class="empty-trash" id="emptyDeletedBooks">清空最近删除</button>';
+    var clearButton=trashToolbar.querySelector('button');
+    var trash=document.createElement('div');trash.id='deletedBooks';trash.className='books deleted-books';trash.hidden=true;
+    list.insertAdjacentElement('afterend',trashToolbar);trashToolbar.insertAdjacentElement('afterend',trash);
+    var spacer=filters.querySelector('span[style]');filters.insertBefore(trashButton,spacer||null);
+    function updateCount(){var deleted=read().deletedDocs;trashButton.textContent='最近删除 '+(Array.isArray(deleted)?deleted.length:0);}
+    function visibleDocs(){var state=read(),docs=Array.isArray(state.docs)?state.docs:[];return docs.filter(function(item){return !state.filter||state.filter==='all'||item.status===state.filter;});}
+    function currentView(){var active=document.querySelector('.view.active');return active&&active.id==='library'?(trash.hidden?'books':'trash'):'view:'+(active?active.id:'dashboard');}
+    function reloadAt(view,message){sessionStorage.setItem(returnKey,view);if(message)sessionStorage.setItem(messageKey,message);window.location.reload();}
+    function migrateUndated(){
+      var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[],changed=false,now=new Date().toISOString();
+      deleted.forEach(function(doc){if(!Number.isFinite(deletedAt(doc))){doc.deletedAt=now;changed=true;}});
+      if(changed){state.deletedDocs=deleted;save(state);reloadAt(currentView());}
+      return changed;
+    }
+    var purging=false;
+    async function purgeDeleted(shouldPurge){
+      if(purging)return;
+      var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[],targets=deleted.filter(shouldPurge);
+      if(!targets.length)return;
+      purging=true;clearButton.disabled=true;
+      var keys=new Set(targets.map(deletedKey)),remaining=deleted.filter(function(doc){return !keys.has(deletedKey(doc));});
+      var referenced=new Set((Array.isArray(state.docs)?state.docs:[]).concat(remaining).map(function(doc){return doc.serverDocumentId;}).filter(Boolean));
+      var remoteIds=new Set(targets.map(function(doc){return doc.serverDocumentId;}).filter(function(id){return id&&!referenced.has(id);}));
+      var failed=new Set();
+      for(var id of remoteIds){
+        try{
+          var response=await fetch('/api/documents/'+encodeURIComponent(id),{method:'DELETE'});
+          if(!response.ok&&response.status!==404)failed.add(id);
+        }catch(error){failed.add(id);}
+      }
+      var removed=new Set(targets.filter(function(doc){return !doc.serverDocumentId||!failed.has(doc.serverDocumentId);}).map(deletedKey));
+      if(removed.size){
+        var fresh=read();fresh.deletedDocs=(Array.isArray(fresh.deletedDocs)?fresh.deletedDocs:[]).filter(function(doc){return !removed.has(deletedKey(doc));});save(fresh);
+        reloadAt(currentView(),failed.size?'部分原页未能清理，相关文献仍保留在最近删除中。':'');
+      }else if(failed.size){
+        clearButton.disabled=false;purging=false;window.alert('原页清理失败，文献仍保留在最近删除中。请稍后重试。');
+      }
+    }
+    function purgeExpired(){var now=Date.now();return purgeDeleted(function(doc){var time=deletedAt(doc);return Number.isFinite(time)&&time+retentionMs<=now;});}
+    function decorateBooks(){
+      var docs=visibleDocs();
+      Array.prototype.forEach.call(list.querySelectorAll('.book'),function(book,index){
+        var foot=book.querySelector('.book-foot'),open=foot&&foot.querySelector('.open'),doc=docs[index];
+        if(!foot||!open||!doc||foot.querySelector('.book-delete'))return;
+        var actions=document.createElement('div');actions.className='book-actions';
+        var button=document.createElement('button');button.type='button';button.className='book-delete';button.textContent='删除';
+        button.setAttribute('aria-label','删除《'+doc.title+'》');button.dataset.docId=String(doc.id);
+        actions.appendChild(button);actions.appendChild(open);foot.appendChild(actions);
+      });
+    }
+    function showTrash(){
+      var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[];
+      updateCount();list.hidden=true;trash.hidden=false;trashToolbar.hidden=false;clearButton.disabled=!deleted.length||purging;
+      Array.prototype.forEach.call(filters.querySelectorAll('button[data-filter]'),function(button){button.classList.remove('active');});
+      trashButton.classList.add('active');
+      trash.innerHTML=deleted.length?deleted.map(function(doc){return '<article class="card deleted-book"><div><div class="eyebrow">最近删除</div><h3>'+escapeHtml(doc.title)+'</h3><p>'+escapeHtml(doc.author||doc.source||'本地文献')+'</p><p>将于 '+escapeHtml(expiryLabel(doc))+' 自动永久删除</p></div><div class="book-foot"><span>保留期内可恢复</span><button type="button" class="ghost small restore-book" data-doc-id="'+escapeHtml(doc.id)+'">恢复</button></div></article>';}).join(''):'<div class="deleted-empty"><h3>最近删除是空的</h3><p>从书库删除的文献会在这里保留 30 天。</p></div>';
+    }
+    function showBooks(){list.hidden=false;trash.hidden=true;trashToolbar.hidden=true;trashButton.classList.remove('active');decorateBooks();}
+    trashButton.onclick=showTrash;
+    clearButton.onclick=function(){
+      var deleted=read().deletedDocs;
+      if(!Array.isArray(deleted)||!deleted.length)return;
+      if(!window.confirm('永久清空最近删除中的 '+deleted.length+' 本文献？\n清空后无法恢复；手机直传保存在本机服务端的原页也会删除。'))return;
+      purgeDeleted(function(){return true;});
+    };
+    filters.addEventListener('click',function(event){if(event.target.closest('button[data-filter]'))setTimeout(showBooks,0);});
+    // 删除不弹原生确认框（部分 WebView 会拦截 window.confirm，导致点了没反应）：
+    // 直接移入最近删除，30 天内可随时恢复，比确认框更安全。
+    // 云端文献同时把墓碑写到服务端（按服务端当前修订号），避免同步冲突把书带回来。
+    async function trashCloudSession(sessionId){
+      if(!sessionId||!window.__scribeCloud||!window.__scribeCloud.library)return;
+      for(var attempt=0;attempt<2;attempt+=1){
+        try{await window.__scribeCloud.library.call('trash',{sessionId:sessionId});return;}
+        catch(error){if(attempt===0){try{await window.__scribeCloud.library.sync();}catch(e){}}}
+      }
+    }
+    list.addEventListener('click',function(event){
+      var button=event.target.closest('.book-delete');if(!button)return;
+      event.preventDefault();event.stopPropagation();
+      var state=read(),docs=Array.isArray(state.docs)?state.docs:[],index=docs.findIndex(function(doc){return String(doc.id)===button.dataset.docId;});
+      if(index<0)return;
+      var doc=docs[index];
+      var deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[];
+      deleted.unshift(Object.assign({},doc,{deletedAt:new Date().toISOString(),deletedIndex:index}));
+      docs.splice(index,1);state.docs=docs;state.deletedDocs=deleted;state.filter='all';
+      if(String(state.activeDocId)===String(doc.id))state.activeDocId=docs[0]?docs[0].id:null;
+      save(state);
+      trashCloudSession(doc.cloudSessionId);
+      reloadAt('books');
+    });
+    trash.addEventListener('click',function(event){
+      var button=event.target.closest('.restore-book');if(!button)return;
+      var state=read(),deleted=Array.isArray(state.deletedDocs)?state.deletedDocs:[],index=deleted.findIndex(function(doc){return String(doc.id)===button.dataset.docId;});
+      if(index<0)return;
+      var doc=Object.assign({},deleted[index]);deleted.splice(index,1);
+      var place=Number.isInteger(doc.deletedIndex)?doc.deletedIndex:0;delete doc.deletedAt;delete doc.deletedIndex;
+      var docs=Array.isArray(state.docs)?state.docs:[];docs.splice(Math.min(Math.max(place,0),docs.length),0,doc);
+      state.docs=docs;state.deletedDocs=deleted;save(state);reloadAt('trash');
+    });
+    new MutationObserver(decorateBooks).observe(list,{childList:true});
+    if(migrateUndated())return;
+    updateCount();decorateBooks();
+    var returnView=sessionStorage.getItem(returnKey);
+    if(returnView){
+      sessionStorage.removeItem(returnKey);
+      var view=returnView.indexOf('view:')===0?returnView.slice(5):'library',nav=document.querySelector('[data-view="'+view+'"]');
+      if(nav)nav.click();if(returnView==='trash')showTrash();else if(returnView==='books')showBooks();
+    }
+    var message=sessionStorage.getItem(messageKey);if(message){sessionStorage.removeItem(messageKey);window.alert(message);}
+    purgeExpired();setInterval(purgeExpired,60*1000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
+</script>
+<style>
+/* 沉浸式阅读：折叠左侧导航、顶栏与右侧学习区，阅读区铺满全屏；点词收藏照常生效 */
+#immersiveBadge{display:none}
+body.immersive .side,body.immersive .top{display:none!important}
+body.immersive .shell{display:block}
+body.immersive .view{padding:0;max-width:none}
+body.immersive .reader-top{top:0}
+body.immersive .reader-grid{display:block;min-height:100vh}
+body.immersive .learn-side{display:none!important}
+body.immersive .reader-main{padding:24px max(4vw,20px) 60px;min-height:100vh}
+body.immersive .source-content{max-width:980px}
+body.immersive .source-reader-head{position:sticky;top:66px;z-index:5}
+#immersiveBadge{position:fixed;z-index:90;left:18px;bottom:18px;padding:8px 13px;border-radius:99px;background:#17243e;color:#fff;font-size:12px;box-shadow:0 8px 22px #17243e33;pointer-events:none}
+body.immersive #immersiveBadge{display:block}
+</style>
+<script type="scribe/boot">
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var top=document.querySelector('.reader-top');if(!top)return;
+    var toggle=document.createElement('button');
+    toggle.className='button secondary small';toggle.id='immersiveToggle';toggle.type='button';toggle.textContent='沉浸阅读';
+    var end=document.querySelector('#end');top.insertBefore(toggle,end||null);
+    var badge=document.createElement('div');badge.id='immersiveBadge';document.body.appendChild(badge);
+    function cardCount(){try{var state=JSON.parse(localStorage.getItem('scribe-local-v1')||'{}');return (state.cards||[]).filter(function(card){return card&&card.id!=='guide'&&card.term;}).length;}catch(error){return 0;}}
+    var timer=null;
+    function setImmersive(on){
+      document.body.classList.toggle('immersive',on);
+      toggle.textContent=on?'退出沉浸':'沉浸阅读';
+      if(on){badge.textContent='生词本 '+cardCount()+' 张';timer=setInterval(function(){badge.textContent='生词本 '+cardCount()+' 张';},1500);}
+      else if(timer){clearInterval(timer);timer=null;}
+    }
+    toggle.addEventListener('click',function(){setImmersive(!document.body.classList.contains('immersive'));});
+    document.addEventListener('keydown',function(event){if(event.key==='Escape'&&document.body.classList.contains('immersive'))setImmersive(false);});
+    document.addEventListener('click',function(event){
+      var nav=event.target.closest&&event.target.closest('[data-view],[data-go]');
+      if(nav&&(nav.dataset.view||nav.dataset.go)!=='reader')setImmersive(false);
+    },true);
+  });
+})();
+</script><style>
+/* 阅读页偏好：字号档位与夜间模式，只作用于 #reader 内部，可与沉浸阅读同时使用 */
+#reader .reader-font-ctl{display:flex;gap:4px}
+#reader .reader-font-ctl .button{min-width:34px;padding-left:8px;padding-right:8px}
+#reader.fs-custom .para{font-size:var(--reader-fs)}
+#reader.fs-custom .quote{font-size:var(--reader-fs)}
+#reader.fs-custom .source-reading-text{font-size:var(--reader-fs)}
+#reader.night .reader-top{background:#141a26;border-color:#26314a}
+#reader.night .reader-top .back{color:#93a0b8}
+#reader.night .chapter{color:#d8dee9;border-color:#26314a}
+#reader.night .readprog small{color:#93a0b8}
+#reader.night .track{background:#2a3550}
+#reader.night .modes{border-color:#35415c}
+#reader.night .modes button{color:#93a0b8}
+#reader.night .modes button.active{background:#3b4d74;color:#fff}
+#reader.night .reader-top .button.secondary,#reader.night .source-page-tools .button{background:#222b3d;color:#d8dee9;border-color:#35415c}
+#reader.night .reader-main{background:#141a26}
+#reader.night .paper{background:#1a2230;border-color:#2a3550;color:#d8dee9}
+#reader.night .paper .kicker{color:#b09268}
+#reader.night .paper .subtitle{color:#93a0b8}
+#reader.night .para{color:#d8dee9}
+#reader.night .page{color:#7f8ca6}
+#reader.night .page:before,#reader.night .page:after{background:#2a3550}
+#reader.night .quote{background:#1f2839;border-color:#4a5a7a;color:#c3cddf}
+#reader.night .quote footer{color:#7f8ca6}
+#reader.night .trans{background:#1f2839;border-color:#4a5a7a;color:#aebad0}
+#reader.night .trans-btn{color:#9db4e8}
+#reader.night .src-trans-btn{background:#222b3d;border-color:#35415c;color:#9db4e8}
+#reader.night .src-trans-btn:hover{background:#2b3950;border-color:#6d8bce;color:#c9d7f5}
+#reader.night .src-trans{background:#1f2839;border-color:#4a5a7a;color:#aebad0}
+#reader.night .source-trans-note{background:#1f2839;border-color:#35415c;color:#aebad0}
+#reader.night .source-trans-note.failed{background:#2a211d;border-color:#5b4038;color:#d9a893}
+#reader.night .notice{background:#26241c;color:#cbb37f}
+#reader.night .word:hover,#reader.night .word.focus{background:#3a4a6b}
+#reader.night .word.captured{background:#2e4166;box-shadow:inset 0 -2px #6d8bce}
+#reader.night .source-reader-paper{background:#141a26!important}
+#reader.night .source-page-stage{background:#141a26!important}
+#reader.night .source-reader-head{background:#1a2230;border-color:#2a3550}
+#reader.night .source-reader-head h1{color:#d8dee9}
+#reader.night .source-reader-head p{color:#93a0b8}
+#reader.night .source-page-count{background:#26324a;color:#9db4e8}
+#reader.night .source-reading-text{background:#1a2230;border-color:#2a3550;color:#d8dee9}
+#reader.night .source-no-text{color:#93a0b8}
+#reader.night .source-page-position{color:#d8dee9}
+#reader.night .source-original{background:#1a2230;border-color:#2a3550}
+#reader.night .source-original summary{color:#93a0b8}
+#reader.night .source-original-stage{border-color:#2a3550}
+#reader.night .source-thumb{background:#1a2230;border-color:#2a3550;color:#93a0b8}
+#reader.night .source-thumb.active{border-color:#6d8bce;color:#9db4e8;background:#222f4a}
+#reader.night .source-unavailable{background:#1a2230}
+#reader.night .source-unavailable h2{color:#d8dee9}
+</style>
+<script type="scribe/boot">
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var reader=document.getElementById('reader'),top=reader&&reader.querySelector('.reader-top');if(!reader||!top)return;
+    var prefsKey='scribe-reader-prefs',storeKey='scribe-local-v1',fontSizes=[15,17,19,22,26],defaultFont=2;
+    function readPrefs(){try{return JSON.parse(localStorage.getItem(prefsKey)||'{}')}catch(error){return {}}}
+    function writePrefs(prefs){localStorage.setItem(prefsKey,JSON.stringify(prefs));}
+    function readStore(){try{return JSON.parse(localStorage.getItem(storeKey)||'{}')}catch(error){return {}}}
+    function writeStore(state){localStorage.setItem(storeKey,JSON.stringify(state));}
+    var prefs=readPrefs();
+    var fontIndex=Number.isInteger(prefs.fontScale)?Math.max(0,Math.min(fontSizes.length-1,prefs.fontScale)):null;
+    var fontWrap=document.createElement('div');fontWrap.className='reader-font-ctl';
+    fontWrap.innerHTML='<button class="button secondary small" type="button" id="fontMinus" title="减小字号">A−</button><button class="button secondary small" type="button" id="fontPlus" title="增大字号">A＋</button>';
+    var nightBtn=document.createElement('button');nightBtn.className='button secondary small';nightBtn.id='nightToggle';nightBtn.type='button';nightBtn.textContent='夜间';
+    var anchor=document.getElementById('immersiveToggle')||document.getElementById('end');
+    top.insertBefore(nightBtn,anchor||null);top.insertBefore(fontWrap,nightBtn);
+    var fontMinus=fontWrap.querySelector('#fontMinus'),fontPlus=fontWrap.querySelector('#fontPlus');
+    function applyFont(){
+      if(fontIndex===null){reader.classList.remove('fs-custom');reader.style.removeProperty('--reader-fs');}
+      else{reader.classList.add('fs-custom');reader.style.setProperty('--reader-fs',fontSizes[fontIndex]+'px');}
+      fontMinus.disabled=fontIndex===0;fontPlus.disabled=fontIndex===fontSizes.length-1;
+    }
+    function setFont(next){
+      fontIndex=next===null?null:Math.max(0,Math.min(fontSizes.length-1,next));
+      var prefs=readPrefs();if(fontIndex===null)delete prefs.fontScale;else prefs.fontScale=fontIndex;writePrefs(prefs);
+      applyFont();
+    }
+    fontMinus.addEventListener('click',function(){setFont((fontIndex===null?defaultFont:fontIndex)-1);});
+    fontPlus.addEventListener('click',function(){setFont((fontIndex===null?defaultFont:fontIndex)+1);});
+    function applyNight(on){
+      reader.classList.toggle('night',on);
+      nightBtn.textContent=on?'日间':'夜间';
+      nightBtn.setAttribute('aria-pressed',on?'true':'false');
+    }
+    nightBtn.addEventListener('click',function(){var on=!reader.classList.contains('night'),prefs=readPrefs();prefs.theme=on?'night':'day';writePrefs(prefs);applyNight(on);});
+    applyFont();applyNight(prefs.theme==='night');
+    function readerActive(){return reader.classList.contains('active');}
+    function readingDoc(){
+      if(!readerActive())return null;
+      var state=readStore(),docs=Array.isArray(state.docs)?state.docs:[];
+      return docs.find(function(doc){return doc&&String(doc.id)===String(state.activeDocId)&&Array.isArray(doc.sourcePages)&&doc.sourcePages.length;})||null;
+    }
+    var restoringUntil=0;
+    function saveScroll(){
+      if(Date.now()<restoringUntil)return;
+      var doc=readingDoc();if(!doc)return;
+      var state=readStore(),entry=(state.docs||[]).find(function(item){return item&&String(item.id)===String(doc.id);});if(!entry)return;
+      var map=entry.lastScroll&&typeof entry.lastScroll==='object'?entry.lastScroll:{};
+      map[String(Number(entry.lastPage)||0)]=Math.max(0,Math.round(window.scrollY||window.pageYOffset||0));
+      entry.lastScroll=map;writeStore(state);
+    }
+    function restoreScroll(){
+      if(Date.now()-(window.__scribeReaderTurnAt||0)<1200)return;
+      var doc=readingDoc(),paper=document.getElementById('paper');
+      if(!doc||!paper||!paper.classList.contains('source-reader-paper'))return;
+      restoringUntil=Date.now()+700;
+      var map=doc.lastScroll&&typeof doc.lastScroll==='object'?doc.lastScroll:{};
+      var y=Number(map[String(Number(doc.lastPage)||0)])||0;
+      var apply=function(){window.scrollTo(0,y);};
+      requestAnimationFrame(apply);setTimeout(apply,140);setTimeout(apply,450);
+    }
+    var scrollTimer=null;
+    window.addEventListener('scroll',function(){if(!readerActive()||scrollTimer)return;scrollTimer=setTimeout(function(){scrollTimer=null;saveScroll();},350);},{passive:true});
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveScroll();});
+    window.addEventListener('pagehide',saveScroll);
+    document.addEventListener('click',function(event){
+      var target=event.target&&event.target.closest?event.target:null;if(!target)return;
+      if(target.closest('[data-source-page],[data-source-prev],[data-source-next]')){saveScroll();return;}
+      var nav=target.closest('[data-view],[data-go]');
+      if(nav&&(nav.dataset.view||nav.dataset.go)!=='reader')saveScroll();
+    },true);
+    var paper=document.getElementById('paper');
+    if(paper&&window.MutationObserver)new MutationObserver(function(){setTimeout(restoreScroll,0);}).observe(paper,{childList:true});
+  });
+})();
+</script>
+<style>
+/* 布局自由调整：左侧导航可折叠（边缘箭头切换），精读页阅读区左右边缘可拖拽改宽度；偏好持久化在本地。 */
+#sideToggle{position:fixed;z-index:46;left:calc(var(--side-w,242px) - 14px);top:50%;transform:translateY(-50%);width:28px;height:52px;border:1px solid var(--line);border-radius:99px;background:#fff;color:var(--muted);font-size:14px;box-shadow:0 4px 14px #17243e1f;display:grid;place-items:center;cursor:pointer;transition:left .2s ease}
+#sideToggle:hover{color:var(--navy);border-color:#b9c6dd}
+body.side-collapsed #sideToggle{left:10px}
+.shell{transition:grid-template-columns .2s ease}
+body.side-collapsed .shell{grid-template-columns:minmax(0,1fr)}
+body.side-collapsed .side{display:none}
+.layout-handle{position:fixed;z-index:30;top:139px;bottom:0;width:11px;cursor:col-resize;display:none;touch-action:none}
+.layout-handle:after{content:"";position:absolute;inset:0 5px;background:transparent;transition:background .15s}
+.layout-handle:hover:after,.layout-handle.dragging:after{background:#9fb3ea}
+body.on-reader:not(.immersive):not(.side-collapsed) #handleLeft{display:block}
+body.on-reader:not(.immersive) #handleRight{display:block}
+#handleLeft{left:calc(var(--side-w,242px) - 5px)}
+#handleRight{right:calc(var(--aside-w,340px) - 5px)}
+@media(max-width:820px){#sideToggle,.layout-handle{display:none!important}body.side-collapsed .side{display:block}body.side-collapsed .shell{display:block}}
+</style>
+<script type="scribe/boot">
+(function(){
+  function ready(fn){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fn);else fn();}
+  ready(function(){
+    var root=document.documentElement,prefs;
+    try{prefs=JSON.parse(localStorage.getItem('scribe-layout')||'{}');}catch(error){prefs={};}
+    if(!prefs||typeof prefs!=='object')prefs={};
+    var toggle=document.createElement('button');
+    toggle.id='sideToggle';toggle.type='button';document.body.appendChild(toggle);
+    function apply(){
+      if(prefs.sideW)root.style.setProperty('--side-w',prefs.sideW+'px');
+      if(prefs.asideW)root.style.setProperty('--aside-w',prefs.asideW+'px');
+      document.body.classList.toggle('side-collapsed',prefs.collapsed===true);
+      toggle.textContent=prefs.collapsed?'→':'←';
+      toggle.title=prefs.collapsed?'展开左侧导航栏':'收起左侧导航栏';
+      toggle.setAttribute('aria-label',toggle.title);
+    }
+    function save(){try{localStorage.setItem('scribe-layout',JSON.stringify(prefs));}catch(error){}}
+    toggle.addEventListener('click',function(){prefs.collapsed=!prefs.collapsed;save();apply();});
+    function makeHandle(id,onDrag){
+      var handle=document.createElement('div');handle.className='layout-handle';handle.id=id;document.body.appendChild(handle);
+      handle.addEventListener('pointerdown',function(event){
+        event.preventDefault();handle.classList.add('dragging');
+        try{handle.setPointerCapture(event.pointerId);}catch(error){}
+        var move=function(e){onDrag(e.clientX);};
+        var up=function(){handle.classList.remove('dragging');handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',up);handle.removeEventListener('pointercancel',up);save();};
+        handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',up);handle.addEventListener('pointercancel',up);
+      });
+    }
+    makeHandle('handleLeft',function(x){prefs.sideW=Math.max(180,Math.min(420,Math.round(x)));root.style.setProperty('--side-w',prefs.sideW+'px');});
+    makeHandle('handleRight',function(x){prefs.asideW=Math.max(260,Math.min(640,Math.round(window.innerWidth-x)));root.style.setProperty('--aside-w',prefs.asideW+'px');});
+    var reader=document.getElementById('reader');
+    function syncVisibility(){document.body.classList.toggle('on-reader',!!(reader&&reader.classList.contains('active')));}
+    if(reader&&window.MutationObserver)new MutationObserver(syncVisibility).observe(reader,{attributes:true,attributeFilter:['class']});
+    document.addEventListener('click',function(){setTimeout(syncVisibility,0);},true);
+    apply();syncVisibility();
+  });
+})();
+</script>
+<script type="scribe/boot" data-src="/import-queue.js"></script></body></html>

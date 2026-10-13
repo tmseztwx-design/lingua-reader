@@ -28,15 +28,15 @@
     var currentDocument = null;
     var serverDocument = null;
     var style = document.createElement('style');
-    style.textContent = '.computer-queue{display:grid;gap:8px;margin-top:14px}.computer-queue:empty{display:none}.computer-queue-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}.computer-queue-number{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.computer-queue-copy{min-width:0}.computer-queue-copy b,.computer-queue-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.computer-queue-copy small{color:var(--muted);font-size:12px}.computer-queue-actions{display:flex;gap:5px}.computer-queue-actions button{width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}.computer-queue-actions button:disabled{opacity:.35}.computer-queue-item.uploading{border-color:#aebee7;background:#f5f8ff}.computer-queue-item.uploaded{border-color:#b5dacd;background:#f3faf7}.computer-queue-item.error{border-color:#e5b7ae;background:#fff7f5}.computer-queue-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px}.computer-queue-tools button{border:0;background:none;color:#8b5260;font:inherit;cursor:pointer}.import-wait{display:inline-flex;align-items:center;gap:8px}.import-wait:before{content:"";width:14px;height:14px;border:2px solid #9eadd4;border-top-color:#4f6fca;border-radius:50%;animation:import-spin .8s linear infinite}@keyframes import-spin{to{transform:rotate(360deg)}}.source-reading-text{width:min(100%,960px);align-self:stretch;justify-self:center;padding:clamp(22px,5vw,64px);background:#fff;color:#253047;border-radius:9px;font:clamp(19px,2vw,27px)/1.8 Georgia,"Noto Serif SC",serif;white-space:pre-wrap;overflow-wrap:anywhere}.source-reading-text .word{cursor:pointer;border-radius:3px}.source-reading-text .word:hover{background:#edf3ff}.source-reading-text .word.captured{background:#dce8ff;box-shadow:inset 0 -2px #5b79ce}.source-original-label{justify-self:start;margin:8px 0 0;color:var(--muted);font-size:12px}@media(max-width:680px){.computer-queue-item{grid-template-columns:27px minmax(0,1fr) auto;padding:9px}.computer-queue-actions{gap:2px}.computer-queue-actions button{width:27px;height:27px}}';
+    style.textContent = '.computer-queue{display:grid;gap:8px;margin-top:14px}.computer-queue:empty{display:none}.computer-queue-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}.computer-queue-item[draggable="true"]{cursor:grab}.computer-queue-item.dragging{opacity:.45}.computer-queue-item.drop-target{border-color:#6d8bce;box-shadow:0 -2px 0 #6d8bce}.computer-queue-number{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.computer-queue-copy{min-width:0}.computer-queue-copy b,.computer-queue-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.computer-queue-copy small{color:var(--muted);font-size:12px}.computer-queue-actions{display:flex;gap:5px}.computer-queue-actions button{width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}.computer-queue-actions button:disabled{opacity:.35}.computer-queue-item.uploading{border-color:#aebee7;background:#f5f8ff}.computer-queue-item.uploaded{border-color:#b5dacd;background:#f3faf7}.computer-queue-item.error{border-color:#e5b7ae;background:#fff7f5}.computer-queue-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px;flex-wrap:wrap}.append-banner{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding:10px 13px;border:1px solid #d8c9a5;border-radius:10px;background:#fdf7e8;color:#6d5725;font-size:13px}.append-banner button{border:0;background:none;color:#8a6a2c;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline}.computer-queue-tools button{border:0;background:none;color:#8b5260;font:inherit;cursor:pointer}.computer-queue-sort{display:flex;align-items:center;gap:6px}.computer-queue-sort button{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:4px 9px;font-size:12px;cursor:pointer}.computer-queue-sort button:disabled{opacity:.35;cursor:not-allowed}.computer-queue-sort button:hover:not(:disabled){border-color:#9fb3ea;color:#3857a8}.import-wait{display:inline-flex;align-items:center;gap:8px}.import-wait:before{content:"";width:14px;height:14px;border:2px solid #9eadd4;border-top-color:#4f6fca;border-radius:50%;animation:import-spin .8s linear infinite}@keyframes import-spin{to{transform:rotate(360deg)}}.source-reading-text{width:min(100%,960px);align-self:stretch;justify-self:center;padding:clamp(22px,5vw,64px);background:#fff;color:#253047;border-radius:9px;font:clamp(19px,2vw,27px)/1.8 Georgia,"Noto Serif SC",serif;white-space:pre-wrap;overflow-wrap:anywhere}.source-reading-text .word{cursor:pointer;border-radius:3px}.source-reading-text .word:hover{background:#edf3ff}.source-reading-text .word.captured{background:#dce8ff;box-shadow:inset 0 -2px #5b79ce}.source-original-label{justify-self:start;margin:8px 0 0;color:var(--muted);font-size:12px}@media(max-width:680px){.computer-queue-item{grid-template-columns:27px minmax(0,1fr) auto;padding:9px}.computer-queue-actions{gap:2px}.computer-queue-actions button{width:27px;height:27px}}';
     document.head.appendChild(style);
 
     input.multiple = true;
     input.accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.heif,.txt';
     var hint = input.parentElement.querySelector('.tiny.muted');
-    if (hint) hint.textContent = '支持电脑多选、拖入多个文件；可先调整顺序，再一次性进入本机识别队列。手机端也可拍照或相册多选。';
+    if (hint) hint.textContent = '支持多选和拖入文件。确认顺序后整批上传云端，后台识别时可关闭页面，稍后在书库查看。';
     var notice = document.querySelector('#upload .notice');
-    if (notice) notice.innerHTML = '<b>文献处理说明：</b>图片、扫描 PDF 会逐页进行文字识别；可提取文字的 PDF 和 Word 会保留页序并进入精读。原文件会安全保存在当前服务中，无法识别的页也会保留并明确标出。';
+    if (notice) notice.innerHTML = '<b>云端处理：</b>原件按确认顺序上传并保存；整批送达后由后台逐页识别。失败页保留原件，可重试。识别消耗项目 AI 额度。';
     var labels = document.querySelectorAll('#steps .step');
     ['保存原件与顺序', '读取文档页面', '识别图片文字', '整理可读文本', '生成互动精读页', '保留原文与页码', '加入书库和学习区'].forEach(function (label, index) {
       if (labels[index]) labels[index].lastChild.textContent = label;
@@ -47,11 +47,32 @@
     list.id = 'computerQueue';
     var tools = document.createElement('div');
     tools.className = 'computer-queue-tools';
-    tools.innerHTML = '<span id="computerQueueHint">文件会按列表顺序逐个安全上传</span><button id="clearComputerQueue" type="button">清空队列</button>';
+    tools.innerHTML = '<span id="computerQueueHint">文件会按列表顺序逐个安全上传</span><span class="computer-queue-sort">排序：<button id="sortQueueByName" type="button">按名称</button><button id="sortQueueByTime" type="button">按上传时间</button></span><button id="clearComputerQueue" type="button">清空队列</button>';
     row.insertAdjacentElement('afterend', list);
     list.insertAdjacentElement('afterend', tools);
     var hintText = tools.querySelector('#computerQueueHint');
     var clearButton = tools.querySelector('#clearComputerQueue');
+    // 续传模式：从精读页「＋ 添加页面」进入，本批识别完成后并入该文献末尾，不再生成新书。
+    var appendInfo = null;
+    try { appendInfo = JSON.parse(sessionStorage.getItem('scribe-append-into') || 'null'); } catch (error) {}
+    if (appendInfo && appendInfo.title) {
+      var appendBanner = document.createElement('div');
+      appendBanner.className = 'append-banner';
+      var bannerText = document.createElement('span');
+      bannerText.textContent = '续传模式：本次上传的页面将追加到《' + appendInfo.title + '》末尾。';
+      var bannerCancel = document.createElement('button');
+      bannerCancel.type = 'button';
+      bannerCancel.textContent = '取消续传';
+      bannerCancel.addEventListener('click', function () {
+        sessionStorage.removeItem('scribe-append-into');
+        appendBanner.remove();
+      });
+      appendBanner.append(bannerText, bannerCancel);
+      row.insertAdjacentElement('beforebegin', appendBanner);
+    }
+    var sortNameButton = tools.querySelector('#sortQueueByName');
+    var sortTimeButton = tools.querySelector('#sortQueueByTime');
+    var addSequence = 0;
 
     function fileNameHeader(name) {
       var bytes = new TextEncoder().encode(name);
@@ -66,6 +87,8 @@
       queue.forEach(function (item, index) {
         var entry = document.createElement('div');
         entry.className = 'computer-queue-item ' + (item.state || '');
+        entry.dataset.index = String(index);
+        entry.draggable = !locked && !working;
         var number = document.createElement('span');
         number.className = 'computer-queue-number';
         number.textContent = String(index + 1);
@@ -91,11 +114,57 @@
         list.appendChild(entry);
       });
       clearButton.disabled = locked || working || !queue.length;
+      sortNameButton.disabled = locked || working || queue.length < 2;
+      sortTimeButton.disabled = locked || working || queue.length < 2;
       input.disabled = locked || working;
       button.disabled = !queue.length || working || (!locked && !queue.length);
-      if (!locked && !working) button.textContent = queue.length ? '上传并处理全部 ' + queue.length + ' 个文件' : '开始本地处理';
-      if (queue.length && !locked && !working) hintText.textContent = '拖动以外也可用 ↑ ↓ 排序；上传开始后顺序锁定';
+      if (!locked && !working) button.textContent = queue.length ? '确认顺序，上传全部 ' + queue.length + ' 个文件' : '开始云端处理';
+      if (queue.length && !locked && !working) hintText.textContent = '可拖动换位，也可用 ↑ ↓ 或按名称/时间排序；上传开始后顺序锁定';
     }
+    var dragIndex = null;
+    function finishDrag() {
+      dragIndex = null;
+      list.querySelectorAll('.dragging,.drop-target').forEach(function (item) { item.classList.remove('dragging', 'drop-target'); });
+      render();
+    }
+    list.addEventListener('dragstart', function (event) {
+      var item = event.target.closest && event.target.closest('.computer-queue-item');
+      if (!item || locked || working) { event.preventDefault(); return; }
+      dragIndex = Number(item.dataset.index);
+      event.dataTransfer.effectAllowed = 'move';
+      try { event.dataTransfer.setData('text/plain', ''); } catch (error) {}
+      item.classList.add('dragging');
+    });
+    list.addEventListener('dragover', function (event) {
+      if (dragIndex === null) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      var item = event.target.closest && event.target.closest('.computer-queue-item');
+      list.querySelectorAll('.drop-target').forEach(function (entry) { entry.classList.remove('drop-target'); });
+      if (item && Number(item.dataset.index) !== dragIndex) item.classList.add('drop-target');
+    });
+    list.addEventListener('drop', function (event) {
+      if (dragIndex === null) return;
+      event.preventDefault();
+      var item = event.target.closest && event.target.closest('.computer-queue-item');
+      if (item) {
+        var target = Number(item.dataset.index);
+        if (target !== dragIndex) queue.splice(target, 0, queue.splice(dragIndex, 1)[0]);
+      }
+      finishDrag();
+    });
+    list.addEventListener('dragend', finishDrag);
+    function sortQueue(compare) {
+      if (locked || working || queue.length < 2) return;
+      queue.sort(compare);
+      render();
+    }
+    sortNameButton.addEventListener('click', function () {
+      sortQueue(function (left, right) { return left.file.name.localeCompare(right.file.name, 'zh-Hans-CN', { numeric: true, sensitivity: 'base' }); });
+    });
+    sortTimeButton.addEventListener('click', function () {
+      sortQueue(function (left, right) { return left.addedAt - right.addedAt || left.seq - right.seq; });
+    });
     function move(index, delta) {
       if (locked || working) return;
       var target = index + delta;
@@ -110,15 +179,47 @@
       queue.splice(index, 1);
       render();
     }
-    function addFiles(files) {
-      if (locked || working) return;
-      Array.from(files || []).forEach(function (file) {
-        queue.push({ file: file, state: '' });
-      });
+    // PDF 先在浏览器里拆成逐页图片再入队：一页一个文件，大 PDF 不会超出云端读取上限，每页单独识别与翻译。
+    var expanding = false;
+    function isPdf(file) { return /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf'; }
+    async function expandPdfs(files) {
+      var result = [], failed = [];
+      for (var index = 0; index < files.length; index++) {
+        var file = files[index];
+        if (!isPdf(file) || typeof window.__scribeExplodePdf !== 'function') { result.push({ file: file }); continue; }
+        try {
+          hintText.textContent = '正在拆分 PDF：' + file.name + ' · 读取中…';
+          var stem = file.name.replace(/\.pdf$/i, '');
+          var pages = await window.__scribeExplodePdf(file, function (done, total) { hintText.textContent = '正在拆分 PDF：' + file.name + ' · 第 ' + done + ' / ' + total + ' 页（请保持本页在前台）'; });
+          pages.forEach(function (page) { result.push({ file: page, source: stem }); });
+        } catch (error) {
+          console.warn('[scribe] PDF 拆页失败', error);
+          // 拆页失败且超过云端单次上限的整份 PDF 注定无法识别：不入队，明确提示，而不是上传到云端才报错。
+          if (file.size > 8 * 1024 * 1024) { failed.push(file.name); continue; }
+          failed.push(file.name);
+          result.push({ file: file });
+        }
+      }
+      return { items: result, failed: failed };
+    }
+    async function addFiles(files) {
+      if (locked || working || expanding) return;
+      var picked = Array.from(files || []);
+      if (!picked.length) return;
+      expanding = true; button.disabled = true;
+      var expanded = null;
+      try {
+        expanded = await expandPdfs(picked);
+        expanded.items.forEach(function (entry) {
+          queue.push({ file: entry.file, source: entry.source || '', state: '', addedAt: Date.now(), seq: addSequence++ });
+        });
+      } finally { expanding = false; button.disabled = false; }
       if (queue.length) {
         row.classList.add('show');
         document.querySelector('#fileName').textContent = queue.length + ' 个文件已加入队列';
-        document.querySelector('#fileMeta').textContent = '确认顺序后，整批处理';
+        document.querySelector('#fileMeta').textContent = expanded && expanded.failed.length
+          ? expanded.failed.join('、') + ' 无法在浏览器拆页：不超过 8 MB 的将整份上传，超过 8 MB 的已跳过（请保持本页在前台，重新添加该文件）。'
+          : '确认顺序后，整批处理';
         render();
       }
     }
@@ -131,6 +232,7 @@
     }, true);
     document.addEventListener('drop', function (event) {
       if (!event.target.closest || !event.target.closest('#drop')) return;
+      if (event.target.closest('#computerQueue')) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       drop.classList.remove('drag');
@@ -177,7 +279,7 @@
     async function postJson(url) {
       var response = await fetch(url, { method: 'POST' });
       var result = await response.json();
-      if (!response.ok) throw new Error(result.error || '文献处理请求失败。');
+      if (!response.ok) throw new Error(result.error || '本机处理请求失败。');
       return result;
     }
     function saveDocument(saved, pages, failure) {
@@ -195,7 +297,7 @@
       var names = queue.map(function (item) { return item.file.name; });
       var title = names.length === 1 ? names[0].replace(/\.[^.]+$/, '') : '本地导入文献（' + names.length + ' 个文件）';
       var document = existing || { id: id };
-      Object.assign(document, { serverDocumentId: saved.id, title: title, author: '网页导入', category: '本地文献', status: 'reading', progress: Number(document.progress) || 0, pages: sourcePages.length, time: document.time || '0 h', color: 'new', sourcePages: sourcePages, processingState: failure ? 'partial' : 'ready', processingError: failure || '' });
+      Object.assign(document, { serverDocumentId: saved.id, title: title, author: '本地电脑导入', category: '本地文献', status: 'reading', progress: Number(document.progress) || 0, pages: sourcePages.length, time: document.time || '0 h', color: 'new', sourcePages: sourcePages, processingState: failure ? 'partial' : 'ready', processingError: failure || '' });
       if (!existing) state.docs.unshift(document);
       state.activeDocId = document.id;
       localStorage.setItem(key, JSON.stringify(state));
@@ -206,7 +308,7 @@
       var base = '/api/documents/' + encodeURIComponent(saved.id) + '/process';
       var response = await fetch(base, { method: 'POST' });
       var job = await response.json();
-      if (!response.ok && job.status !== 'processing') throw new Error(job.error || '文字识别无法启动。');
+      if (!response.ok && job.status !== 'processing') throw new Error(job.error || '本机文字识别无法启动。');
       while (job.status === 'processing') {
         hintText.innerHTML = '<span class="import-wait">正在逐页识别与整理 · ' + job.completed + ' / ' + job.total + '</span>';
         var steps = document.querySelectorAll('#steps .step');
@@ -221,6 +323,7 @@
     }
     async function processAll() {
       if (!queue.length || working || button.dataset.completed === 'true') return;
+      if(localStorage.getItem('scribe-upload-channel')!=='local') return processCloud();
       working = true;
       locked = true;
       button.disabled = true;
@@ -261,7 +364,7 @@
         var saved = await postJson('/api/mobile-links/' + encodeURIComponent(sessionId) + '/commit');
         serverDocument = saved;
         saveDocument(saved, [], '');
-        hintText.innerHTML = '<span class="import-wait">原件已安全保存；正在识别整批页面，文件较多时请稍候</span>';
+        hintText.innerHTML = '<span class="import-wait">原件已保存；本机正在识别整批页面，文件较多时请稍候</span>';
         var pages = await recognize(saved);
         var failed = pages.filter(function (page) { return !page.text; }).length;
         saveDocument(saved, pages, failed ? '有 ' + failed + ' 页未能识别，请检查原图。' : '');
@@ -284,6 +387,53 @@
         render();
         if (button.dataset.completed === 'true') button.disabled = false;
       }
+    }
+    var cloudSession = null;
+    // 整批都来自同一份 PDF 时以 PDF 名作书名，否则沿用「N 个文件」的自动标题。
+    function batchTitle() {
+      var sources = queue.map(function (item) { return item.source || ''; });
+      if (sources[0] && sources.every(function (source) { return source === sources[0]; })) return sources[0];
+      return queue.length === 1 ? queue[0].file.name.replace(/\.[^.]+$/, '') : '电脑上传文献（' + queue.length + ' 个文件）';
+    }
+    async function processCloud() {
+      working=true;locked=true;button.disabled=true;render();
+      try {
+        var cloud=window.__scribeCloud;
+        if(!cloud || !cloud.library) throw new Error('云端组件尚未加载，请稍后重试。');
+        if(!cloudSession) cloudSession=await cloud.library.createSession({title:batchTitle()});
+        for(var index=0;index<queue.length;index++){
+          var item=queue[index];if(item.state==='uploaded')continue;
+          item.state='uploading';render();
+          try {
+            await cloud.library.upload(cloudSession.token,item.file,index,function(percent){hintText.textContent='云端上传 '+(index+1)+' / '+queue.length+' · '+percent+'%';});
+            item.state='uploaded';render();
+          }catch(error){item.state='error';throw error;}
+        }
+        await cloud.callFunction('scribe-mobile-upload',{action:'complete',token:cloudSession.token});
+        await cloud.library.sync();
+        hintText.innerHTML='<span class="import-wait">全部原件已保存，云端后台正在处理；可以关闭页面，稍后在书库查看</span>';
+        await cloud.library.awaitBatch(cloudSession.token,function(status){
+          var done=status.files.filter(function(file){return file.ocrStatus==='complete'||file.ocrStatus==='error';}).length;
+          hintText.innerHTML='<span class="import-wait">云端后台识别 · '+done+' / '+status.files.length+'；关闭页面也会继续</span>';
+        });
+        var appendInto=null;try{appendInto=JSON.parse(sessionStorage.getItem('scribe-append-into')||'null');}catch(error){}
+        if(appendInto&&appendInto.sessionId){
+          hintText.innerHTML='<span class="import-wait">识别完成，正在并入《'+appendInto.title+'》…</span>';
+          await cloud.callFunction('scribe-mobile-upload',{action:'absorb',token:cloudSession.token,into:appendInto.sessionId,libraryKey:localStorage.getItem('scribe-library-key')});
+          sessionStorage.removeItem('scribe-append-into');
+          await cloud.library.sync();
+          sessionStorage.setItem('scribe-open-import-reader','1');location.reload();return;
+        }
+        button.dataset.completed='true';button.textContent='处理完成，打开精读 →';
+        var state=JSON.parse(localStorage.getItem('scribe-local-v1')||'{}');state.activeDocId='cloud-'+cloudSession.sessionId;
+        localStorage.setItem('scribe-local-v1',JSON.stringify(state));await cloud.library.sync();
+        sessionStorage.setItem('scribe-open-import-reader','1');location.reload();
+      }catch(error){
+        var message=String(error&&error.message||'上传失败');
+        if(/quota|exceeded/i.test(message))message='本机存储空间不足，这次进度没能写进浏览器：请点「清理本机缓存」后重试；云端数据不受影响。';
+        hintText.textContent=message;button.textContent='重试云端上传与处理';
+      }
+      finally{working=false;render();button.disabled=false;}
     }
     button.addEventListener('click', function (event) {
       if (!queue.length) return;

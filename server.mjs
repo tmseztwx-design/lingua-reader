@@ -248,9 +248,14 @@ function routeDocument(req, res, pieces) {
   if (req.method === 'DELETE' && pieces.length === 3) {
     const host = String(req.headers.host || '');
     const origin = req.headers.origin;
+    const remote = req.socket.remoteAddress || '';
+    const loopback = remote === '::1' || remote === '127.0.0.1' || remote === '::ffff:127.0.0.1';
+    const localHost = host === `localhost:${port}` || host === `127.0.0.1:${port}`;
     let allowedOrigin = `http://${host}`;
     if (process.env.SCRIBE_PUBLIC_URL) {
       try { allowedOrigin = new URL(process.env.SCRIBE_PUBLIC_URL).origin; } catch {}
+    } else if (!loopback || !localHost) {
+      return json(res, 403, { error: '只能从本机书库清理原页。' });
     }
     if (!origin || origin !== allowedOrigin) return json(res, 403, { error: '只能从当前网站安全清理原页。' });
     if (!readDocument(id)) return json(res, 404, { error: '未找到已保存的文献页面。' });
@@ -462,7 +467,8 @@ function processDocument(id) {
 
 function routeApi(req, res, url) {
   const pieces = url.pathname.split('/').filter(Boolean);
-  if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { status: 'ok', ocr: process.platform === 'darwin' && process.env.SCRIBE_OCR_ENGINE !== 'paddle' ? 'vision' : 'paddle' });
+  if (req.method === 'GET' && url.pathname === '/api/lan-base') return json(res, 200, { base: publicBase() });
+  if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { status: 'ok', service: 'scribe-local', ocr: process.platform === 'darwin' && process.env.SCRIBE_OCR_ENGINE !== 'paddle' ? 'vision' : 'paddle' });
   if (req.method === 'POST' && url.pathname === '/api/mobile-links') return makeSession(res, url.searchParams.get('local') === '1').catch(() => json(res, 500, { error: '上传通道生成失败，请重试。' }));
   if (pieces[0] === 'api' && pieces[1] === 'documents' && pieces[2]) return routeDocument(req, res, pieces);
   if (req.method === 'GET' && url.pathname === '/api/mobile-links/recover') {
@@ -509,7 +515,20 @@ function routeApi(req, res, url) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-  if (url.pathname.startsWith('/api/')) return routeApi(req, res, url);
+  if (url.pathname.startsWith('/api/')) {
+    // 应用可能从公网站点打开，再访问 http://localhost:4174 的本机接口，需要放行跨域。
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Headers', 'content-type, x-file-name, x-file-name-b64, x-queue-order');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Max-Age', '600');
+    res.setHeader('Vary', 'Origin');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+    return routeApi(req, res, url);
+  }
   const mobileMatch = url.pathname.match(/^\/mobile\/([A-Za-z0-9_-]+)$/);
   if (mobileMatch) {
     if (!sessionFor(mobileMatch[1])) return json(res, 410, { error: '此扫码通道已过期，请回到电脑端重新生成二维码。' });

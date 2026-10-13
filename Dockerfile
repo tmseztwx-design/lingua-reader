@@ -1,3 +1,12 @@
+FROM node:22-bookworm-slim AS web-build
+
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm@9.15.9 \
+    && pnpm install --frozen-lockfile
+COPY . .
+RUN pnpm build
+
 FROM node:22-bookworm-slim
 
 ENV NODE_ENV=production \
@@ -16,15 +25,16 @@ RUN apt-get update \
     && chown -R node:node /data \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm@9.15.9 \
+    && pnpm install --frozen-lockfile --prod
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=node:node server.mjs ocr.swift ocr_worker.py ./
-COPY --chown=node:node dist ./dist
+COPY --from=web-build --chown=node:node /app/dist ./dist
 
 USER node
 EXPOSE 4174

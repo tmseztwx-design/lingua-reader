@@ -1,44 +1,54 @@
-# Scribe · AI 英语专著精读学习平台
+# Scribe · 英语专著精读学习平台
 
-一个围绕英文文献精读、词汇/短语/句子收集、复习与学习记录的轻量学习平台。网页是原生 HTML/CSS/JS；Node 服务负责文件上传、原页保存和 OCR 任务。学习进度目前保存在当前浏览器的 LocalStorage，不会跨浏览器/设备同步。
+Scribe 支持文献导入、按原页顺序的互动精读、词汇/短语/句子收藏、复习和阅读记录。本仓库合并了 Enter Pro 的云端书库与后台识别，以及 Kimi 的可选 Linux/Docker 本地服务。
 
-## 本机预览
+## 推荐方式：Enter 云端
+
+手机和电脑可在不同网络下，把原件上传至 Enter 云私有存储。用户在手机端确认顺序后整批提交，后台逐页识别；原件全部送达后，即使关闭网页或电脑，队列仍会继续。另一设备可通过设置中的私密同步码连接同一书库。同步码等同访问凭证，请勿公开分享。
+
+微信内可以分多次加入相册图片、手机文件或拍照，再统一排序；微信文件选择器本身的单次选择限制无法由网页解除。历史本机文献只迁移已保存文本和学习数据，旧本地 URL/Blob URL 的原件不会自动上传。书籍移入最近删除后保留 30 天；永久清理会由云端删除对应原件。
+
+云端部署前，按 [Enter 部署清单](docs/enter-deployment.md) 在已连接的 Cloud 上执行迁移、重新生成并部署六个函数、核对后台调度，再运行合成验收。不要只发布前端；未部署的接口会使上传和同步失效。正式发布后，应使用正式 HTTPS 地址生成二维码，并用手机移动网络实测。当前支持 JPG/PNG、TXT、DOCX 和 PDF；旧版 DOC/HEIC 在云识别路径仍有格式限制。内测期间界面可以自由浏览，但云端同步与手机上传需要内测码：由管理员在**独立的管理后台**（`<站点地址>/admin.html`，需管理口令）里生成并分发，一个内测码对应一份独立数据，可在多台设备登录同一份数据，本机保存后长期有效。识别、逐段翻译、点词释义与划选解释都会消耗项目 AI 额度；逐段译文随页面入库，点词释义按「单词 + 所在句子」缓存，重复阅读不会重复计费。阅读区可以按页微调顺序（写回云端页序）、也可以用「＋ 添加页面」把新扫描的页面续接到已有文献末尾。
+
+## 本机开发
+
+需要 Node.js 22+。仓库使用 `pnpm-lock.yaml`：
 
 ```sh
-npm ci
-npm start
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-打开 <http://localhost:4174>。macOS 本机默认使用 Vision OCR；Linux/Docker 使用 PaddleOCR。
+开发预览默认在 `http://localhost:8080`；云端能力要求 Enter 后端已部署。若要使用电脑直连的本地通道，另行执行：
 
-## Enter / Docker 部署
+```sh
+pnpm build
+pnpm start
+```
 
-部署目标必须支持 Docker（或常驻 Node.js 服务）、后台处理进程、HTTPS 自定义域名和持久化磁盘卷。纯静态站点托管不能承载上传 API 或 OCR worker。当前会话/任务状态使用单进程内存，实例数先设为 1；多实例部署需要先迁移共享会话和任务队列。
+本地服务运行在 `http://localhost:4174`。macOS 默认使用 Vision OCR；安装 Python 依赖并设置 `SCRIBE_OCR_ENGINE=paddle` 可切换到 Kimi 增加的 PaddleOCR 工作者。手机使用本机通道时，电脑与手机须处于同一可互通网络。
 
-1. 将仓库连接到 Enter，选择使用仓库根目录的 `Dockerfile` 构建。
-2. 设置服务监听端口 `4174`，并将域名的 HTTPS 流量转发到该端口。
-3. 添加持久化磁盘卷并挂载到 `/data`。文献原件、会话元数据、识别清单和 OCR 模型缓存依赖此目录；没有持久化卷，实例重启或重新部署可能丢失数据。
-4. 配置环境变量：
+## 可选方式：私有 Docker 服务
 
-   | 变量 | 用途 |
-   | --- | --- |
-   | `PORT` | 平台分配的端口；若平台要求动态端口，请设为平台提供的值 |
-   | `SCRIBE_PUBLIC_URL` | 用户实际访问的 HTTPS 根网址，例如 `https://reader.example.com`，不要以 `/` 结尾；二维码据此生成 |
-   | `SCRIBE_DATA_DIR` | 持久化上传目录；默认 `/data/uploads` |
-   | `SCRIBE_OCR_LANG` | PaddleOCR 语言，默认 `en`，需要中英混排时可设为 `ch` |
+Kimi 的 Linux/Docker 路径保留为**独立的自托管模式**，不是 Enter 云端数据库与后台队列的替代品。它提供 Node 上传 API、持久化的上传会话、PDF/图片/DOCX 的 Linux OCR。自托管时在页面切换到“本机直连/独立服务器”通道；如果由公网 HTTPS 域名访问，二维码可以跨网络打开。此模式的学习记录仍主要保存在浏览器，不提供 Enter 云端的跨设备书库同步与持久后台队列。
 
-5. 在 Enter 配置自定义域名与 HTTPS，并按云厂商要求完成备案后，再用真实域名生成二维码。手机和电脑无需连接同一 Wi‑Fi；两端都需要能访问该公网域名。
-6. 首次 OCR 会初始化 PaddleOCR 并下载模型。容器构建和首次启动需要访问依赖/模型源；模型缓存位于持久化 `/data/home`。
+自托管服务当前没有用户账号和独立 API 鉴权；**只应部署在受信任的私人环境或经认证的反向代理后面，不要把容器端口直接公开给不受信任的用户**。单实例运行并挂载持久卷；没有卷时，重新部署可能丢失上传原件。容器构建需联网安装 Python OCR 依赖，首次识别还可能下载模型。这里仅保留、验证构建路径，不代表本 PR 已部署 Docker 服务。
 
-`Dockerfile` 安装 Linux CPU 版 PaddlePaddle/PaddleOCR、PDF 渲染、DOCX 与 HEIC 支持。容器持久化目录应限制访问权限。手机上传会经由部署服务器暂存；二维码令牌空闲一小时后过期，未提交会话的文件随后清理。已导入的文献原页会保留，直到用户在书库删除它。学习库本身仍只存当前浏览器；此版本没有多用户账号、云端数据库或设备间同步。
+```sh
+docker build -t scribe-reader .
+docker run --rm -p 4174:4174 -v /your/private/data:/data \
+  -e SCRIBE_PUBLIC_URL=https://your-private-domain.example scribe-reader
+```
 
-OCR 会按 PDF 页序和手机确认的队列顺序输出。无法识别的页面保留原件并标明错误，方便重试或核对；OCR 准确度受图片清晰度、歪斜和版面影响，不能保证每页无误。
+`SCRIBE_PUBLIC_URL` 应为实际可访问的 HTTPS 根地址；`SCRIBE_DATA_DIR` 默认 `/data/uploads`，`PORT` 默认 `4174`。如自托管服务需要跨公网供手机使用，请先确保域名、TLS、认证代理和持久卷均已配置。`SCRIBE_OCR_LANG` 可指定 PaddleOCR 语言。OCR 准确度受原件清晰度与版式影响，失败页会保留原件与错误信息。
 
 ## 验证
 
 ```sh
-node --check server.mjs
-python3 -m py_compile ocr_worker.py
+pnpm test
+pnpm build
+pnpm bundle:functions
+pnpm check
 ```
 
-容器构建：`docker build -t scribe-reader .`
+真实云端验收另运行 `node test/cloud-live.mjs`；它需要已部署的 Enter Cloud。Docker 构建与真实手机扫码也须分别在可用环境中验证。

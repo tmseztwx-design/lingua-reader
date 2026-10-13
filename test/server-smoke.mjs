@@ -55,6 +55,10 @@ try {
   await launch()();
   let response = await fetch(`${base}/api/health`);
   assert.equal(response.status, 200);
+  assert.equal((await response.json()).service, 'scribe-local');
+  response = await fetch(`${base}/api/lan-base`);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).base, 'https://reader.example.test');
 
   response = await fetch(`${base}/api/mobile-links`, { method: 'POST' });
   assert.equal(response.status, 201);

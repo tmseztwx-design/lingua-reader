@@ -1,0 +1,3 @@
+-- 修复生成端哈希口径 bug：把这条已发出去的内测码（显示形式 SCRIBE-S7VJ-4K34）的哈希改成规范化口径，使其可正常兑换。
+-- 只改这一行的 code_hash，不动掩码、备注、绑定与状态。
+update public.scribe_beta_codes set code_hash = '8257673f80d2cec893058b6d8ff1cef654728fcb1e2f9fa222b98450decd3a82' where code_hash = '023aa0bc89c1eb4626ba011493717dbb5a39ebd7d2a9009910c5506da42f884d';
