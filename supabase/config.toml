@@ -1,5 +1,7 @@
-project_id = "spb-t4nu9v7279pycm5l"
+project_id = "spb-t4nrwa6h1zbfphce"
 
+# 六个后端函数都自己做鉴权（书库同步码 / 撤回密钥 / 后台口令 / worker 秘钥），
+# 因此按仓库部署清单关闭网关的 JWT 校验；否则匿名钥匙的调用会被拦在业务逻辑之前。
 [functions.scribe-mobile-upload]
 verify_jwt = false
 

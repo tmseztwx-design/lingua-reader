@@ -2,152 +2,6 @@
 // 修改源文件后运行：pnpm bundle:functions
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {database, BUCKET} from "./cloud.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const AI_BASE_URL = "https://api.enter.pro";
-const AI_TOKEN_SECRET = "AI_API_TOKEN_3ef6055a44e1";
-const PROJECT_ID = "3ef6055a44e1ce0572332c487d8ffbb4";
-// 高并发、低成本的 GPT 模型，用于逐页原文转录。
-const DEFAULT_MODEL = "openai/gpt-6-luna";
-const SIGNED_IMAGE_TTL = 15 * 60;
-const MAX_INLINE_BYTES = 8 * 1024 * 1024;
-const NL = String.fromCharCode(10);
-const TAB = String.fromCharCode(9);
-
-const PROMPT = [
-  "你是专业文献的页面转录引擎。请把内容中的文字逐字转录为纯文本，规则：",
-  "1. 只输出原文，不要翻译、不要总结、不要解释、不要添加任何说明或标题。",
-  "2. 严格遵循原文的段落分布：章标题、小节标题、列表项、引文块各自单独成段；正文段落之间用一个空行分隔；不要把不同的段落合并成一段。",
-  "3. 同一段落内仅因页面宽度被折断的句子，合并为连续文本；不要输出 <br> 或任何 HTML 标签、Markdown 标记，只输出纯文本。",
-  "4. 页眉、页脚、页码、脚注按出现顺序照常转录，可在行首用 [页眉]/[页脚]/[脚注] 标注。",
-  "5. 无法辨认的字用 ␗ 代替，不要猜测或补全。",
-  "6. 如果内容中确实没有文字，只输出：NO_TEXT",
-].join(NL);
-
-const REVIEW_PROMPT = [
-  "你是文献转录的审校员。给你同一份页面内容和一份初步转录稿。请对照原图逐行审查并输出最终文本：",
-  "1. 补全遗漏的文字、行与段落；修正认错、漏掉或明显不通顺、缺词漏词的地方，一律以原图为准。",
-  "2. 不要臆造页面上没有的内容；仍无法辨认的字保留 ␗。",
-  "3. 按原文的段落分布输出：标题、列表项、引文各自单独成段，段落之间用一个空行分隔；同一段落内被硬换行拆开的句子合并成通顺的连续文本；不要把不同段落堆在一起。",
-  "4. 不要输出 <br> 或任何 HTML 标签、Markdown 标记；不要翻译、总结或评论。",
-  "5. 只输出审校后的原文。初步转录稿如下：",
-].join(NL);
-
-type Row = Record<string, unknown>;
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
-  });
-}
-
-function extensionOf(name: string) {
-  const match = String(name || "").toLowerCase().match(/\.[a-z0-9]+$/);
-  return match ? match[0] : "";
-}
-
-function toBase64(bytes: Uint8Array) {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
-  }
-  return btoa(binary);
-}
-
-function parseResponsesText(payload: Row | null) {
-  if (!payload) return "";
-  const direct = payload.output_text;
-  if (typeof direct === "string" && direct.trim()) return direct.trim();
-  const output = Array.isArray(payload.output) ? payload.output : [];
-  const parts: string[] = [];
-  for (const item of output as Row[]) {
-    if (item?.type !== "message" || !Array.isArray(item.content)) continue;
-    for (const block of item.content as Row[]) {
-      if (typeof block?.text === "string") parts.push(block.text);
-    }
-  }
-  return parts.join("").trim();
-}
-
-// 走 openai_responses 协议；parts 里放 input_image 或 input_file。
-async function runAi(input: { parts: Row[]; model: string; sessionId: string; prompt?: string; maxOutputTokens?: number }) {
-  const apiToken = Deno.env.get(AI_TOKEN_SECRET);
-  if (!apiToken) throw new Error("AI 服务未配置，请联系管理员。");
-
-  const body: Row = {
-    model: input.model,
-    stream: false,
-    input: [{ role: "user", content: [{ type: "input_text", text: input.prompt || PROMPT }, ...input.parts] }],
-  };
-  if (input.maxOutputTokens) body.max_output_tokens = input.maxOutputTokens;
-
-  const response = await fetch(`${AI_BASE_URL}/code/api/v1/ai/responses`, {
-    method: "POST",
-    signal: AbortSignal.timeout(65000),
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-      "Content-Type": "application/json",
-      "X-Session-ID": input.sessionId,
-      "X-Enter-Project-ID": PROJECT_ID,
-    },
-    body: JSON.stringify(body),
-  });
-
-  const raw = await response.text();
-  let payload: Row | null = null;
-  try { payload = JSON.parse(raw) as Row; } catch { /* 上游可能返回非 JSON */ }
-  if (!response.ok) {
-    const message = String((payload?.error as Row | undefined)?.message || raw.slice(0, 300) || "AI 服务错误");
-    throw new Error(message);
-  }
-  return parseResponsesText(payload);
-}
-
-// 两段式识别：先转录初稿，再对照原图审校（查漏、补缺、排版）。审校失败不阻塞，回退初稿。
-async function transcribeWithReview(input: { parts: Row[]; model: string; sessionId: string }) {
-  const draft = await runAi({ model: input.model, sessionId: input.sessionId, parts: input.parts });
-  if (!draft || draft === "NO_TEXT") return draft;
-  try {
-    const reviewed = await runAi({
-      model: input.model,
-      sessionId: input.sessionId,
-      parts: input.parts,
-      prompt: REVIEW_PROMPT + NL + NL + draft,
-    });
-    return reviewed || draft;
-  } catch (error: unknown) {
-    console.warn("[scribe-ocr] review pass failed, using draft:", error instanceof Error ? error.message : error);
-    return draft;
-  }
-}
-
-async function transcribeImage(input: { bytes: Uint8Array; mime: string; signedUrl?: string; model: string; sessionId: string }) {
-  const inline = () => transcribeWithReview({
-    model: input.model,
-    sessionId: input.sessionId,
-    parts: [{ type: "input_image", image_url: `data:${input.mime};base64,${toBase64(input.bytes)}` }],
-  });
-
-  if (!input.signedUrl) return await inline();
-  return await transcribeWithReview({
-    model: input.model,
-    sessionId: input.sessionId,
-    parts: [{ type: "input_image", image_url: input.signedUrl }],
-  }).catch(async (error: unknown) => {
-    console.warn("[scribe-ocr] signed url failed, retry inline:", error instanceof Error ? error.message : error);
-    return await inline();
-  });
-}
-
-// pdf-lib 纯 JS，可在边缘函数里把大 PDF 切成页块；每个页块单独转录再按页序拼接。
 import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
 
 // ---- 共享模块（supabase/functions/_shared 内联，平台只部署单文件） ----
@@ -210,6 +64,7 @@ const __shared = (() => {
   // 工作机制为两段式：先用视觉模型逐字转录页面（初稿），再把原图连同初稿交给模型审校——
   // 对照原图补全遗漏、修正缺词漏词与不通顺之处、合并硬换行并输出干净排版；审校失败时回退初稿。
   // 图片与 PDF 交给 GPT 视觉模型直接读取；docx 用内置解压提取文本。结果写回数据库，任何设备都能读取。
+
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -355,6 +210,7 @@ const __shared = (() => {
   }
 
   // pdf-lib 纯 JS，可在边缘函数里把大 PDF 切成页块；每个页块单独转录再按页序拼接。
+
 
   const PDF_CHUNK_PAGES = 6;
 
