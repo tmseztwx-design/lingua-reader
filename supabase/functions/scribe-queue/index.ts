@@ -73,8 +73,10 @@ const __shared = (() => {
   };
 
   const AI_BASE_URL = "https://api.enter.pro";
-  const AI_TOKEN_SECRET = "AI_API_TOKEN_3ef6055a44e1";
-  const PROJECT_ID = "3ef6055a44e1ce0572332c487d8ffbb4";
+  // 本项目（本项目 Cloud）的 AI 凭据：密钥名与归属 ID 随项目变化，换云端后必须同步更新，
+  // 否则识别与翻译会以「AI 服务未配置」或 403 失败。
+  const AI_TOKEN_SECRET = "AI_API_TOKEN_281ef1bf93bd";
+  const PROJECT_ID = "281ef1bf93bd210dde7613fcdd4565d2";
   // 高并发、低成本的 GPT 模型，用于逐页原文转录。
   const DEFAULT_MODEL = "openai/gpt-6-luna";
   const SIGNED_IMAGE_TTL = 15 * 60;
