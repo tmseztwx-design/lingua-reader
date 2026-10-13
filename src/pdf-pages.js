@@ -63,7 +63,8 @@ export async function explodePdf(file, onProgress) {
       onProgress?.(number, total);
     }
   } finally {
-    await pdf.destroy();
+    // destroy 在加载任务上，不在文档对象上；调错对象会让已成功拆出的页被误判为失败。
+    await task.destroy();
   }
   return pages;
 }

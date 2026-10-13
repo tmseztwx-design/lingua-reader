@@ -289,10 +289,12 @@ async function expandPdfs(files) {
     try {
       const { explodePdf } = await import("./pdf-pages.js");
       show("正在拆分 PDF", `${file.name} · 读取中…`);
-      const pages = await explodePdf(file, (done, total) => show("正在拆分 PDF", `${file.name} · 第 ${done} / ${total} 页`));
+      const pages = await explodePdf(file, (done, total) => show("正在拆分 PDF", `${file.name} · 第 ${done} / ${total} 页 · 请保持页面在前台`));
       result.push(...pages);
     } catch (error) {
-      console.warn("[scribe] PDF 拆页失败，改为整份上传", error);
+      console.warn("[scribe] PDF 拆页失败", error);
+      // 拆页失败且超过云端单次上限的整份 PDF 注定无法识别：不入队，明确提示，而不是上传到云端才报错。
+      if (file.size > 8 * 1024 * 1024) { failed.push(file.name); continue; }
       failed.push(file.name);
       result.push(file);
     }
@@ -309,7 +311,7 @@ async function addFiles(fileList) {
     try {
       const { files, failed } = await expandPdfs(picked);
       enqueue(files);
-      if (failed.length) show("有 PDF 无法在手机上拆页", `${failed.join("、")} 将整份上传；超过 8 MB 的整份 PDF 云端无法读取，建议改在电脑上传。`);
+      if (failed.length) show("有 PDF 无法在手机上拆页", `${failed.join("、")}：不超过 8 MB 的将整份上传，超过的已跳过，请在电脑上重新上传该文件。`);
     } finally { expanding = false; render(); }
     return;
   }
