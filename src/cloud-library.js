@@ -1,4 +1,5 @@
 import {localEntries,fingerprint,applyEntries,stampPageUrls} from './sync-state.js';
+import {readBackupPayload,mergeBackup,summarizeRestore} from './restore-backup.js';
 
 const STATE='scribe-local-v1',KEY='scribe-library-key',META='scribe-sync-meta-v1';
 const nativeSet=Storage.prototype.setItem;
@@ -160,6 +161,16 @@ export function installLibrary(cloud) {
     }
     finally{busy=false;if(succeeded && (dirty || Object.keys(pending).length))setTimeout(()=>sync().catch(()=>{}),2000);}
   }
+  // 从备份文件恢复：把另一个项目（或旧版页面）导出的学习数据合并回当前书库。
+  // 只补回本机缺失的文献与学习卡，同 id 条目保留当前版本；随后由同步推到云端。
+  // 云端未就绪（没填内测码）时先落在本机，接入书库后会自动同步上去。
+  async function restoreBackup(payload){
+    const {state:next,added,skipped}=mergeBackup(read(STATE,{}),readBackupPayload(payload));
+    applying=true;write(STATE,next);applying=false;
+    collect();
+    try{await sync();}catch{/* 云端暂时不可用：数据已在本机，稍后重试 */ }
+    return {added,skipped};
+  }
   async function createSession(body={}){
     const result=await cloud.callFunction('scribe-mobile-upload',{action:'create',libraryKey:await ensureLibrary(),...body});
     return result;
@@ -219,14 +230,14 @@ export function installLibrary(cloud) {
       line.textContent='本机数据：'+mode+usage+(vault.info.persisted?' · 已申请持久保存':'')+' · 云端书库保存完整主副本';
     });
   }
-  cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key,storageState,clearLocalCaches};
+  cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key,storageState,clearLocalCaches,restoreBackup};
   window.addEventListener('scribe-reset-workspace',()=>{
     write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
     generation++;localStorage.removeItem(KEY);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
   });
   function mount(){
     const panel=document.createElement('section');panel.className='card setting';panel.id='cloudLibrarySettings';
-    panel.innerHTML='<h2>云端书库</h2><p class="muted tiny">书库、学习卡和阅读进度自动同步。另一台设备输入同一同步码即可连接；请妥善保管同步码。</p><p id="cloudSyncState"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button secondary" id="showLibraryKey">显示同步码</button><button class="button secondary" id="joinLibrary">连接已有书库</button><button class="button secondary" id="syncNow">立即同步</button><button class="button secondary" id="betaGoCode">输入内测码</button><button class="button secondary" id="exportSyncConflicts">导出冲突副本</button></div><pre id="libraryKeyValue" hidden style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all"></pre>';
+    panel.innerHTML='<h2>云端书库</h2><p class="muted tiny">书库、学习卡和阅读进度自动同步。另一台设备输入同一同步码即可连接；请妥善保管同步码。</p><p id="cloudSyncState"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button secondary" id="showLibraryKey">显示同步码</button><button class="button secondary" id="joinLibrary">连接已有书库</button><button class="button secondary" id="syncNow">立即同步</button><button class="button secondary" id="betaGoCode">输入内测码</button><button class="button secondary" id="exportSyncConflicts">导出冲突副本</button><button class="button secondary" id="restoreBackup">从备份文件恢复</button><input id="restoreBackupFile" type="file" accept="application/json,.json" hidden></div><pre id="libraryKeyValue" hidden style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all"></pre>';
     document.querySelector('#settings .settings-grid')?.prepend(panel);
     if(!panel.isConnected) document.querySelector('#settings')?.append(panel);
     indicator=panel.querySelector('#cloudSyncState');
@@ -252,6 +263,21 @@ export function installLibrary(cloud) {
     document.querySelector('#exportSyncConflicts').onclick=()=>{
       const blob=new Blob([JSON.stringify(read('scribe-sync-conflicts',[]),null,2)],{type:'application/json'});
       const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='书库同步冲突副本.json';link.click();URL.revokeObjectURL(link.href);
+    };
+    // 换过项目、重装过浏览器、或从旧站点搬回来时，用「导出全部数据」下载的 JSON 把学习数据合并回来。
+    const backupInput=document.querySelector('#restoreBackupFile');
+    document.querySelector('#restoreBackup').onclick=()=>backupInput.click();
+    backupInput.onchange=async()=>{
+      const file=backupInput.files&&backupInput.files[0];if(!file)return;
+      say('正在读取备份：'+file.name);
+      try {
+        const {added,skipped}=await restoreBackup(JSON.parse(await file.text()));
+        const restored=added.docs+added.cards+added.deleted;
+        say(summarizeRestore(added,skipped)+(restored?' 正在重新载入…':''));
+        if(restored)setTimeout(()=>location.reload(),1200);
+      }catch(error){
+        say('恢复失败：'+(error&&error.message||'文件无法解析') );
+      }finally{backupInput.value='';}
     };
     // 旧版本把整份内容存进待发镜像；带上“内容已改”的判断只需短指纹，
     // 读到旧格式就丢掉，collect() 会立刻按当前状态重建（内容来自 STATE，不丢东西）。

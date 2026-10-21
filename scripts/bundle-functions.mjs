@@ -35,15 +35,23 @@ function exportsOf(code) {
   return { values, types };
 }
 
+// import 语句内部不会再出现分号，用「分号」限定匹配范围。
+// 早先的写法用 [\s\S]*? 跨行找 from，遇到「共享文件里相对导入在前、远程导入在后」时
+// 会把中间整段代码当成一条 import 捞出来：生成的单文件残留 ./cloud.ts 相对导入，
+// 平台打包就会报 Module not found。这里按语句匹配，不再跨语句。
+const importStatement = /^import\b[^;]*?from\s*"[^"]+"[^;]*?;/gm;
+
 function stripModuleSyntax(code) {
   return code
-    .replace(/^import[\s\S]*?from\s+"[^"]+";?\s*$/gm, "")
+    .replace(importStatement, "")
     .replace(/^export\s+/gm, "")
     .trim();
 }
 
 function remoteImportsOf(code) {
-  return [...code.matchAll(/^import\s+[\s\S]*?from\s+"(https?:[^"]+)";?$/gm)].map((match) => match[0]);
+  return [...code.matchAll(importStatement)]
+    .map((match) => match[0].trim())
+    .filter((statement) => /^import\b[^;]*?from\s*"https?:[^"]+"[^;]*?;$/.test(statement));
 }
 
 function sharedImportsOf(code) {
@@ -98,10 +106,7 @@ for (const name of functions) {
   const importLines = [...remoteImportsOf(source), ...usedCode.flatMap(remoteImportsOf)];
   const seenUrls = new Set();
   const remoteImports = importLines.filter((line) => { const url = (line.match(/"(https?:[^"]+)"/) || [])[1] || line; if (seenUrls.has(url)) return false; seenUrls.add(url); return true; });
-  const body = source
-    .replace(/^import\s*\{[^}]*\}\s*from\s*"\.\.\/_shared\/[^"]+";?\s*$/gm, "")
-    .replace(/^import\s[\s\S]*?from\s"https?:[^"]+";?\s*$/gm, "")
-    .trim();
+  const body = source.replace(importStatement, "").trim();
 
   const output = [
     `// 由 scripts/bundle-functions.mjs 从 supabase/functions/src/${name}.ts 生成，请勿直接编辑。`,
@@ -121,6 +126,13 @@ for (const name of functions) {
     body,
     "",
   ].join(NL);
+
+  // 生成物必须是自包含的单文件：任何相对导入都会让平台打包失败（Module not found）。
+  // 这里直接拦下来，比在部署时报错更容易定位。
+  const leftover = output.match(/^\s*import\b[^;]*from\s*"\.{1,2}\/[^"]+";?\s*$/m);
+  if (leftover) {
+    throw new Error(`${name}: 生成物仍含相对导入 ${leftover[0].trim()}，平台只部署 index.ts 单文件。`);
+  }
 
   const target = path.join(functionsDir, name, "index.ts");
   fs.mkdirSync(path.dirname(target), { recursive: true });

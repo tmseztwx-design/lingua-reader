@@ -32,7 +32,14 @@ try{
     await new Promise(resolve=>setTimeout(resolve,2500));
   }while(Date.now()<deadline);
   assert.equal(result.documents[0]?.processingState,'ready','Background queue did not complete within 3 minutes');
-  assert.deepEqual(result.documents[0].sourcePages.map(page=>page.text.trim()),pages);
+  // 有逐段结构时服务端不再重复下发整页原文（省流），正文因此可能只在 paragraphs 里；
+  // 两种载体都算通过，但必须真的带回这一页的文字。
+  const pageTexts=result.documents[0].sourcePages.map(page=>{
+    const paragraphs=Array.isArray(page.paragraphs)?page.paragraphs:[];
+    const joined=paragraphs.map(item=>String(item?.text||"")).filter(Boolean).join('\n').trim();
+    return joined||String(page.text||"").trim();
+  });
+  assert.deepEqual(pageTexts,pages);
   // 每页都要带回逐段结构；译文缺失只警告，翻译失败不应让整批部署验收失败。
   const pageWithTranslations=result.documents[0].sourcePages.filter(page=>Array.isArray(page.paragraphs)&&page.paragraphs.length);
   if(pageWithTranslations.length!==result.documents[0].sourcePages.length){

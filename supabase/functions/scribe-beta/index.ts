@@ -71,6 +71,7 @@ const { database, json, randomKey, hashKey, libraryFor } = __shared;
 //   adminList    码列表：掩码、备注、状态、绑定时间、活跃度、文献与卡片数量
 //   adminRevoke / adminRestore  作废与恢复（只挡新设备登录，已登录设备凭证继续可用）
 
+
 const ADMIN_SECRET = "SCRIBE_ADMIN_PASSWORD";
 const MAX_CODES = 200;
 const MAX_BATCH = 50;
