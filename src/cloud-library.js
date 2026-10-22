@@ -9,24 +9,47 @@ const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))||fa
 const write=(key,value)=>nativeSet.call(localStorage,key,JSON.stringify(value));
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
-export function installLibrary(cloud) {
+export function installLibrary(cloud, {betaRequired=true}={}) {
   let metadata=read(META,{}),pending={},busy=false,dirty=false,applying=false,readyPromise=null,generation=0;
   let indicator,refreshButton,betaBlocked=false;
   let knownEntries,knownDocuments={};
   const say=message=>{if(indicator)indicator.textContent=message;};
   const key=()=>localStorage.getItem(KEY)||'';
   const betaKey=()=>{try{return JSON.parse(localStorage.getItem('scribe-beta-session')||'null')?.libraryKey||'';}catch{return '';}};
+  let creatingLibrary=null,createRetryAt=0,createFailure=null;
   function betaRequiredError(){
     const error=new Error('云端需要内测码：请在「导入文献」页顶部输入内测码，然后重试。');
     error.code='BETA_REQUIRED';
     return error;
   }
   async function ensureLibrary(){
+    if(cloud.account){const token=cloud.account.token();if(!token)throw Object.assign(new Error('请先登录。'),{status:401});return token;}
     if(key()) return key();
-    // 内测期间不再为陌生设备自动新建书库：必须先用内测码登录。
+    // 优先沿用已有凭证；临时免码模式也不切换书库、不清理用户数据。
     const fromBeta=betaKey();
     if(fromBeta){nativeSet.call(localStorage,KEY,fromBeta);metadata={};write(META,metadata);return fromBeta;}
-    throw betaRequiredError();
+    if(betaRequired)throw betaRequiredError();
+    if(creatingLibrary)return creatingLibrary;
+    if(createFailure&&Date.now()<createRetryAt)throw createFailure;
+    const epoch=generation;
+    creatingLibrary=(async()=>{
+      try{
+        const result=await cloud.callFunction('scribe-library',{action:'create'});
+        if(!/^[a-f0-9]{64}$/.test(result?.libraryKey||''))throw new Error('云端未返回有效的书库凭证，请部署最新的 scribe-library 后重试。');
+        if(epoch!==generation)throw new Error('工作区已切换，请重试连接。');
+        if(key())return key();
+        nativeSet.call(localStorage,KEY,result.libraryKey);metadata={};write(META,metadata);
+        createFailure=null;createRetryAt=0;
+        return result.libraryKey;
+      }catch(error){
+        if(error.status===403){
+          const unavailable=new Error('页面已取消内测码限制，但云端仍在使用旧的准入设置。请部署最新 scribe-library；本机阅读和学习不受影响。');
+          unavailable.code='TEST_ACCESS_NOT_DEPLOYED';error=unavailable;
+        }
+        createFailure=error;createRetryAt=Date.now()+30000;throw error;
+      }finally{creatingLibrary=null;}
+    })();
+    return creatingLibrary;
   }
   async function libraryCall(action,body={}){
     return cloud.callFunction('scribe-library',{action,libraryKey:await ensureLibrary(),...body});
@@ -67,6 +90,7 @@ export function installLibrary(cloud) {
   // 切换到另一个书库（同步码或内测码带来的钥匙）：先给当前工作区留一份可回滚的备份，
   // 再把本机内容替换成新书库的内容。本机旧内容仍在原书库与备份里，不会被抹掉。
   async function joinLibrary(value,{reload=true}={}){
+    if(cloud.account)throw new Error('书库由账号绑定，请退出后登录另一个账号；旧书库只能由管理员分配。');
     const next=String(value||'').trim().toLowerCase();
     if(!/^[a-f0-9]{64}$/i.test(next))throw new Error('同步码格式不正确。');
     if(next===key())return {switched:false};
@@ -237,7 +261,7 @@ export function installLibrary(cloud) {
   cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key,storageState,clearLocalCaches,restoreBackup};
   window.addEventListener('scribe-reset-workspace',()=>{
     write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
-    generation++;knownEntries=undefined;knownDocuments={};localStorage.removeItem(KEY);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
+    generation++;knownEntries=undefined;knownDocuments={};if(!cloud.account)localStorage.removeItem(KEY);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
   });
   function mount(){
     const panel=document.createElement('section');panel.className='card setting';panel.id='cloudLibrarySettings';
@@ -253,8 +277,9 @@ export function installLibrary(cloud) {
       const value=prompt('输入另一台设备“云端书库”中显示的 64 位同步码：');if(!value)return;
       try { await joinLibrary(value); }catch(error){ say(error.message); }
     };
-    document.querySelector('#syncNow').onclick=()=>sync().catch(()=>{});
+    document.querySelector('#syncNow').onclick=()=>{createRetryAt=0;sync().catch(()=>{});};
     const goCode=document.querySelector('#betaGoCode');
+    if(goCode&&(!betaRequired||cloud.account))goCode.remove();
     if(goCode)goCode.onclick=()=>{const input=document.querySelector('#betaInput-settings');const card=document.querySelector('#betaCard-settings');if(card)card.scrollIntoView({behavior:'smooth',block:'center'});if(input)setTimeout(()=>input.focus(),260);};
     const restore=document.createElement('button');restore.className='button secondary';restore.textContent='恢复上一个工作区';
     restore.onclick=async()=>{
@@ -263,7 +288,11 @@ export function installLibrary(cloud) {
       nativeSet.call(localStorage,KEY,previous.libraryKey);metadata=previous.metadata||{};pending=previous.pending||{};
       write(META,metadata);write('scribe-sync-pending',pending);applying=true;write(STATE,previous.state);applying=false;
       await sync();location.reload();
-    };panel.append(restore);
+    };if(!cloud.account)panel.append(restore);
+    if(cloud.account){
+      panel.querySelector('p').textContent='书库、学习卡和阅读进度绑定当前账号。退出登录后缓存仍保存在本机的独立账号空间；再次登录同一账号可继续学习。';
+      panel.querySelector('#showLibraryKey')?.remove();panel.querySelector('#joinLibrary')?.remove();
+    }
     document.querySelector('#exportSyncConflicts').onclick=()=>{
       const blob=new Blob([JSON.stringify(read('scribe-sync-conflicts',[]),null,2)],{type:'application/json'});
       const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='书库同步冲突副本.json';link.click();URL.revokeObjectURL(link.href);

@@ -52,3 +52,13 @@ test('without IndexedDB the page still boots on plain localStorage and prefers t
   assert.equal(w.__scribeVault.info.mode,'localstorage');
   assert.equal(w.localStorage.getItem('scribe-vault-fallback'),'1');
 });
+
+test('unfinished review sessions are persisted in IndexedDB and restored with their library boundary',async()=>{
+  const factory=new IDBFactory(),first=boot(factory);await first.done;
+  const session=JSON.stringify({version:1,library:'test-library',day:'2026-10-22',queue:['card-b'],results:[{cardId:'card-a',rating:'good'}],waiting:[]});
+  first.w.localStorage.setItem('scribe-review-session-v1',session);first.w.__scribeVault.flush();await wait(80);
+  assert.ok(!nativeKeys(first.w).includes('scribe-review-session-v1'));
+  const again=boot(factory);await again.done;
+  assert.equal(again.w.localStorage.getItem('scribe-review-session-v1'),session);
+  first.dom.window.close();again.dom.window.close();
+});

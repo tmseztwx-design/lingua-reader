@@ -12,8 +12,8 @@ async function call(name,body){
 }
 // An administrator provisions a dedicated synthetic test library. Never silently
 // create anonymous cloud storage or test inside a user's real library.
-const libraryKey=process.env.SCRIBE_TEST_LIBRARY_KEY;
-assert.match(libraryKey||'',/^[a-f0-9]{64}$/,'Set SCRIBE_TEST_LIBRARY_KEY to an isolated test library credential (not a real user library).');
+const libraryKey=process.env.SCRIBE_TEST_ACCOUNT_TOKEN;
+assert.match(libraryKey||'',/^[a-f0-9]{64}$/,'Set SCRIBE_TEST_ACCOUNT_TOKEN to a live session for an isolated synthetic test account (not a real user account).');
 const session=await call('scribe-mobile-upload',{action:'create',libraryKey,title:'部署验收 · 合成文本'});
 const library=(action,body={})=>call('scribe-library',{action,libraryKey,...body});
 try{

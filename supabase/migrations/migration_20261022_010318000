@@ -1,0 +1,16 @@
+-- Enter recorded this alias for 20261021150000_upload_integrity.sql.
+-- The upstream payload was byte-for-byte identical. Do not execute its CREATE TABLE
+-- and counter-baseline initialization twice on a fresh database.
+-- Existing Cloud migration history is retained; the canonical migration must run first.
+do $migration_alias$
+begin
+  if to_regclass('public.scribe_source_assets') is null
+     or to_regclass('public.scribe_study_counters') is null
+     or to_regprocedure('public.scribe_prepare_upload(uuid,jsonb)') is null
+     or not exists(select 1 from information_schema.columns
+       where table_schema='public' and table_name='scribe_cloud_sessions' and column_name='upload_manifest')
+  then
+    raise exception 'Apply 20261021150000_upload_integrity.sql before this Enter migration alias';
+  end if;
+end
+$migration_alias$;

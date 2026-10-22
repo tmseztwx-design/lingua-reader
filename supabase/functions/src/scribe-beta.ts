@@ -241,6 +241,8 @@ async function adminSetRevoked(db: ReturnType<typeof database>, body: Row, revok
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
+  return json({error:'内测码机制已停用，请使用账号密码登录；账号由管理员控制台创建。'},410);
+  /* Historical implementation retained for data migration reference only.
   if (req.method !== "POST") return json({ error: "不支持的操作" }, 405);
   try {
     const body = (await req.json()) as Row;
@@ -259,4 +261,5 @@ Deno.serve(async (req) => {
     console.error("[scribe-beta]", error);
     return json({ error: error instanceof Error ? error.message : "服务暂不可用。" }, 500);
   }
+  */
 });

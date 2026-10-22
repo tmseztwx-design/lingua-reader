@@ -192,6 +192,17 @@ async function database(seed){
   await db.exec(await readFile(new URL('../supabase/migrations/20261021150000_upload_integrity.sql',import.meta.url),'utf8'));
   return db;
 }
+test('Enter duplicate migration alias validates the upload schema without rerunning or resetting it',async()=>{
+  const alias=await readFile(new URL('../supabase/migrations/migration_20261022_010318000',import.meta.url),'utf8');
+  const db=await database();
+  try{
+    const library=(await db.query("insert into scribe_libraries(access_hash,minutes_baseline,reviewed_baseline) values('alias-existing-library',75,12) returning id")).rows[0].id;
+    await db.exec(alias);await db.exec(alias);
+    assert.deepEqual((await db.query('select minutes_baseline,reviewed_baseline from scribe_libraries where id=$1',[library])).rows[0],{minutes_baseline:'75',reviewed_baseline:12});
+  }finally{await db.close();}
+  const empty=new PGlite();
+  try{await assert.rejects(empty.exec(alias),/Apply 20261021150000_upload_integrity.sql/);}finally{await empty.close();}
+});
 test('schema upgrade keeps legacy text/cards, repairs duplicate order without dropping pages, and never expires finished books',async()=>{
   let session,library;
   const db=await database(async db=>{

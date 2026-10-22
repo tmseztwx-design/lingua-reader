@@ -468,6 +468,13 @@ function processDocument(id) {
 function routeApi(req, res, url) {
   const pieces = url.pathname.split('/').filter(Boolean);
   if (req.method === 'GET' && url.pathname === '/api/lan-base') return json(res, 200, { base: publicBase() });
+  // The production app is account-only. The old unauthenticated local service must
+  // not become a second entrance around cloud account authorization.
+  const legacyTest=process.env.NODE_ENV==='test'&&process.env.SCRIBE_LEGACY_API_TEST==='1';
+  if(!legacyTest){
+    if(req.method==='GET'&&url.pathname==='/api/health')return json(res,200,{status:'ok',service:'scribe-account-site',auth:'required'});
+    return json(res,401,{error:'本机旧版接口已关闭，请登录账号后使用云端上传与文献接口。'});
+  }
   if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { status: 'ok', service: 'scribe-local', ocr: process.platform === 'darwin' && process.env.SCRIBE_OCR_ENGINE !== 'paddle' ? 'vision' : 'paddle' });
   if (req.method === 'POST' && url.pathname === '/api/mobile-links') return makeSession(res, url.searchParams.get('local') === '1').catch(() => json(res, 500, { error: '上传通道生成失败，请重试。' }));
   if (pieces[0] === 'api' && pieces[1] === 'documents' && pieces[2]) return routeDocument(req, res, pieces);

@@ -1,4 +1,4 @@
-import {database,json,libraryFor,BUCKET,Row,withPageCount,allRows,readJsonLimited} from "../_shared/cloud.ts";
+import {database,json,libraryFor,BUCKET,Row,withPageCount,allRows,readJsonLimited,randomKey,hashKey} from "../_shared/cloud.ts";
 
 async function entriesOf(db: ReturnType<typeof database>, id: string, known?:Row) {
   if(!known) return allRows((from,to)=>db.from('scribe_library_entries').select('*').eq('library_id',id).order('kind').order('entry_id').range(from,to));
@@ -69,7 +69,7 @@ Deno.serve(async req=>{
   try {
     const body=await readJsonLimited(req,8*1024*1024),db=database();
     if(body.action==="create"){
-      return json({error:'请使用内测码连接书库。未登录不能创建云端存储空间。'},403);
+      return json({error:'本站不开放注册，请由管理员在控制台创建账号。'},403);
     }
     const library=await libraryFor(db,body.libraryKey);
     if(!library) return json({error:"书库同步码无效，请核对后重新连接。"},401);
