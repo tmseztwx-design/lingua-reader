@@ -63,7 +63,11 @@ async function sessionByToken(db: ReturnType<typeof database>, token: unknown) {
   if (typeof token !== "string" || token.length < 10) return null;
   const { data } = await db.from("scribe_cloud_sessions").select("*").eq("token", token).maybeSingle();
   if (!data || data.deleted_at) return null;
-  if (!data.completed_at && new Date(String((data as Row).expires_at)).getTime() <= Date.now()) return null;
+  if (new Date(String((data as Row).expires_at)).getTime() <= Date.now()) return null;
+  // QR codes grant only a short-lived upload capability, never account/library access.
+  // Disabling an account also invalidates outstanding mobile upload links.
+  const {data:owner,error}=await db.from('scribe_accounts').select('id,credential_version').eq('library_id',data.library_id).eq('disabled',false).maybeSingle();
+  if(error||!owner||owner.credential_version!==data.account_version)return null;
   return data as Row;
 }
 
@@ -122,7 +126,7 @@ async function createSession(db: ReturnType<typeof database>, body: Row) {
   const title = typeof body.title === "string" ? cleanName(body.title).slice(0, 120) : null;
   const { data, error } = await db
     .from("scribe_cloud_sessions")
-    .insert({ token, expires_at: expiresAt, title, library_id:library.id })
+    .insert({ token, expires_at: expiresAt, title, library_id:library.id,account_version:library.version })
     .select("*")
     .single();
   if (error || !data) throw new Error(error?.message || "无法建立云端上传通道。");

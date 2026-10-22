@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#17243e">
   <meta name="robots" content="noindex,nofollow">
-  <title>Scribe · 内测管理后台</title>
+  <title>Scribe · 账号管理控制台</title>
 </head>
 <body>
   <!-- 结构、样式与逻辑都在 src/admin-page.js：独立页面与 /?admin=1 路由共用同一份。 -->
   <script type="module">
     import { createCloud } from "/src/cloud-client.js";
-    import { installAdminPage } from "/src/admin-page.js";
-    installAdminPage(createCloud());
+    import { installAccountConsole } from "/src/account-console.js";
+    installAccountConsole(createCloud());
   </script>
 </body>
 </html>

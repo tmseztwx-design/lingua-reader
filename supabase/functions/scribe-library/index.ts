@@ -56,15 +56,11 @@ const __shared = (() => {
   }
   async function libraryFor(db: ReturnType<typeof database>, key: unknown) {
     if (typeof key !== "string" || !/^[a-f0-9]{64}$/.test(key)) return null;
-    const bytes = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(key));
-    const hash = Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,"0")).join("");
-    const {data,error} = await db.from("scribe_libraries").select("id").eq("access_hash",hash).maybeSingle();
-    if (error) throw new Error(error.message);
-    if (data) return data;
-    // 内测码在第二台设备登录时会为该设备另签一份凭证，所以再查一次多凭证表。
-    const {data:access,error:accessError} = await db.from("scribe_library_access").select("library_id").eq("access_hash",hash).maybeSingle();
-    if (accessError) throw new Error(accessError.message);
-    return access ? { id: access.library_id as string } : null;
+    // Legacy beta/library bearer keys no longer authorize requests. Every API resolves a
+    // live account session, checking expiry, disabled state and credential version in SQL.
+    const {data,error}=await db.rpc('scribe_account_library',{p_token_hash:await hashKey(key)});
+    if(error)throw Object.assign(new Error('账号服务尚未部署，请联系管理员。'),{status:503});
+    return data||null;
   }
   async function hashKey(key: string) {
     return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(key))),n=>n.toString(16).padStart(2,"0")).join("");
@@ -82,7 +78,7 @@ const __shared = (() => {
   }
   return { allRows, readJsonLimited, json, database, randomKey, withPageCount, libraryFor, hashKey, wakeQueue, BUCKET, cors };
 })();
-const { database, json, libraryFor, BUCKET, withPageCount, allRows, readJsonLimited } = __shared;
+const { database, json, libraryFor, BUCKET, withPageCount, allRows, readJsonLimited, randomKey, hashKey } = __shared;
 type Row = Record<string, any>;
 
 // ---- 函数实现 ----
@@ -155,7 +151,7 @@ Deno.serve(async req=>{
   try {
     const body=await readJsonLimited(req,8*1024*1024),db=database();
     if(body.action==="create"){
-      return json({error:'请使用内测码连接书库。未登录不能创建云端存储空间。'},403);
+      return json({error:'本站不开放注册，请由管理员在控制台创建账号。'},403);
     }
     const library=await libraryFor(db,body.libraryKey);
     if(!library) return json({error:"书库同步码无效，请核对后重新连接。"},401);

@@ -56,15 +56,11 @@ const __shared = (() => {
   }
   async function libraryFor(db: ReturnType<typeof database>, key: unknown) {
     if (typeof key !== "string" || !/^[a-f0-9]{64}$/.test(key)) return null;
-    const bytes = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(key));
-    const hash = Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,"0")).join("");
-    const {data,error} = await db.from("scribe_libraries").select("id").eq("access_hash",hash).maybeSingle();
-    if (error) throw new Error(error.message);
-    if (data) return data;
-    // 内测码在第二台设备登录时会为该设备另签一份凭证，所以再查一次多凭证表。
-    const {data:access,error:accessError} = await db.from("scribe_library_access").select("library_id").eq("access_hash",hash).maybeSingle();
-    if (accessError) throw new Error(accessError.message);
-    return access ? { id: access.library_id as string } : null;
+    // Legacy beta/library bearer keys no longer authorize requests. Every API resolves a
+    // live account session, checking expiry, disabled state and credential version in SQL.
+    const {data,error}=await db.rpc('scribe_account_library',{p_token_hash:await hashKey(key)});
+    if(error)throw Object.assign(new Error('账号服务尚未部署，请联系管理员。'),{status:503});
+    return data||null;
   }
   async function hashKey(key: string) {
     return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(key))),n=>n.toString(16).padStart(2,"0")).join("");
@@ -328,6 +324,8 @@ async function adminSetRevoked(db: ReturnType<typeof database>, body: Row, revok
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({ ok: true });
+  return json({error:'内测码机制已停用，请使用账号密码登录；账号由管理员控制台创建。'},410);
+  /* Historical implementation retained for data migration reference only.
   if (req.method !== "POST") return json({ error: "不支持的操作" }, 405);
   try {
     const body = (await req.json()) as Row;
@@ -346,4 +344,5 @@ Deno.serve(async (req) => {
     console.error("[scribe-beta]", error);
     return json({ error: error instanceof Error ? error.message : "服务暂不可用。" }, 500);
   }
+  */
 });

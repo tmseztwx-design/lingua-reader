@@ -19,7 +19,8 @@ const port = await new Promise((resolve, reject) => {
 const base = `http://127.0.0.1:${port}`;
 const env = {
   ...process.env,
-  NODE_ENV: 'production',
+  NODE_ENV: 'test',
+  SCRIBE_LEGACY_API_TEST:'1',
   PORT: String(port),
   SCRIBE_PUBLIC_URL: 'https://reader.example.test',
   SCRIBE_DATA_DIR: path.join(dataDirectory, 'uploads')
@@ -94,7 +95,15 @@ try {
   assert.equal(await response.text(), 'Education and culture.');
   response = await fetch(`${base}/api/documents/${document.id}`, { method: 'DELETE', headers: { Origin: 'https://reader.example.test' } });
   assert.equal(response.status, 200, 'same-origin document cleanup works behind HTTPS hosting');
-  console.log('Server smoke test passed: public HTTPS QR, restart recovery, ordered upload, page retrieval, and HTTPS cleanup.');
+  await stop();
+  env.NODE_ENV='production';
+  // Even accidentally preserving the explicit legacy test flag cannot open production APIs.
+  await launch()();
+  response=await fetch(`${base}/api/health`);assert.equal((await response.json()).service,'scribe-account-site');
+  for(const endpoint of ['/api/mobile-links','/api/documents/unknown','/api/mobile-links/recover?count=1']){
+    response=await fetch(base+endpoint,{method:endpoint==='/api/mobile-links'?'POST':'GET'});assert.equal(response.status,401);
+  }
+  console.log('Server smoke passed: isolated legacy upload regression and production anonymous-API rejection.');
 } finally {
   await stop();
   fs.rmSync(dataDirectory, { recursive: true, force: true });
