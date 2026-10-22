@@ -10,11 +10,15 @@ async function call(name,body){
   const response=await fetch(base+'/functions/v1/'+name,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
   const payload=await response.json();if(!response.ok)throw new Error(name+': '+response.status+' '+(payload.error||payload.message||'not deployed'));return payload;
 }
-const {libraryKey}=await call('scribe-library',{action:'create'});
+// An administrator provisions a dedicated synthetic test library. Never silently
+// create anonymous cloud storage or test inside a user's real library.
+const libraryKey=process.env.SCRIBE_TEST_LIBRARY_KEY;
+assert.match(libraryKey||'',/^[a-f0-9]{64}$/,'Set SCRIBE_TEST_LIBRARY_KEY to an isolated test library credential (not a real user library).');
 const session=await call('scribe-mobile-upload',{action:'create',libraryKey,title:'部署验收 · 合成文本'});
 const library=(action,body={})=>call('scribe-library',{action,libraryKey,...body});
 try{
   const pages=['First page: knowledge is learned through reading.','Second page: education creates opportunities.'];
+  await call('scribe-mobile-upload',{action:'prepare',token:session.token,manifest:{files:pages.map((text,index)=>({name:'page-'+(index+1)+'.txt',size:new Blob([text]).size,mime:'text/plain'})),originals:[]}});
   // Upload completion is reversed, independently of confirmed page order.
   for(const order of [1,0]){
     const blob=new Blob([pages[order]],{type:'text/plain'});

@@ -1,6 +1,8 @@
 // 手机上传页逻辑：一套队列 UI，两种传输通道。
 // - 云模式（URL 带 ?t=）：直传 Enter 云私有存储，识别也在云端。
 // - 局域网模式（无 ?t=，token 由本机服务注入）：沿用原来的 /api/mobile-links 接口，识别在本机。
+import {runUploadPool,uploadCloudFile,uploadSummary,retry} from './upload-engine.js';
+import {prepareSelection,loadFile,saveDraft,readDraft,clearDraft,discardItems,manifestOf} from './upload-store.js';
 const isPdf = (file) => /\.pdf$/i.test(file?.name || "") || file?.type === "application/pdf";
 const cloudToken = (new URLSearchParams(location.search).get("t") || "").trim();
 const PLACEHOLDER = "__SCRIBE_LINK_TOKEN__";
@@ -47,6 +49,14 @@ let uploadLocked = false;
 let completionSent = false;
 let transport = null;
 let addSeq = 0;
+let sources = [], persistTimer;
+let initializing=true;
+const draftScope='mobile:'+cloudToken;
+async function persist(){
+  clearTimeout(persistTimer);
+  if(mode==='cloud')await saveDraft(draftScope,queue,{sources,locked:uploadLocked});
+}
+function persistSoon(){clearTimeout(persistTimer);persistTimer=setTimeout(()=>persist().catch(error=>show('队列暂存失败',error.message)),400);}
 
 function orderLocked() {
   return uploading || uploadLocked || completionSent;
@@ -115,7 +125,7 @@ function cloudClient() {
 
 async function callCloud(name, body) {
   const client = await cloudClient();
-  const { data, error } = await client.functions.invoke(name, { body });
+  const { data, error } = await client.functions.invoke(name, { body, timeout:45000 });
   if (error) {
     let message = error.message || "云端请求失败，请重试。";
     let statusCode = 0;
@@ -146,24 +156,11 @@ function createCloudTransport(token) {
         throw error;
       }
     },
-    async upload(file, order, onProgress) {
-      const signed = await callCloud("scribe-mobile-upload", {
-        action: "sign",
-        token,
-        order,
-        name: file.name,
-        size: file.size,
-        mime: file.type || "",
-      });
-      if(signed.alreadyUploaded) return;
-      await xhrRequest("PUT", signed.uploadUrl, file, { "Content-Type": file.type || "application/octet-stream" }, onProgress);
-      await callCloud("scribe-mobile-upload", {
-        action: "register",
-        token,
-        fileId: signed.fileId,
-        size: file.size,
-        mime: file.type || "",
-      });
+    async prepare(manifest){
+      return retry(()=>callCloud('scribe-mobile-upload',{action:'prepare',token,manifest}));
+    },
+    async upload(file, order, onProgress, options) {
+      return uploadCloudFile(callCloud,token,file,order,onProgress,options);
     },
     async complete() {
       await callCloud("scribe-mobile-upload", { action: "complete", token });
@@ -247,23 +244,30 @@ function render() {
       });
 
     row.append(handle, number, copy, actions);
+    item.element=row;
     queueEl.appendChild(row);
   });
 
   const pending = queue.filter((item) => item.state !== "uploaded").length;
-  document.querySelectorAll("#images,#documents,#camera").forEach((input) => { input.disabled = uploadLocked || uploading; });
-  uploadButton.disabled = !queue.length || uploading || completionSent || expanding;
-  uploadButton.textContent = uploading ? "正在按顺序上传…"
+  document.querySelectorAll("#images,#documents,#camera").forEach((input) => { input.disabled = uploadLocked || uploading || expanding || initializing; });
+  uploadButton.disabled = !queue.length || uploading || completionSent || expanding || initializing;
+  uploadButton.textContent = uploading ? "并发上传中 · 页序已锁定…"
     : completionSent ? "全部文件已送达"
       : pending ? `锁定当前顺序并上传 ${queue.length} 个文件` : "确认全部文件已送达";
   clearButton.hidden = !queue.length || uploading;
-  clearButton.disabled = uploadLocked;
+  clearButton.disabled = uploading||completionSent||expanding||initializing;
+  clearButton.textContent=uploadLocked?'取消本机队列':'清空';
   queueTools.hidden = !queue.length;
   const sortDisabled = queue.length < 2 || orderLocked();
   sortNameButton.disabled = sortDisabled;
   sortTimeButton.disabled = sortDisabled;
 }
 
+function updateItem(item){
+  if(!item.element)return;
+  item.element.className='queue-item '+(item.state||'');
+  item.element.querySelector('.queue-copy span').textContent=bytes(item.file.size)+(item.state==='uploaded'?' · 已送达':item.state==='uploading'?` · 上传中 ${item.percent||0}%`:item.state==='error'?' · 待重试':' · 等待上传');
+}
 function move(index, delta) {
   if (uploadLocked) return;
   const target = index + delta;
@@ -271,12 +275,18 @@ function move(index, delta) {
   const current = queue[index];
   queue[index] = queue[target];
   queue[target] = current;
+  persistSoon();
   render();
 }
 
 function remove(index) {
   if (uploadLocked) return;
-  queue.splice(index, 1);
+  const removed=queue.splice(index, 1);
+  if(mode==='cloud')discardItems(removed).catch(()=>{});
+  if(mode==='cloud'&&removed[0]?.sourceId&&!queue.some(item=>item.sourceId===removed[0].sourceId)){
+    const unused=sources.filter(item=>item.sourceId===removed[0].sourceId);sources=sources.filter(item=>item.sourceId!==removed[0].sourceId);discardItems(unused).catch(()=>{});
+  }
+  persistSoon();
   render();
 }
 
@@ -305,6 +315,17 @@ async function expandPdfs(files) {
 async function addFiles(fileList) {
   if (uploadLocked || uploading || expanding) return;
   const picked = Array.from(fileList || []);
+  if(mode==='cloud'){
+    expanding=true;render();
+    try{
+      const prepared=await prepareSelection(picked,{existing:queue.length,onProgress:(done,total)=>show('正在逐页暂存 PDF',`第 ${done} / ${total} 页；请保持页面在前台`)});
+      prepared.items.forEach(item=>{item.seq=addSeq++;queue.push(item);});sources.push(...prepared.sources);
+      await persist();
+      show('已加入上传队列','检查编号并调整顺序；并发传输不改变页序，网络中断可继续。');
+    }catch(error){show('文件尚未提交',error.message);}
+    finally{expanding=false;render();}
+    return;
+  }
   if (picked.some(isPdf)) {
     expanding = true;
     uploadButton.disabled = true;
@@ -335,6 +356,7 @@ function enqueue(files) {
 function sortQueue(compare) {
   if (orderLocked() || queue.length < 2) return;
   queue.sort(compare);
+  persistSoon();
   render();
 }
 
@@ -360,6 +382,7 @@ function finishDrag(commit) {
   const { index, target, moved } = dragState;
   dragState = null;
   if (commit && moved && target !== index) queue.splice(target, 0, queue.splice(index, 1)[0]);
+  if(commit)persistSoon();
   render();
 }
 
@@ -406,11 +429,32 @@ queueEl.addEventListener("pointercancel", (event) => {
 });
 
 async function uploadAll() {
-  if (!queue.length || completionSent) return;
+  if (!queue.length || completionSent || uploading || expanding || initializing || !transport) return;
+  if(mode==='cloud'){try{manifestOf(queue,sources);}catch(error){show('暂未提交',error.message);return;}}
   uploadLocked = true;
   uploading = true;
   render();
   const total = queue.length;
+  if(mode==='cloud'){
+    try{
+      await persist();
+      await transport.prepare(manifestOf(queue,sources));
+      const transfers=queue.concat(sources);
+      await runUploadPool(transfers,async(item,index,onProgress)=>{
+        await transport.upload(await loadFile(item),index<total?index:index-total,onProgress,{role:index<total?'page':'original',clientId:item.id,checkpoint:{url:item.resumeUrl,save:async url=>{item.resumeUrl=url;await persist();}}});
+      },{concurrency:2,onChange:item=>{
+        updateItem(item);const summary=uploadSummary(transfers);
+        progress.style.width=summary.percent+'%';
+        show(`已送达 ${summary.done} / ${summary.total} 个文件`,`${summary.percent}% · 页序已锁定；请保持页面在前台，断网后可继续。`);
+        if(item.state!=='uploading')persistSoon();
+      }});
+      await retry(()=>transport.complete());completionSent=true;
+      clearTimeout(persistTimer);await clearDraft(draftScope,queue,sources).catch(error=>console.warn('[scribe] 暂存清理待重试',error.message));
+      show(`全部 ${total} 页已送达`,'原件与顺序已保存。云端后台继续识别和翻译，现在可以关闭本页。');
+    }catch(error){await persist().catch(()=>{});show('上传暂未完成',error.message);}
+    finally{uploading=false;render();}
+    return;
+  }
   for (let index = 0; index < queue.length; index += 1) {
     const item = queue[index];
     if (item.state === "uploaded") continue;
@@ -454,12 +498,18 @@ document.querySelector("#documents").addEventListener("change", (event) => { add
 document.querySelector("#camera").addEventListener("change", (event) => { addFiles(event.target.files); event.target.value = ""; });
 uploadButton.addEventListener("click", uploadAll);
 clearButton.addEventListener("click", () => {
-  if (uploading || uploadLocked) return;
-  queue = [];
+  if (uploading || completionSent || expanding || initializing) return;
+  if(uploadLocked&&!confirm('清除本机暂存队列？云端已收到的顺序不能替换；请在电脑重新生成通道开始新批次。'))return;
+  const hadLocked=uploadLocked;
+  clearTimeout(persistTimer);
+  if(mode==='cloud')clearDraft(draftScope,queue,sources).catch(error=>show('清理暂存失败',error.message));
+  queue = [];sources=[];
+  uploadLocked=hadLocked;
   completionSent = false;
   progress.style.width = "0%";
   render();
   status.classList.remove("show");
+  if(hadLocked)unavailable('本机队列已清空。此通道顺序已锁定，请回到电脑生成新二维码。');
 });
 
 if (/MicroMessenger/i.test(navigator.userAgent)) {
@@ -498,10 +548,14 @@ async function start() {
       completionSent = true;
       uploadLocked = true;
       show(text.delivered, mode === "cloud" ? "云端正在识别，请回到应用查看进度。" : "电脑端已确认收到，可以开始识别。");
+    } else if(mode==='cloud') {
+      const draft=await readDraft(draftScope);
+      if(draft){queue=draft.items;sources=draft.sources||[];uploadLocked=Boolean(draft.locked);queue.forEach(item=>{if(item.state==='uploading')item.state='';});show('已恢复上次上传队列','照片和确认页序仍在本机，点击上传继续；已送达文件不会重复传输。');}
     }
   } catch (error) {
     unavailable(`${error.message}`);
   }
+  initializing=false;
   render();
 }
 

@@ -9,10 +9,11 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 // 页面里的 src/ 模块在测试中被内联成同作用域的普通脚本：去掉 import/export 关键字后按依赖顺序拼接。
 // 新增模块时只要在这里登记，不必再改各处的读取代码。
 async function inlineModules(...names){
+  if(names.includes('cloud-library.js'))names=['upload-engine.js','study-counters.js',...names];
   const sources=[];
   for(const name of names){
     const source=await readFile(new URL('../src/'+name,import.meta.url),'utf8');
-    sources.push(source.replace(/^import[^\n]*\n/gm,'').replaceAll('export function','function'));
+    sources.push(source.replace(/^import[^\n]*\n/gm,'').replace(/^export\s+/gm,''));
   }
   return sources.join('\n');
 }
@@ -81,6 +82,25 @@ test('library sync preserves edits made during a request and backs up stale-devi
   assert.equal(JSON.parse(w.localStorage.getItem('scribe-sync-conflicts'))[0].value.progress,35);
   assert.equal(Object.keys(JSON.parse(w.localStorage.getItem('scribe-sync-pending'))).length,0);
   dom.window.close();
+});
+
+test('a progress edit during delta sync keeps newly completed canonical OCR pages',async()=>{
+  const dom=new JSDOM('<div id="settings"><div class="settings-grid"></div></div><div class="topbar"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
+  const w=dom.window;w.structuredClone=structuredClone;w.setTimeout=()=>0;w.setInterval=()=>0;
+  const initial={docs:[{id:'cloud-a',cloudSessionId:'a',title:'Book',progress:10,sourcePages:[{text:'old OCR'}]}],cards:[],deletedDocs:[],settings:{}};
+  w.localStorage.setItem('scribe-library-key','a'.repeat(64));w.localStorage.setItem('scribe-local-v1',JSON.stringify(initial));
+  w.localStorage.setItem('scribe-sync-meta-v1',JSON.stringify(Object.fromEntries([...localEntries(initial)].map(([id,entry])=>[id,{kind:entry.kind,id:entry.id,revision:1,fingerprint:fingerprint(entry)}]))));
+  let reply;const requests=[];
+  const cloud={callFunction:async(name,body)=>{requests.push(body);return new Promise(resolve=>{reply=resolve;});}};
+  w.eval(await inlineModules('sync-state.js','restore-backup.js','cloud-library.js')+'\nwindow.installLibrary=installLibrary;');w.installLibrary(cloud);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await tick();
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify({...initial,docs:[{...initial.docs[0],progress:20}]}));
+  reply({entries:[{kind:'doc',entry_id:'cloud-a',revision:1,value:localEntries(initial).get('doc:cloud-a').value}],documents:[{...initial.docs[0],cloudVersion:'v2',pages:1,sourcePages:[{text:'new OCR',paragraphs:[{text:'new OCR',translation:'新译文'}]}]}],conflicts:[]});
+  await tick();const updated=JSON.parse(w.localStorage.getItem('scribe-local-v1')).docs[0];
+  assert.equal(updated.progress,20);assert.equal(updated.sourcePages[0].text,'new OCR');assert.equal(updated.cloudVersion,'v2');
+  const sync=cloud.library.sync();await tick();
+  assert.equal(requests.at(-1).knownDocuments['cloud-a'],'v2');assert.equal(requests.at(-1).changes[0].value.sourcePages,undefined);
+  reply({entries:[],documents:[],conflicts:[]});await sync;dom.window.close();
 });
 
 test('imported documents render one fold flag per paragraph and keep every paragraph translation',async()=>{

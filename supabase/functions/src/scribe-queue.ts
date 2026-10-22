@@ -1,4 +1,4 @@
-import {database, json, wakeQueue,BUCKET} from "../_shared/cloud.ts";
+import {database, json, wakeQueue,BUCKET,allRows} from "../_shared/cloud.ts";
 import {transcribe,translateParagraphs} from "../_shared/ocr-core.ts";
 declare const EdgeRuntime:{waitUntil(task:Promise<unknown>):void};
 
@@ -39,9 +39,18 @@ async function cleanup(db:ReturnType<typeof database>) {
   const {data:candidates,error:candidateError}=await db.rpc('scribe_cleanup_candidates');
   if(candidateError)throw new Error(candidateError.message);
   for(const session of candidates||[]){
-    const {data:objects,error:listError}=await db.storage.from(BUCKET).list(session.id,{limit:1000});
-    if(listError)continue;
-    if(objects?.length){const {error}=await db.storage.from(BUCKET).remove(objects.map(item=>session.id+'/'+item.name));if(error)continue;}
+    try{
+      const files=await allRows((from,to)=>db.from('scribe_cloud_files').select('id,storage_path').eq('session_id',session.id).order('id').range(from,to));
+      const originals=await allRows((from,to)=>db.from('scribe_source_assets').select('id,storage_path').eq('session_id',session.id).order('id').range(from,to));
+      const paths=new Set([...files,...originals].map(file=>String(file.storage_path)).filter(Boolean));
+      for(let offset=0;;offset+=500){
+        const {data,error}=await db.storage.from(BUCKET).list(session.id,{limit:500,offset,sortBy:{column:'name',order:'asc'}});
+        if(error)throw error;for(const file of data||[])paths.add(session.id+'/'+file.name);
+        if((data||[]).length<500)break;
+      }
+      const targets=[...paths];
+      for(let offset=0;offset<targets.length;offset+=100){const {error}=await db.storage.from(BUCKET).remove(targets.slice(offset,offset+100));if(error)throw error;}
+    }catch(error){console.error('[scribe-cleanup]',session.id,error);continue;}
     const {error}=await db.from('scribe_cloud_sessions').delete().eq('id',session.id).eq('library_id',session.library_id);
     if(error)continue;
   }

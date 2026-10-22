@@ -4,7 +4,7 @@ import { supabase } from "./integrations/supabase/client";
 import QRCode from "qrcode";
 
 async function callFunction(name, body) {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+  const { data, error } = await supabase.functions.invoke(name, { body, timeout: name==='scribe-study'?90000:45000 });
   if (error) {
     let message = error.message || "云端请求失败，请重试。";
     let status = 0;

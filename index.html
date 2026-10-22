@@ -843,6 +843,7 @@ function books(){var a=state.docs.filter(function(d){return state.filter==="all"
         var note=q('#sourceRestoreMessage');if(note)note.textContent='未能自动找回原图。书库记录和学习卡仍在；请保留原始图片，以便继续恢复。';
       }finally{delete recovering[document.id];}
     }
+    var translationAttempts={};
     function renderSourceReader(id,indexOverride){
       var document=id?sourceDocument(id):activeSourceDocument();if(!document){restoreOriginalReader();return;}
       var paper=q('#paper');if(!paper)return;
@@ -927,28 +928,34 @@ function books(){var a=state.docs.filter(function(d){return state.filter==="all"
         if(!page||!page.sourceFileId||translatingPages[page.id])return;
         var libraryKey=localStorage.getItem('scribe-library-key'),client=window.__scribeCloud;
         if(!libraryKey||!client){if(note)note.textContent='这一页还没有中文译文。连接云端书库后，打开页面会自动补齐。';return;}
+        if((translationAttempts[page.id]||0)>=3){if(note)note.textContent='部分译文仍待生成，原文已完整保留。重新打开此页可稍后重试。';return;}
         translatingPages[page.id]=true;
         try{
           var result=await client.callFunction('scribe-study',{action:'translate',libraryKey:libraryKey,fileId:page.sourceFileId});
           var paragraphs=Array.isArray(result.paragraphs)?result.paragraphs:[];
           if(!paragraphs.length)throw new Error(result.error||'译文生成失败，请稍后重试。');
+          var beforeCount=(page.paragraphs||[]).filter(function(item){return Boolean(item.translation);}).length;
+          var afterCount=paragraphs.filter(function(item){return Boolean(item.translation);}).length;
+          if(afterCount<=beforeCount)throw new Error('本次没有生成新的译文，原文仍已完整保存。请稍后刷新重试。');
+          translationAttempts[page.id]=0;
           savePageParagraphs(document.id,page.id,paragraphs);
           // 成功后就保留占位标记：这一页在本次会话里不再重复请求，避免重复消耗额度。
           if(read().activeDocId===document.id)renderSourceReader(document.id);
           return;
         }catch(error){
+          translationAttempts[page.id]=(translationAttempts[page.id]||0)+1;
           if(note){note.classList.add('failed');note.textContent='这一页的译文暂时没有生成：'+(error.message||'请稍后重试。');}
         }
         delete translatingPages[page.id];
       }
       var original=!page.url?'<div class="source-file-fallback"><b>第 '+(index+1)+' 页原件暂缺</b><span>'+escapeHtml(page.name)+' 尚未在本机找到；其他已恢复页面可以继续阅读。</span></div>':isImage(page)?'<img src="'+escapeHtml(page.url)+'" alt="第 '+(index+1)+' 页：'+escapeHtml(page.name)+'" id="sourcePageImage">':'<div class="source-file-fallback"><b>'+escapeHtml(page.name)+'</b><span>可提取文本已整理；如需核对版式，可打开原文件。</span><a href="'+escapeHtml(page.url)+'" target="_blank" rel="noopener">打开原文件</a></div>';
-      var paragraphs=paragraphsOf(page),hasTranslation=paragraphs.some(function(item){return Boolean(item.translation);}),needsTranslation=paragraphs.length>0&&!hasTranslation;
+      var paragraphs=paragraphsOf(page),hasTranslation=paragraphs.some(function(item){return Boolean(item.translation);}),needsTranslation=paragraphs.some(function(item){return !item.translation;});
       var reading=paragraphs.length?paragraphs.map(paragraphBlock).join(''):'<p class="para source-no-text">暂未能从这一页识别出正文文字。原文件仍已保留，可展开查看原始页面。</p>';
       var transNote=needsTranslation?'<div class="source-trans-note" id="sourceTransNote">正在生成这一页的逐段中文译文…</div>':'';
       if(storageWarning)transNote='<div class="source-trans-note failed">'+escapeHtml(storageWarning)+'</div>'+transNote;
       var body='<section class="source-content">'+transNote+'<div class="source-reading-text">'+reading+'</div><details class="source-original"><summary>查看原始页面 · '+escapeHtml(page.name)+'</summary><div class="source-original-stage">'+original+'</div></details></section>';
       var thumbs=pages.map(function(item,position){
-        var thumb='<button type="button" class="source-thumb '+(position===index?'active':'')+'" data-source-page="'+position+'" aria-label="查看第 '+(position+1)+' 页">'+(!item.url?'待补':isImage(item)?'<img src="'+escapeHtml(item.url)+'" alt="">':'▤')+'<span>'+ (position+1)+'</span></button>';
+        var thumb='<button type="button" class="source-thumb '+(position===index?'active':'')+'" data-source-page="'+position+'" aria-label="查看第 '+(position+1)+' 页">'+(!item.url?'待补':isImage(item)?'<img loading="lazy" decoding="async" src="'+escapeHtml(item.url)+'" alt="">':'▤')+'<span>'+ (position+1)+'</span></button>';
         if(!reorderMode)return thumb;
         return '<span class="source-thumb-wrap">'+thumb+'<span class="thumb-move"><button type="button" data-move-page="'+position+'" data-delta="-1" aria-label="前移一页"'+(position===0?' disabled':'')+'>◀</button><button type="button" data-move-page="'+position+'" data-delta="1" aria-label="后移一页"'+(position===pages.length-1?' disabled':'')+'>▶</button></span></span>';
       }).join('');
