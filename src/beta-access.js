@@ -20,7 +20,7 @@ const formatTime = (value) => {
   return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 };
 
-export function installBeta(cloud) {
+export function installBeta(cloud, {betaRequired=true}={}) {
   const listeners = new Set();
   const session = () => readSession();
   const notify = () => listeners.forEach((fn) => { try { fn(session()); } catch { /* 单个订阅者出错不影响其余 */ } });
@@ -55,6 +55,10 @@ export function installBeta(cloud) {
     const panel = document.createElement('section');
     panel.className = 'card panel beta-card' + (suffix === 'upload' ? ' beta-span' : '');
     panel.id = 'betaCard-' + suffix;
+    if(!betaRequired){
+      panel.innerHTML='<div class="panel-head"><div><div class="eyebrow">临时测试模式</div><h2>无需内测码，直接体验</h2><p class="muted tiny">内测码限制已暂时关闭。已有书库与学习数据保持不变；云端可用时自动连接独立书库，私有文件仍需书库凭证访问。</p></div><span class="chip">免码测试</span></div><p class="muted tiny">跨设备仍需使用同一书库的同步码。云端连接状态请查看「设置 → 云端书库」。</p>';
+      return panel;
+    }
     panel.innerHTML = '<div class="panel-head"><div><div class="eyebrow">内测通道</div><h2>用内测码开启云端</h2><p class="muted tiny" id="betaHint-' + suffix + '">内测期间云端同步与手机上传需要内测码；本地导入、精读与学习卡不受影响。</p></div><span class="chip" id="betaState-' + suffix + '">未开启</span></div><div class="beta-status" id="betaStatus-' + suffix + '"></div><div class="field" id="betaField-' + suffix + '"><label for="betaInput-' + suffix + '">内测码</label><input id="betaInput-' + suffix + '" placeholder="SCRIBE-XXXX-XXXX" autocomplete="off" spellcheck="false"></div><div class="beta-actions"><button class="button primary" type="button" id="betaRedeem-' + suffix + '">开启云端</button><button class="button secondary" type="button" id="betaSwitch-' + suffix + '" hidden>更换内测码</button><button class="button secondary" type="button" id="betaOut-' + suffix + '" hidden>退出登录</button></div><p class="muted tiny" id="betaMessage-' + suffix + '" style="margin-top:10px"></p>';
 
     const q = (id) => panel.querySelector('#' + id + '-' + suffix);
@@ -86,6 +90,7 @@ export function installBeta(cloud) {
   }
 
   function renderCard(suffix) {
+    if(!betaRequired)return;
     const panel = document.getElementById('betaCard-' + suffix);
     if (!panel) return;
     const current = session();

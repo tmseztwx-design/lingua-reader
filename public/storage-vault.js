@@ -6,13 +6,16 @@
 // 依次执行页面中 type="scribe/boot" 的脚本 → 解析 window.__scribeBoot，云端模块随后接管。
 (function () {
   'use strict';
-  var KEYS = ['scribe-local-v1', 'scribe-sync-pending', 'scribe-sync-meta-v1', 'scribe-sync-conflicts', 'scribe-last-workspace', 'scribe-word-cache-v1', 'scribe-activity-v1'];
+  var KEYS = ['scribe-local-v1', 'scribe-sync-pending', 'scribe-sync-meta-v1', 'scribe-sync-conflicts', 'scribe-last-workspace', 'scribe-word-cache-v1', 'scribe-activity-v1', 'scribe-review-session-v1'];
+  var ACCOUNT_KEYS=['scribe-library-key','scribe-cloud-links','scribe-upload-channel','scribe-beta-session'];
+  var scope='',scopedNames=function(){return scope?KEYS.concat(ACCOUNT_KEYS):KEYS;};
+  var diskKey=function(name){return scope?'account:'+scope+':'+name:name;};
   var FALLBACK_FLAG = 'scribe-vault-fallback';
   var DB_NAME = 'scribe-vault', STORE = 'kv';
   var proto = Storage.prototype, nativeGet = proto.getItem, nativeSet = proto.setItem, nativeRemove = proto.removeItem;
   var memory = Object.create(null), dirty = Object.create(null), ready = false, db = null, timer = 0;
-  var channel = null, info = { mode: 'loading', migrated: [], error: '' };
-  var owned = function (store, name) { return store === window.localStorage && ready && db && KEYS.indexOf(String(name)) > -1; };
+  var channel = null, info = { mode: 'loading', migrated: [], error: '' },writing=Promise.resolve(true);
+  var owned = function (store, name) { return store === window.localStorage && ready && (db||scope) && scopedNames().indexOf(String(name)) > -1; };
 
   proto.getItem = function (name) {
     if (owned(this, name)) return name in memory ? memory[name] : null;
@@ -31,21 +34,29 @@
   function flush() {
     clearTimeout(timer);
     var names = Object.keys(dirty);
-    if (!db || !names.length) return;
+    if(!names.length)return writing;
+    if(!db){
+      try{names.forEach(function(name){if(name in memory)nativeSet.call(localStorage,diskKey(name),memory[name]);else nativeRemove.call(localStorage,diskKey(name));});dirty=Object.create(null);return Promise.resolve(true);}
+      catch(error){return Promise.resolve(false);}
+    }
     dirty = Object.create(null);
-    try {
+    var writingScope=scope,snapshot=Object.create(null);names.forEach(function(name){snapshot[name]=memory[name];});
+    writing=new Promise(function(resolve){try {
       var tx = db.transaction(STORE, 'readwrite'), store = tx.objectStore(STORE);
-      names.forEach(function (name) { if (name in memory) store.put(memory[name], name); else store.delete(name); });
+      names.forEach(function (name) { if (name in memory) store.put(memory[name], diskKey(name)); else store.delete(diskKey(name)); });
       tx.oncomplete = function () {
-        if (channel) names.forEach(function (name) { channel.postMessage({ name: name, value: name in memory ? memory[name] : null }); });
+        if (channel) names.forEach(function (name) { channel.postMessage({ scope:writingScope,name: name, value: snapshot[name]===undefined?null:snapshot[name] }); });
+        resolve(true);
       };
       tx.onerror = tx.onabort = function () {
         names.forEach(function (name) { dirty[name] = true; });
         info.error = (tx.error && tx.error.message) || '本机数据库写入失败';
         console.warn('[scribe] 本机数据库写入失败：' + info.error);
         try { window.dispatchEvent(new Event('scribe-storage-pressure')); } catch (error) { /* 忽略 */ }
+        resolve(false);
       };
-    } catch (error) { names.forEach(function (name) { dirty[name] = true; }); }
+    } catch (error) { names.forEach(function (name) { dirty[name] = true; });resolve(false); }});
+    return writing;
   }
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(); });
@@ -63,7 +74,7 @@
   function load(database) {
     return new Promise(function (resolve, reject) {
       var tx = database.transaction(STORE, 'readonly'), store = tx.objectStore(STORE), found = {};
-      KEYS.forEach(function (name) { var request = store.get(name); request.onsuccess = function () { if (typeof request.result === 'string') found[name] = request.result; }; });
+      scopedNames().forEach(function (name) { var request = store.get(diskKey(name)); request.onsuccess = function () { if (typeof request.result === 'string') found[name] = request.result; }; });
       tx.oncomplete = function () { resolve(found); };
       tx.onerror = function () { reject(tx.error); };
     });
@@ -121,7 +132,7 @@
         channel = new BroadcastChannel('scribe-vault');
         channel.onmessage = function (event) {
           var data = event.data || {};
-          if (KEYS.indexOf(data.name) < 0 || dirty[data.name]) return;
+          if ((data.scope||'')!==scope||scopedNames().indexOf(data.name) < 0 || dirty[data.name]) return;
           if (data.value === null) delete memory[data.name]; else memory[data.name] = data.value;
         };
       } catch (error) { channel = null; }
@@ -137,12 +148,33 @@
   window.__scribeVault = {
     info: info,
     flush: flush,
+    ready:storageReady,
+    activateAccount:async function(id){
+      if(!/^[a-f0-9-]{36}$/i.test(id))throw new Error('账号标识不正确');
+      await storageReady;
+      if(!(await flush()))throw new Error('原工作区尚未保存，暂未切换账号');
+      scope=id;
+      var found={};
+      if(db)found=await load(db);else scopedNames().forEach(function(name){var value=nativeGet.call(localStorage,diskKey(name));if(value!==null)found[name]=value;});
+      memory=Object.assign(Object.create(null),found);dirty=Object.create(null);ready=true;
+      // Stable account namespace, never a reusable bearer credential.
+      proto.setItem.call(localStorage,'scribe-library-key','account:'+id);
+      proto.setItem.call(localStorage,'scribe-upload-channel','cloud');
+      if(!memory['scribe-local-v1'])proto.setItem.call(localStorage,'scribe-local-v1',JSON.stringify({docs:[],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',settings:{auto:true,timer:true,glossary:''}}));
+      if(!(await flush()))throw new Error('账号工作区保存失败，请重试');
+      info.accountId=id;
+    },
+    legacyData:async function(){
+      await storageReady;
+      if(!db){var raw=nativeGet.call(localStorage,'scribe-local-v1');return raw?JSON.parse(raw):null;}
+      return new Promise(function(resolve,reject){var tx=db.transaction(STORE,'readonly'),request=tx.objectStore(STORE).get('scribe-local-v1');request.onsuccess=function(){try{resolve(request.result?JSON.parse(request.result):null);}catch(error){reject(error);}};request.onerror=function(){reject(request.error);};});
+    },
     estimate: function () {
       if (!navigator.storage || !navigator.storage.estimate) return Promise.resolve(null);
       return navigator.storage.estimate().catch(function () { return null; });
     }
   };
-  window.__scribeBoot = Promise.all([storageReady, domParsed()]).then(runBootScripts).then(function () {
+  window.__scribeBoot = Promise.all([storageReady, domParsed(),window.__scribeAccessReady]).then(runBootScripts).then(function () {
     document.documentElement.classList.remove('scribe-booting');
   });
   document.documentElement.classList.add('scribe-booting');

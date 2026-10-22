@@ -543,7 +543,7 @@
         var draft=await engine.readDraft(value);
         // A selection made before entering a beta code is still an unsubmitted local
         // selection. Carry it over once; never attach another library's bound batch.
-        if(!draft&&localStorage.getItem('scribe-library-key')){
+        if(!draft&&localStorage.getItem('scribe-library-key')&&!/^account:/.test(localStorage.getItem('scribe-library-key'))){
           var unsigned=await ownerScope('local'),localDraft=await engine.readDraft(unsigned);
           if(localDraft&&!localDraft.cloudSession&&!localDraft.localSession&&!localDraft.locked){
             await engine.saveDraft(value,localDraft.items,{sources:localDraft.sources||[],cloudSession:null,locked:false});

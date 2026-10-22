@@ -13,7 +13,7 @@ const functionsDir = path.join(root, "supabase", "functions");
 const sharedDir = path.join(functionsDir, "_shared");
 const srcDir = path.join(functionsDir, "src");
 
-const sharedFiles = ["cloud.ts", "ocr-core.ts"];
+const sharedFiles = ["cloud.ts", "ocr-core.ts", "access-policy.ts"];
 
 function read(file) {
   return fs.readFileSync(file, "utf8");

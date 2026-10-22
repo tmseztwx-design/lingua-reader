@@ -1,5 +1,13 @@
 project_id = "spb-t4nrwa6h1zbfphce"
 
+# Local Supabase config. The managed Cloud Auth dashboard must be set separately.
+[auth]
+enable_signup = false
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = false
+
 # 六个后端函数都自己做鉴权（书库同步码 / 撤回密钥 / 后台口令 / worker 秘钥），
 # 因此按仓库部署清单关闭网关的 JWT 校验；否则匿名钥匙的调用会被拦在业务逻辑之前。
 [functions.scribe-mobile-upload]
@@ -18,4 +26,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.scribe-beta]
+verify_jwt = false
+
+[functions.scribe-accounts]
 verify_jwt = false

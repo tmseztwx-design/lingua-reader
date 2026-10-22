@@ -6,6 +6,7 @@ import {localEntries,applyEntries} from '../src/sync-state.js';
 import {mergeBackup,readBackupPayload} from '../src/restore-backup.js';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+const reviewCode=(await Promise.all(['review-scheduler.js','review-ui.js'].map(name=>readFile(new URL('../src/'+name,import.meta.url),'utf8')))).map(code=>code.replace(/^import[^\n]*\n/gm,'').replace(/^export\s+/gm,'')).join('\n');
 const tick=()=>new Promise(resolve=>setTimeout(resolve,10));
 function book(id,title,text){return {id,title,author:'Test',category:'Test',status:'reading',color:'new',pages:1,progress:0,lastPage:0,sourcePages:[{id:id+'-page',order:1,name:'page.png',type:'image/png',url:'https://example.test/page.png',text,paragraphs:[{text,translation:'测试译文。'}]}]};}
 function workspace(docs,cards=[]){return {docs,cards,deletedDocs:[],activeDocId:docs[0]?.id,minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',settings:{auto:true,timer:false,glossary:''}};}
@@ -19,6 +20,7 @@ async function boot(state,cloud){
   if(cloud){w.__scribeCloud={library:{call:async()=>({sessions:[]}),sync:async()=>{}},...cloud};w.localStorage.setItem('scribe-library-key','a'.repeat(64));}
   w.localStorage.setItem('scribe-local-v1',JSON.stringify(state));
   for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  w.eval(reviewCode+'\ninstallReview();');
   await tick();await tick();
   const read=()=>JSON.parse(w.localStorage.getItem('scribe-local-v1'));
   const open=async id=>{w.document.querySelector('.nav [data-view="library"]').click();w.document.querySelector('[data-document-id="'+id+'"] .open').click();await tick();};
@@ -43,7 +45,7 @@ test('same word is independent per book, while knowledge and review aggregate al
   nav('knowledge');
   assert.equal(w.document.querySelectorAll('#klist .kitem').length,2);assert.equal(w.document.querySelector('#allCards').textContent,'2');
   assert.match(w.document.querySelector('#klist').textContent,/Education/);assert.match(w.document.querySelector('#klist').textContent,/Culture/);
-  nav('review');assert.equal(w.document.querySelector('#reviewProgress').textContent,'1 / 2');
+  nav('review');w.document.querySelector('[data-review-action="start"]').click();assert.equal(w.document.querySelector('#reviewProgress').textContent,'已完成 0 / 2 张');
   assert.match(w.document.querySelector('#reviewSource').textContent,/Education/);
   w.document.querySelector('#reveal').click();w.document.querySelector('[data-q="good"]').click();
   assert.match(w.document.querySelector('#reviewSource').textContent,/Culture/,'the other book also enters the review queue');
@@ -161,7 +163,7 @@ test('unassigned legacy cards stay out of a reader with no active book, but rema
   assert.equal(w.document.querySelectorAll('#captureTabPanel .capture-card').length,0);
   nav('knowledge');assert.equal(w.document.querySelector('#allCards').textContent,'1');
   assert.equal(w.document.querySelectorAll('#klist .kitem').length,1);
-  nav('review');assert.equal(w.document.querySelector('#reviewTerm').textContent,'knowledge');
+  nav('review');w.document.querySelector('[data-review-action="start"]').click();assert.equal(w.document.querySelector('#reviewTerm').textContent,'knowledge');
 });
 
 test('trashing or permanently removing a book does not reassign or discard its study cards',async t=>{
@@ -173,5 +175,5 @@ test('trashing or permanently removing a book does not reassign or discard its s
   nav('knowledge');assert.match(w.document.querySelector('#klist .source').textContent,/Removed book（回收站）/);
   const fresh=read();fresh.deletedDocs=[];w.localStorage.setItem('scribe-local-v1',JSON.stringify(fresh));w.dispatchEvent(new w.Event('scribe-cloud-updated'));
   assert.equal(read().cards[0].documentId,'a');assert.match(w.document.querySelector('#klist .source').textContent,/Removed book/);
-  nav('review');assert.match(w.document.querySelector('#reviewSource').textContent,/Removed book/);
+  nav('review');w.document.querySelector('[data-review-action="start"]').click();assert.match(w.document.querySelector('#reviewSource').textContent,/Removed book/);
 });

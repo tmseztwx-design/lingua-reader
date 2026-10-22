@@ -3360,6 +3360,120 @@ export type Database = {
   }
   public: {
     Tables: {
+      scribe_account_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: number
+          target_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: never
+          target_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: never
+          target_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_account_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            referencedRelation: "scribe_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scribe_account_audit_target_id_fkey"
+            columns: ["target_id"]
+            referencedRelation: "scribe_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scribe_account_sessions: {
+        Row: {
+          account_id: string
+          created_at: string
+          credential_version: number
+          expires_at: string
+          token_hash: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          credential_version: number
+          expires_at?: string
+          token_hash: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          credential_version?: number
+          expires_at?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_account_sessions_account_id_fkey"
+            columns: ["account_id"]
+            referencedRelation: "scribe_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scribe_accounts: {
+        Row: {
+          auth_email: string
+          created_at: string
+          credential_version: number
+          disabled: boolean
+          display_name: string
+          id: string
+          last_login_at: string | null
+          library_id: string
+          role: string
+          username: string
+        }
+        Insert: {
+          auth_email: string
+          created_at?: string
+          credential_version?: number
+          disabled?: boolean
+          display_name?: string
+          id: string
+          last_login_at?: string | null
+          library_id: string
+          role?: string
+          username: string
+        }
+        Update: {
+          auth_email?: string
+          created_at?: string
+          credential_version?: number
+          disabled?: boolean
+          display_name?: string
+          id?: string
+          last_login_at?: string | null
+          library_id?: string
+          role?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_accounts_library_id_fkey"
+            columns: ["library_id"]
+            referencedRelation: "scribe_libraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scribe_beta_codes: {
         Row: {
           code_hash: string
@@ -3499,6 +3613,7 @@ export type Database = {
       }
       scribe_cloud_sessions: {
         Row: {
+          account_version: number | null
           completed_at: string | null
           created_at: string
           deleted_at: string | null
@@ -3515,6 +3630,7 @@ export type Database = {
           upload_manifest: Json | null
         }
         Insert: {
+          account_version?: number | null
           completed_at?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -3531,6 +3647,7 @@ export type Database = {
           upload_manifest?: Json | null
         }
         Update: {
+          account_version?: number | null
           completed_at?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -3643,6 +3760,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scribe_login_limits: {
+        Row: {
+          attempts: number
+          bucket: string
+          window_start: string
+        }
+        Insert: {
+          attempts?: number
+          bucket: string
+          window_start?: string
+        }
+        Update: {
+          attempts?: number
+          bucket?: string
+          window_start?: string
+        }
+        Relationships: []
       }
       scribe_runtime_settings: {
         Row: {
@@ -3797,6 +3932,10 @@ export type Database = {
         Args: { p_library: string; p_source: string; p_target: string }
         Returns: Json
       }
+      scribe_account_library: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
       scribe_claim_page: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -3804,6 +3943,7 @@ export type Database = {
       scribe_cleanup_candidates: {
         Args: Record<PropertyKey, never>
         Returns: {
+          account_version: number | null
           completed_at: string | null
           created_at: string
           deleted_at: string | null
@@ -3820,6 +3960,18 @@ export type Database = {
           upload_manifest: Json | null
         }[]
       }
+      scribe_create_account: {
+        Args: {
+          p_actor?: string
+          p_email: string
+          p_id: string
+          p_library?: string
+          p_name: string
+          p_owner?: boolean
+          p_username: string
+        }
+        Returns: Json
+      }
       scribe_finalize_upload: {
         Args: { p_session: string }
         Returns: Json
@@ -3832,6 +3984,18 @@ export type Database = {
           p_paragraphs?: Json
           p_text: string
         }
+        Returns: boolean
+      }
+      scribe_issue_account_session: {
+        Args: { p_hash: string; p_id: string; p_version: number }
+        Returns: boolean
+      }
+      scribe_login_allowed: {
+        Args: { p_bucket: string; p_limit: number }
+        Returns: boolean
+      }
+      scribe_manage_account: {
+        Args: { p_action: string; p_actor: string; p_target: string }
         Returns: boolean
       }
       scribe_merge_counters: {

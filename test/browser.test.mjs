@@ -227,19 +227,19 @@ test('reordering reader pages writes the new order to the cloud and rolls back w
 });
 
 const BETA_DOM='<div class="nav"></div><div class="topbar"><span id="crumb"></span></div><div id="upload"><div class="upload-grid"></div></div><div id="settings"><div class="settings-grid"></div></div>';
-async function betaPage(w,cloud){
+async function betaPage(w,cloud,options){
   w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
   w.setTimeout=()=>0;w.setInterval=()=>0;
   w.__scribeCloud=cloud;
   const library=await inlineModules('sync-state.js','restore-backup.js','cloud-library.js');
   const beta=await inlineModules('beta-access.js');
   w.eval(library+'\n'+beta+'\nwindow.installLibrary=installLibrary;window.installBeta=installBeta;');
-  w.installBeta(cloud);w.installLibrary(cloud);
+  w.installBeta(cloud,options);w.installLibrary(cloud,options);
   w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
   await tick();await tick();await tick();
 }
 
-test('a device without a beta code cannot create a cloud library and is told how to enable it',async()=>{
+test('restored beta mode refuses anonymous creation and keeps the code entry',async()=>{
   const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
   const calls=[];
   await betaPage(w,{callFunction:async(name,body)=>{calls.push([name,body]);return{};}});
@@ -249,6 +249,52 @@ test('a device without a beta code cannot create a cloud library and is told how
   assert.match(card.textContent,/未开启/);
   assert.match(w.document.querySelector('#cloudSyncState').textContent,/内测码未填写/);
   assert.ok(w.document.querySelector('#betaCard-settings'),'settings also offers the beta code card');
+  dom.window.close();
+});
+
+test('temporary open mode needs no beta code and reuses one creation for concurrent requests',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  const local={docs:[{id:'my-book',title:'Keep my book'}],cards:[{id:'my-word',text:'knowledge'}],settings:{}};
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(local));
+  let finish;const calls=[],key='c'.repeat(64);
+  await betaPage(w,{callFunction:async(name,body)=>{
+    calls.push([name,body]);
+    if(body.action==='create')return new Promise(resolve=>{finish=resolve;});
+    return {entries:[],documents:[],conflicts:[]};
+  }},{betaRequired:false});
+  const first=w.__scribeCloud.library.ensureLibrary(),second=w.__scribeCloud.library.ensureLibrary();
+  assert.equal(calls.filter(([,body])=>body.action==='create').length,1);
+  assert.match(w.document.querySelector('#betaCard-upload').textContent,/无需内测码/);
+  assert.equal(w.document.querySelector('#betaInput-upload'),null);
+  assert.equal(w.document.querySelector('#betaGoCode'),null);
+  finish({libraryKey:key});assert.equal(await first,key);assert.equal(await second,key);await tick();await tick();
+  assert.equal(w.localStorage.getItem('scribe-library-key'),key);
+  assert.equal(w.localStorage.getItem('scribe-beta-session'),null,'never invent a beta login');
+  assert.equal(JSON.parse(w.localStorage.getItem('scribe-local-v1')).docs[0].title,'Keep my book');
+  assert.equal(JSON.parse(w.localStorage.getItem('scribe-local-v1')).cards[0].text,'knowledge');
+  assert.ok(calls.filter(([,body])=>body.action==='sync').every(([,body])=>body.libraryKey===key));
+  dom.window.close();
+});
+
+test('temporary mode preserves the existing cloud key and beta session without another library',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  const key='d'.repeat(64),session=JSON.stringify({libraryKey:key,mask:'existing'}),calls=[];
+  w.localStorage.setItem('scribe-library-key',key);w.localStorage.setItem('scribe-beta-session',session);
+  await betaPage(w,{callFunction:async(name,body)=>{calls.push(body);return {entries:[],documents:[],conflicts:[]};}},{betaRequired:false});
+  assert.equal(calls.some(body=>body.action==='create'),false);
+  assert.equal(w.localStorage.getItem('scribe-library-key'),key);
+  assert.equal(w.localStorage.getItem('scribe-beta-session'),session);
+  dom.window.close();
+});
+
+test('an undeployed cloud gate stays explicit, does not invent credentials and backs off',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  let calls=0;
+  await betaPage(w,{callFunction:async()=>{calls++;throw Object.assign(new Error('beta only'),{status:403});}},{betaRequired:false});
+  assert.match(w.document.querySelector('#cloudSyncState').textContent,/云端仍在使用旧的准入设置/);
+  await assert.rejects(w.__scribeCloud.library.ensureLibrary(),error=>error.code==='TEST_ACCESS_NOT_DEPLOYED');
+  assert.equal(calls,1,'do not hammer a blocked cloud');assert.equal(w.localStorage.getItem('scribe-library-key'),null);
+  w.document.querySelector('#syncNow').click();await tick();await tick();assert.equal(calls,2,'manual retry is possible after deployment');
   dom.window.close();
 });
 
