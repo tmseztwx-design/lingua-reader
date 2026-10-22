@@ -306,10 +306,21 @@ function parseStringArray(value: string) {
   }
 }
 
-export async function translateParagraphs(text: string, sessionId: string) {
-  const paragraphs = splitParagraphs(text).slice(0, TRANSLATE_MAX_PARAGRAPHS);
+export async function translateParagraphs(text: string, sessionId: string, existing: Row[] = []) {
+  // Never truncate the original to the AI request limit (previously everything after
+  // paragraph 80 disappeared from the interactive reader). Only translation is chunked.
+  const paragraphs = splitParagraphs(text);
   if (!paragraphs.length) return [];
-  const numbered = paragraphs.map((paragraph, index) => `${index + 1}. ${paragraph}`).join(NL + NL);
+  const known=new Map(existing.map(row=>[String(row.text||''),String(row.translation||'')]));
+  const result=paragraphs.map(paragraph=>({text:paragraph,translation:known.get(paragraph)||''}));
+  const selected:number[]=[];let characters=0;
+  for(let index=0;index<result.length;index++){
+    if(result[index].translation)continue;
+    if(selected.length&&(selected.length>=TRANSLATE_MAX_PARAGRAPHS||characters+result[index].text.length>12000))break;
+    selected.push(index);characters+=result[index].text.length;
+  }
+  if(!selected.length)return result;
+  const numbered = selected.map((index,position) => `${position + 1}. ${paragraphs[index]}`).join(NL + NL);
   try {
     const answer = await runAi({
       model: TRANSLATE_MODEL,
@@ -320,14 +331,12 @@ export async function translateParagraphs(text: string, sessionId: string) {
     });
     const lines = parseStringArray(answer);
     if (!lines) throw new Error("译文不是可解析的数组");
-    if (lines.length !== paragraphs.length) console.warn("[scribe-ocr] translation paragraph count mismatch", lines.length, paragraphs.length);
-    return paragraphs.map((paragraph, index) => ({
-      text: paragraph,
-      translation: typeof lines[index] === "string" ? lines[index].trim() : "",
-    }));
+    if(lines.length!==selected.length)throw new Error('译文段落数量不符，原文已完整保留，稍后重试翻译');
+    selected.forEach((index,position)=>{result[index].translation=typeof lines[position]==='string'?lines[position].trim():'';});
+    return result;
   } catch (error: unknown) {
     console.warn("[scribe-ocr] translation failed:", error instanceof Error ? error.message : error);
-    return [];
+    return result;
   }
 }
 

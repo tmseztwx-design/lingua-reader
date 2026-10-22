@@ -1,7 +1,12 @@
 // Pure state conversion: browser views continue using their existing local format.
 export function localEntries(state) {
   const entries=new Map();
-  for(const value of [...(state.docs||[]),...(state.deletedDocs||[])]) entries.set('doc:'+value.id,{kind:'doc',id:String(value.id),value});
+  for(const original of [...(state.docs||[]),...(state.deletedDocs||[])]) {
+    const value={...original};
+    // Canonical OCR/pages live in the file tables, not duplicated in every progress update.
+    if(value.cloudSessionId){for(const key of ['sourcePages','processingState','processingError','completed','cloudVersion','originalSources'])delete value[key];}
+    entries.set('doc:'+value.id,{kind:'doc',id:String(value.id),value});
+  }
   for(const value of state.cards||[]) entries.set('card:'+value.id,{kind:'card',id:String(value.id),value});
   entries.set('preferences:settings',{kind:'preferences',id:'settings',value:{settings:state.settings||{}}});
   return entries;
@@ -37,8 +42,13 @@ export function applyEntries(state,rows,documents=[]) {
   const cards=new Map((next.cards||[]).map(card=>[String(card.id),card]));
   for(const row of rows){
     if(row.kind==='doc'){
+      const previous=docs.get(row.entry_id)||trash.get(row.entry_id);
       docs.delete(row.entry_id);trash.delete(row.entry_id);
-      if(!row.deleted && row.value) (row.value.deletedAt?trash:docs).set(row.entry_id,row.value);
+      if(!row.deleted && row.value) {
+        const cached={};
+        if(previous?.cloudSessionId)for(const key of ['sourcePages','processingState','processingError','completed','cloudVersion','originalSources'])if(key in previous)cached[key]=previous[key];
+        (row.value.deletedAt?trash:docs).set(row.entry_id,{...cached,...row.value});
+      }
     }else if(row.kind==='card'){
       cards.delete(row.entry_id);if(!row.deleted && row.value) cards.set(row.entry_id,row.value);
     }else if(row.kind==='preferences' && !row.deleted && row.value) next.settings=row.value.settings||next.settings;
@@ -48,7 +58,8 @@ export function applyEntries(state,rows,documents=[]) {
     if(tombstones.has(generated.id)) continue;
     const saved=docs.get(generated.id);
     const merged={...generated,...saved,sourcePages:generated.sourcePages,pages:generated.pages,
-      processingState:generated.processingState,processingError:generated.processingError,completed:generated.completed};
+      processingState:generated.processingState,processingError:generated.processingError,completed:generated.completed,
+      cloudVersion:generated.cloudVersion,originalSources:generated.originalSources};
     const claimed=String(saved?.title||'').match(AUTO_TITLE);
     const real=realPageCount(generated);
     if(claimed && real && Number(claimed[1])!==real && generated.title) merged.title=generated.title;

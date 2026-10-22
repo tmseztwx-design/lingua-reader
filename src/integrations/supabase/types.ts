@@ -3424,6 +3424,7 @@ export type Database = {
       scribe_cloud_files: {
         Row: {
           attempts: number
+          client_file_id: string | null
           created_at: string
           id: string
           lease_id: string | null
@@ -3445,6 +3446,7 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          client_file_id?: string | null
           created_at?: string
           id?: string
           lease_id?: string | null
@@ -3466,6 +3468,7 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          client_file_id?: string | null
           created_at?: string
           id?: string
           lease_id?: string | null
@@ -3499,6 +3502,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           deleted_at: string | null
+          expected_file_count: number | null
           expires_at: string
           file_count: number
           id: string
@@ -3507,11 +3511,14 @@ export type Database = {
           ocr_status: string
           title: string | null
           token: string
+          updated_at: string
+          upload_manifest: Json | null
         }
         Insert: {
           completed_at?: string | null
           created_at?: string
           deleted_at?: string | null
+          expected_file_count?: number | null
           expires_at: string
           file_count?: number
           id?: string
@@ -3520,11 +3527,14 @@ export type Database = {
           ocr_status?: string
           title?: string | null
           token: string
+          updated_at?: string
+          upload_manifest?: Json | null
         }
         Update: {
           completed_at?: string | null
           created_at?: string
           deleted_at?: string | null
+          expected_file_count?: number | null
           expires_at?: string
           file_count?: number
           id?: string
@@ -3533,6 +3543,8 @@ export type Database = {
           ocr_status?: string
           title?: string | null
           token?: string
+          updated_at?: string
+          upload_manifest?: Json | null
         }
         Relationships: [
           {
@@ -3548,16 +3560,22 @@ export type Database = {
           access_hash: string
           created_at: string
           id: string
+          minutes_baseline: number
+          reviewed_baseline: number
         }
         Insert: {
           access_hash: string
           created_at?: string
           id?: string
+          minutes_baseline?: number
+          reviewed_baseline?: number
         }
         Update: {
           access_hash?: string
           created_at?: string
           id?: string
+          minutes_baseline?: number
+          reviewed_baseline?: number
         }
         Relationships: []
       }
@@ -3641,10 +3659,106 @@ export type Database = {
         }
         Relationships: []
       }
+      scribe_source_assets: {
+        Row: {
+          created_at: string
+          id: string
+          mime: string
+          name: string
+          original_name: string
+          original_size: number
+          part_count: number
+          part_index: number
+          queue_order: number
+          session_id: string
+          size: number
+          source_id: string
+          storage_path: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mime?: string
+          name: string
+          original_name: string
+          original_size: number
+          part_count: number
+          part_index: number
+          queue_order: number
+          session_id: string
+          size: number
+          source_id: string
+          storage_path: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mime?: string
+          name?: string
+          original_name?: string
+          original_size?: number
+          part_count?: number
+          part_index?: number
+          queue_order?: number
+          session_id?: string
+          size?: number
+          source_id?: string
+          storage_path?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_source_assets_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "scribe_cloud_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scribe_study_counters: {
+        Row: {
+          device_id: string
+          initial_minutes: number
+          initial_reviewed: number
+          library_id: string
+          minutes: number
+          reviewed: number
+          updated_at: string
+        }
+        Insert: {
+          device_id: string
+          initial_minutes?: number
+          initial_reviewed?: number
+          library_id: string
+          minutes?: number
+          reviewed?: number
+          updated_at?: string
+        }
+        Update: {
+          device_id?: string
+          initial_minutes?: number
+          initial_reviewed?: number
+          library_id?: string
+          minutes?: number
+          reviewed?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scribe_study_counters_library_id_fkey"
+            columns: ["library_id"]
+            referencedRelation: "scribe_libraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scribe_word_cache: {
         Row: {
           cache_key: string
           gloss: string
+          library_id: string | null
           meaning: string
           phonetic: string
           updated_at: string
@@ -3652,6 +3766,7 @@ export type Database = {
         Insert: {
           cache_key: string
           gloss?: string
+          library_id?: string | null
           meaning?: string
           phonetic?: string
           updated_at?: string
@@ -3659,17 +3774,29 @@ export type Database = {
         Update: {
           cache_key?: string
           gloss?: string
+          library_id?: string | null
           meaning?: string
           phonetic?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scribe_word_cache_library_id_fkey"
+            columns: ["library_id"]
+            referencedRelation: "scribe_libraries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      scribe_absorb_upload: {
+        Args: { p_library: string; p_source: string; p_target: string }
+        Returns: Json
+      }
       scribe_claim_page: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -3680,6 +3807,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           deleted_at: string | null
+          expected_file_count: number | null
           expires_at: string
           file_count: number
           id: string
@@ -3688,7 +3816,13 @@ export type Database = {
           ocr_status: string
           title: string | null
           token: string
+          updated_at: string
+          upload_manifest: Json | null
         }[]
+      }
+      scribe_finalize_upload: {
+        Args: { p_session: string }
+        Returns: Json
       }
       scribe_finish_page: {
         Args: {
@@ -3699,6 +3833,35 @@ export type Database = {
           p_text: string
         }
         Returns: boolean
+      }
+      scribe_merge_counters: {
+        Args: {
+          p_device: string
+          p_initial_minutes: number
+          p_initial_reviewed: number
+          p_library: string
+          p_minutes: number
+          p_reviewed: number
+        }
+        Returns: Json
+      }
+      scribe_prepare_upload: {
+        Args: { p_manifest: Json; p_session: string }
+        Returns: Json
+      }
+      scribe_reorder_pages: {
+        Args: { p_ids: string[]; p_session: string }
+        Returns: undefined
+      }
+      scribe_reserve_page: {
+        Args: {
+          p_mime: string
+          p_name: string
+          p_order: number
+          p_session: string
+          p_size: number
+        }
+        Returns: Json
       }
       scribe_write_entry: {
         Args: {

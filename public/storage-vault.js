@@ -6,7 +6,7 @@
 // 依次执行页面中 type="scribe/boot" 的脚本 → 解析 window.__scribeBoot，云端模块随后接管。
 (function () {
   'use strict';
-  var KEYS = ['scribe-local-v1', 'scribe-sync-pending', 'scribe-sync-meta-v1', 'scribe-sync-conflicts', 'scribe-last-workspace', 'scribe-word-cache-v1'];
+  var KEYS = ['scribe-local-v1', 'scribe-sync-pending', 'scribe-sync-meta-v1', 'scribe-sync-conflicts', 'scribe-last-workspace', 'scribe-word-cache-v1', 'scribe-activity-v1'];
   var FALLBACK_FLAG = 'scribe-vault-fallback';
   var DB_NAME = 'scribe-vault', STORE = 'kv';
   var proto = Storage.prototype, nativeGet = proto.getItem, nativeSet = proto.setItem, nativeRemove = proto.removeItem;

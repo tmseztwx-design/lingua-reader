@@ -23,6 +23,24 @@
     }).observe(button, { childList: true, characterData: true, subtree: true });
 
     var queue = [];
+    var sources = [];
+    var engine = window.__scribeUploads;
+    var draftScope = null, persistTimer;
+    var restoring = false;
+    async function ownerScope(owner) {
+      var digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(owner));
+      return 'desktop:' + Array.from(new Uint8Array(digest), function(n){return n.toString(16).padStart(2,'0');}).join('');
+    }
+    async function scope() {
+      if (!draftScope)draftScope=await ownerScope(localStorage.getItem('scribe-library-key')||'local');
+      return draftScope;
+    }
+    async function persist() {
+      if (!engine) return;
+      clearTimeout(persistTimer);
+      await engine.saveDraft(await scope(),queue,{sources:sources,cloudSession:cloudSession,locked:locked,localSession:button.dataset.sessionId||'',serverDocument:serverDocument});
+    }
+    function persistSoon() { if(engine){clearTimeout(persistTimer);persistTimer=setTimeout(function(){persist().catch(function(error){hintText.textContent=error.message;});},400);} }
     var working = false;
     var locked = false;
     var currentDocument = null;
@@ -30,9 +48,12 @@
     var style = document.createElement('style');
     style.textContent = '.computer-queue{display:grid;gap:8px;margin-top:14px}.computer-queue:empty{display:none}.computer-queue-item{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}.computer-queue-item[draggable="true"]{cursor:grab}.computer-queue-item.dragging{opacity:.45}.computer-queue-item.drop-target{border-color:#6d8bce;box-shadow:0 -2px 0 #6d8bce}.computer-queue-number{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf2ff;color:#4664b7;font-size:12px;font-weight:800}.computer-queue-copy{min-width:0}.computer-queue-copy b,.computer-queue-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.computer-queue-copy small{color:var(--muted);font-size:12px}.computer-queue-actions{display:flex;gap:5px}.computer-queue-actions button{width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}.computer-queue-actions button:disabled{opacity:.35}.computer-queue-item.uploading{border-color:#aebee7;background:#f5f8ff}.computer-queue-item.uploaded{border-color:#b5dacd;background:#f3faf7}.computer-queue-item.error{border-color:#e5b7ae;background:#fff7f5}.computer-queue-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px;flex-wrap:wrap}.append-banner{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding:10px 13px;border:1px solid #d8c9a5;border-radius:10px;background:#fdf7e8;color:#6d5725;font-size:13px}.append-banner button{border:0;background:none;color:#8a6a2c;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline}.computer-queue-tools button{border:0;background:none;color:#8b5260;font:inherit;cursor:pointer}.computer-queue-sort{display:flex;align-items:center;gap:6px}.computer-queue-sort button{border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:4px 9px;font-size:12px;cursor:pointer}.computer-queue-sort button:disabled{opacity:.35;cursor:not-allowed}.computer-queue-sort button:hover:not(:disabled){border-color:#9fb3ea;color:#3857a8}.import-wait{display:inline-flex;align-items:center;gap:8px}.import-wait:before{content:"";width:14px;height:14px;border:2px solid #9eadd4;border-top-color:#4f6fca;border-radius:50%;animation:import-spin .8s linear infinite}@keyframes import-spin{to{transform:rotate(360deg)}}.source-reading-text{width:min(100%,960px);align-self:stretch;justify-self:center;padding:clamp(22px,5vw,64px);background:#fff;color:#253047;border-radius:9px;font:clamp(19px,2vw,27px)/1.8 Georgia,"Noto Serif SC",serif;white-space:pre-wrap;overflow-wrap:anywhere}.source-reading-text .word{cursor:pointer;border-radius:3px}.source-reading-text .word:hover{background:#edf3ff}.source-reading-text .word.captured{background:#dce8ff;box-shadow:inset 0 -2px #5b79ce}.source-original-label{justify-self:start;margin:8px 0 0;color:var(--muted);font-size:12px}@media(max-width:680px){.computer-queue-item{grid-template-columns:27px minmax(0,1fr) auto;padding:9px}.computer-queue-actions{gap:2px}.computer-queue-actions button{width:27px;height:27px}}';
     document.head.appendChild(style);
+    var queueStyle=document.createElement('style');
+    queueStyle.textContent='.computer-queue{max-height:min(55vh,540px);overflow:auto;overscroll-behavior:contain}.computer-queue-item{content-visibility:auto;contain-intrinsic-size:auto 64px}';document.head.appendChild(queueStyle);
 
     input.multiple = true;
     input.accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.heif,.txt';
+    var formats=drop.querySelector('p.muted');if(formats)formats.textContent='从电脑选择 PDF、DOCX、JPG、PNG、TXT；HEIC 和旧版 DOC 请先转换';
     var hint = input.parentElement.querySelector('.tiny.muted');
     if (hint) hint.textContent = '支持多选和拖入文件。确认顺序后整批上传云端，后台识别时可关闭页面，稍后在书库查看。';
     var notice = document.querySelector('#upload .notice');
@@ -47,7 +68,7 @@
     list.id = 'computerQueue';
     var tools = document.createElement('div');
     tools.className = 'computer-queue-tools';
-    tools.innerHTML = '<span id="computerQueueHint">文件会按列表顺序逐个安全上传</span><span class="computer-queue-sort">排序：<button id="sortQueueByName" type="button">按名称</button><button id="sortQueueByTime" type="button">按上传时间</button></span><button id="clearComputerQueue" type="button">清空队列</button>';
+    tools.innerHTML = '<span id="computerQueueHint">确认页序后并发上传；完成快慢不会改变页序</span><span class="computer-queue-sort">排序：<button id="sortQueueByName" type="button">按名称</button><button id="sortQueueByTime" type="button">按上传时间</button></span><button id="clearComputerQueue" type="button">清空队列</button>';
     row.insertAdjacentElement('afterend', list);
     list.insertAdjacentElement('afterend', tools);
     var hintText = tools.querySelector('#computerQueueHint');
@@ -111,15 +132,23 @@
           actions.appendChild(control);
         });
         entry.append(number, copy, actions);
+        item.element = entry;
         list.appendChild(entry);
       });
-      clearButton.disabled = locked || working || !queue.length;
+      clearButton.disabled = working || expanding || restoring || !queue.length;
+      clearButton.textContent=locked?'取消本机上传队列':'清空队列';
+      var legacyClear=document.querySelector('#clearFile');if(legacyClear)legacyClear.disabled=working||expanding||restoring;
       sortNameButton.disabled = locked || working || queue.length < 2;
       sortTimeButton.disabled = locked || working || queue.length < 2;
-      input.disabled = locked || working;
-      button.disabled = !queue.length || working || (!locked && !queue.length);
+      input.disabled = locked || working || expanding || restoring;
+      button.disabled = !queue.length || working || expanding || restoring;
       if (!locked && !working) button.textContent = queue.length ? '确认顺序，上传全部 ' + queue.length + ' 个文件' : '开始云端处理';
       if (queue.length && !locked && !working) hintText.textContent = '可拖动换位，也可用 ↑ ↓ 或按名称/时间排序；上传开始后顺序锁定';
+    }
+    function updateItem(item) {
+      if(!item.element)return;
+      item.element.className='computer-queue-item '+(item.state||'');
+      item.element.querySelector('small').textContent=formatBytes(item.file.size)+(item.state==='uploaded'?' · 已保存':item.state==='uploading'?' · 上传中 '+(item.percent||0)+'%':item.state==='error'?' · 上传失败，可重试':' · 等待上传');
     }
     var dragIndex = null;
     function finishDrag() {
@@ -157,6 +186,7 @@
     function sortQueue(compare) {
       if (locked || working || queue.length < 2) return;
       queue.sort(compare);
+      persistSoon();
       render();
     }
     sortNameButton.addEventListener('click', function () {
@@ -172,11 +202,18 @@
       var item = queue[index];
       queue[index] = queue[target];
       queue[target] = item;
+      persistSoon();
       render();
     }
     function remove(index) {
       if (locked || working) return;
-      queue.splice(index, 1);
+      var removed=queue.splice(index, 1);
+      if(engine)engine.discardItems(removed).catch(function(){});
+      if(engine&&removed[0]?.sourceId&&!queue.some(function(item){return item.sourceId===removed[0].sourceId;})){
+        var unused=sources.filter(function(item){return item.sourceId===removed[0].sourceId;});
+        sources=sources.filter(function(item){return item.sourceId!==removed[0].sourceId;});engine.discardItems(unused).catch(function(){});
+      }
+      persistSoon();
       render();
     }
     // PDF 先在浏览器里拆成逐页图片再入队：一页一个文件，大 PDF 不会超出云端读取上限，每页单独识别与翻译。
@@ -203,17 +240,27 @@
       return { items: result, failed: failed };
     }
     async function addFiles(files) {
-      if (locked || working || expanding) return;
+      if (locked || working || expanding || restoring) return;
       var picked = Array.from(files || []);
       if (!picked.length) return;
       expanding = true; button.disabled = true;
-      var expanded = null;
+      var expanded = null, preparationError = null;
       try {
+        if(engine){
+          var prepared=await engine.prepareSelection(picked,{existing:queue.length,onProgress:function(done,total){hintText.textContent='正在逐页暂存 PDF · '+done+' / '+total+'；请保持本页在前台';}});
+          prepared.items.forEach(function(item){item.seq=addSequence++;queue.push(item);});
+          sources=sources.concat(prepared.sources);
+          await persist();
+          expanded={items:[],failed:[]};
+        }else{
         expanded = await expandPdfs(picked);
         expanded.items.forEach(function (entry) {
           queue.push({ file: entry.file, source: entry.source || '', state: '', addedAt: Date.now(), seq: addSequence++ });
         });
-      } finally { expanding = false; button.disabled = false; }
+        }
+      } catch(error){preparationError=error;}
+      finally { expanding = false; button.disabled = false;render(); }
+      if(preparationError){hintText.textContent=preparationError.message;document.querySelector('#fileMeta').textContent=preparationError.message;return;}
       if (queue.length) {
         row.classList.add('show');
         document.querySelector('#fileName').textContent = queue.length + ' 个文件已加入队列';
@@ -241,14 +288,21 @@
     document.addEventListener('dragover', function (event) {
       if (event.target.closest && event.target.closest('#drop')) event.preventDefault();
     }, true);
-    clearButton.addEventListener('click', function () {
-      if (locked || working) return;
-      queue = [];
+    function clearQueue() {
+      if (working || expanding || restoring) return;
+      if(locked&&!confirm('清除本机暂存队列？不会删除书库文献；未提交的云端通道到期后保留 30 天再清理。'))return;
+      clearTimeout(persistTimer);
+      if(engine)engine.clearDraft(draftScope,queue,sources).catch(function(error){hintText.textContent=error.message;});
+      queue = [];sources=[];cloudSession=null;locked=false;currentDocument=null;serverDocument=null;button.onclick=null;
+      delete button.dataset.sessionId;delete button.dataset.completed;delete button.dataset.retryRecognition;
       row.classList.remove('show');
       render();
-    });
+    }
+    clearButton.addEventListener('click',clearQueue);
+    var legacyClear=document.querySelector('#clearFile');if(legacyClear)legacyClear.addEventListener('click',function(event){event.stopImmediatePropagation();clearQueue();},true);
 
-    function uploadOne(sessionId, item, index, total) {
+    async function uploadOne(sessionId, item, index, total, onProgress) {
+      var file=engine?await engine.loadFile(item):item.file;
       return new Promise(function (resolve, reject) {
         var xhr = new XMLHttpRequest();
         xhr.open('POST', '/api/mobile-links/' + encodeURIComponent(sessionId) + '/files');
@@ -258,16 +312,18 @@
         xhr.upload.onprogress = function (event) {
           if (!event.lengthComputable) return;
           var percent = Math.round(event.loaded / event.total * 100);
+          if(onProgress)onProgress(percent);
           hintText.textContent = '正在上传第 ' + (index + 1) + ' / ' + total + ' 个文件 · ' + percent + '%';
         };
         xhr.onload = function () {
           if (xhr.status >= 200 && xhr.status < 300) return resolve();
           var result = {};
           try { result = JSON.parse(xhr.responseText); } catch (error) {}
-          reject(new Error(result.error || '文件上传失败。'));
+          var error=new Error(result.error || '文件上传失败。');error.status=xhr.status;reject(error);
         };
         xhr.onerror = function () { reject(new Error('网络中断，已保留本地队列状态。')); };
-        xhr.send(item.file);
+        xhr.timeout=180000;xhr.ontimeout=function(){reject(new Error('本机上传超时，可重试失败项。'));};
+        xhr.send(file);
       });
     }
     async function createUploadSession() {
@@ -344,6 +400,10 @@
         var sessionId = button.dataset.sessionId;
         if (!sessionId) sessionId = await createUploadSession();
         button.dataset.sessionId = sessionId;
+        if(engine){
+          await persist();
+          await engine.runUploadPool(queue,function(item,index,onProgress){return engine.retry(function(){return uploadOne(sessionId,item,index,queue.length,onProgress);});},{concurrency:3,onChange:function(item){updateItem(item);if(item.state!=='uploading')persistSoon();}});
+        }else{
         for (var index = 0; index < queue.length; index += 1) {
           var item = queue[index];
           if (item.state === 'uploaded') continue;
@@ -358,16 +418,19 @@
             throw error;
           }
         }
+        }
         button.textContent = '正在确认整批文件…';
         await postJson('/api/mobile-links/' + encodeURIComponent(sessionId) + '/complete');
         button.textContent = '正在保存原件…';
         var saved = await postJson('/api/mobile-links/' + encodeURIComponent(sessionId) + '/commit');
         serverDocument = saved;
+        if(engine)await persist();
         saveDocument(saved, [], '');
         hintText.innerHTML = '<span class="import-wait">原件已保存；本机正在识别整批页面，文件较多时请稍候</span>';
         var pages = await recognize(saved);
         var failed = pages.filter(function (page) { return !page.text; }).length;
         saveDocument(saved, pages, failed ? '有 ' + failed + ' 页未能识别，请检查原图。' : '');
+        if(engine){clearTimeout(persistTimer);await engine.clearDraft(await scope(),queue,sources);}
         button.dataset.completed = 'true';
         button.textContent = '处理完成，打开精读 →';
         button.disabled = false;
@@ -396,11 +459,40 @@
       return queue.length === 1 ? queue[0].file.name.replace(/\.[^.]+$/, '') : '电脑上传文献（' + queue.length + ' 个文件）';
     }
     async function processCloud() {
+      if(working)return;
+      if(engine){try{engine.manifestOf(queue,sources);}catch(error){hintText.textContent=error.message;return;}}
+      if(engine){
+        working=true;render();
+        try{
+          var readyCloud=window.__scribeCloud;
+          if(!readyCloud||!readyCloud.library)throw new Error('云端组件尚未加载，请稍后重试。');
+          var capability=await readyCloud.library.call('capabilities');
+          if(capability.uploadVersion!==2)throw new Error('云端上传服务尚未升级；文件已暂存本机，请管理员先完成部署。');
+        }catch(error){working=false;render();hintText.textContent=error.message;button.textContent='队列已保留，稍后重试';return;}
+      }
       working=true;locked=true;button.disabled=true;render();
       try {
         var cloud=window.__scribeCloud;
         if(!cloud || !cloud.library) throw new Error('云端组件尚未加载，请稍后重试。');
+        if(cloudSession&&engine&&!cloudSession.submitted){
+          var remote=await engine.retry(function(){return cloud.callFunction('scribe-mobile-upload',{action:'status',token:cloudSession.token});});
+          if(remote.completed)cloudSession.submitted=true;
+        }
         if(!cloudSession) cloudSession=await cloud.library.createSession({title:batchTitle()});
+        if(engine&&!cloudSession.submitted){
+          await persist();
+          await engine.retry(function(){return cloud.callFunction('scribe-mobile-upload',{action:'prepare',token:cloudSession.token,manifest:engine.manifestOf(queue,sources)});});
+          var transfers=queue.concat(sources);
+          await engine.runUploadPool(transfers,async function(item,index,onProgress){
+            var file=await engine.loadFile(item);
+            await cloud.library.upload(cloudSession.token,file,index<queue.length?index:index-queue.length,onProgress,{role:index<queue.length?'page':'original',clientId:item.id,checkpoint:{url:item.resumeUrl,save:async function(url){item.resumeUrl=url;await persist();}}});
+          },{concurrency:3,onChange:function(item){
+            updateItem(item);
+            var summary=engine.uploadSummary(transfers);
+            hintText.textContent='云端上传 · 已保存 '+summary.done+' / '+summary.total+' · '+summary.percent+'%（页序已锁定）';
+            if(item.state!=='uploading')persistSoon();
+          }});
+        }else if(!engine){
         for(var index=0;index<queue.length;index++){
           var item=queue[index];if(item.state==='uploaded')continue;
           item.state='uploading';render();
@@ -409,8 +501,10 @@
             item.state='uploaded';render();
           }catch(error){item.state='error';throw error;}
         }
-        await cloud.callFunction('scribe-mobile-upload',{action:'complete',token:cloudSession.token});
+        }
+        if(!cloudSession.submitted){await cloud.callFunction('scribe-mobile-upload',{action:'complete',token:cloudSession.token});cloudSession.submitted=true;}
         await cloud.library.sync();
+        if(engine){clearTimeout(persistTimer);await engine.clearDraft(await scope(),queue,sources).catch(function(error){console.warn('[scribe] 暂存清理待重试',error.message);});}
         hintText.innerHTML='<span class="import-wait">全部原件已保存，云端后台正在处理；可以关闭页面，稍后在书库查看</span>';
         await cloud.library.awaitBatch(cloudSession.token,function(status){
           var done=status.files.filter(function(file){return file.ocrStatus==='complete'||file.ocrStatus==='error';}).length;
@@ -429,6 +523,7 @@
         localStorage.setItem('scribe-local-v1',JSON.stringify(state));await cloud.library.sync();
         sessionStorage.setItem('scribe-open-import-reader','1');location.reload();
       }catch(error){
+        if(engine&&!cloudSession?.submitted)await persist().catch(function(){});
         var message=String(error&&error.message||'上传失败');
         if(/quota|exceeded/i.test(message))message='本机存储空间不足，这次进度没能写进浏览器：请点「清理本机缓存」后重试；云端数据不受影响。';
         hintText.textContent=message;button.textContent='重试云端上传与处理';
@@ -442,6 +537,32 @@
       event.stopImmediatePropagation();
       processAll();
     }, true);
+    if(engine){
+      restoring=true;
+      scope().then(async function(value){
+        var draft=await engine.readDraft(value);
+        // A selection made before entering a beta code is still an unsubmitted local
+        // selection. Carry it over once; never attach another library's bound batch.
+        if(!draft&&localStorage.getItem('scribe-library-key')){
+          var unsigned=await ownerScope('local'),localDraft=await engine.readDraft(unsigned);
+          if(localDraft&&!localDraft.cloudSession&&!localDraft.localSession&&!localDraft.locked){
+            await engine.saveDraft(value,localDraft.items,{sources:localDraft.sources||[],cloudSession:null,locked:false});
+            await engine.clearDraft(unsigned,[],[]);draft=localDraft;
+          }
+        }
+        return draft;
+      }).then(function(draft){
+        if(!draft||!draft.items.length)return;
+        queue=draft.items;sources=draft.sources||[];cloudSession=draft.cloudSession||null;locked=Boolean(draft.locked);
+        if(draft.localSession)button.dataset.sessionId=draft.localSession;serverDocument=draft.serverDocument||null;
+        queue.forEach(function(item){if(item.state==='uploading')item.state='';});
+        addSequence=queue.length;row.classList.add('show');
+        document.querySelector('#fileName').textContent='已恢复 '+queue.length+' 个待传文件';
+        document.querySelector('#fileMeta').textContent='文件和页序已从本机暂存库恢复，点击继续上传。';
+        hintText.textContent='已恢复上次上传队列；成功项不会重复传输';
+      }).catch(function(error){hintText.textContent=error.message;}).finally(function(){restoring=false;render();});
+    }
+    list.addEventListener('drop',persistSoon);
     render();
   });
 })();

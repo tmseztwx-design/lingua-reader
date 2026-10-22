@@ -9,6 +9,27 @@ const __shared = (() => {
   declare const EdgeRuntime:{waitUntil(task:Promise<unknown>):void};
   type Row = Record<string, any>;
   const BUCKET = "scribe-pages";
+  // Supabase's default row cap is 1000. Never interpret that cap as a complete book/library.
+  async function allRows(query: (from:number,to:number)=>any): Promise<Row[]> {
+    const rows:Row[]=[];
+    for(let from=0;;from+=500){
+      const {data,error}=await query(from,from+499);
+      if(error) throw new Error(error.message);
+      rows.push(...(data||[]));
+      if((data||[]).length<500) return rows;
+    }
+  }
+  async function readJsonLimited(req:Request,maxBytes:number) {
+    const reader=req.body?.getReader();if(!reader)throw new SyntaxError('缺少请求内容');
+    const decoder=new TextDecoder();let bytes=0,text='';
+    try{
+      for(;;){const {value,done}=await reader.read();if(done)break;bytes+=value.byteLength;
+        if(bytes>maxBytes){await reader.cancel();throw Object.assign(new Error('请求过大，请分批提交。'),{status:413});}
+        text+=decoder.decode(value,{stream:true});
+      }
+      return JSON.parse(text+decoder.decode());
+    }finally{reader.releaseLock();}
+  }
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -368,10 +389,21 @@ const __shared = (() => {
     }
   }
 
-  async function translateParagraphs(text: string, sessionId: string) {
-    const paragraphs = splitParagraphs(text).slice(0, TRANSLATE_MAX_PARAGRAPHS);
+  async function translateParagraphs(text: string, sessionId: string, existing: Row[] = []) {
+    // Never truncate the original to the AI request limit (previously everything after
+    // paragraph 80 disappeared from the interactive reader). Only translation is chunked.
+    const paragraphs = splitParagraphs(text);
     if (!paragraphs.length) return [];
-    const numbered = paragraphs.map((paragraph, index) => `${index + 1}. ${paragraph}`).join(NL + NL);
+    const known=new Map(existing.map(row=>[String(row.text||''),String(row.translation||'')]));
+    const result=paragraphs.map(paragraph=>({text:paragraph,translation:known.get(paragraph)||''}));
+    const selected:number[]=[];let characters=0;
+    for(let index=0;index<result.length;index++){
+      if(result[index].translation)continue;
+      if(selected.length&&(selected.length>=TRANSLATE_MAX_PARAGRAPHS||characters+result[index].text.length>12000))break;
+      selected.push(index);characters+=result[index].text.length;
+    }
+    if(!selected.length)return result;
+    const numbered = selected.map((index,position) => `${position + 1}. ${paragraphs[index]}`).join(NL + NL);
     try {
       const answer = await runAi({
         model: TRANSLATE_MODEL,
@@ -382,14 +414,12 @@ const __shared = (() => {
       });
       const lines = parseStringArray(answer);
       if (!lines) throw new Error("译文不是可解析的数组");
-      if (lines.length !== paragraphs.length) console.warn("[scribe-ocr] translation paragraph count mismatch", lines.length, paragraphs.length);
-      return paragraphs.map((paragraph, index) => ({
-        text: paragraph,
-        translation: typeof lines[index] === "string" ? lines[index].trim() : "",
-      }));
+      if(lines.length!==selected.length)throw new Error('译文段落数量不符，原文已完整保留，稍后重试翻译');
+      selected.forEach((index,position)=>{result[index].translation=typeof lines[position]==='string'?lines[position].trim():'';});
+      return result;
     } catch (error: unknown) {
       console.warn("[scribe-ocr] translation failed:", error instanceof Error ? error.message : error);
-      return [];
+      return result;
     }
   }
 
@@ -491,9 +521,9 @@ const __shared = (() => {
     const { data: signed } = await db.storage.from(BUCKET).createSignedUrl(storagePath, SIGNED_IMAGE_TTL);
     return await transcribeImage({ bytes, mime, signedUrl: signed?.signedUrl, model, sessionId });
   }
-  return { json, database, randomKey, withPageCount, libraryFor, hashKey, wakeQueue, BUCKET, cors, splitParagraphs, translateParagraphs, parseObjectArray, defineWords, explainExpressions, transcribe };
+  return { allRows, readJsonLimited, json, database, randomKey, withPageCount, libraryFor, hashKey, wakeQueue, BUCKET, cors, splitParagraphs, translateParagraphs, parseObjectArray, defineWords, explainExpressions, transcribe };
 })();
-const { database, json, wakeQueue, BUCKET, transcribe, translateParagraphs } = __shared;
+const { database, json, wakeQueue, BUCKET, allRows, transcribe, translateParagraphs } = __shared;
 
 // ---- 函数实现 ----
 declare const EdgeRuntime:{waitUntil(task:Promise<unknown>):void};
@@ -535,9 +565,18 @@ async function cleanup(db:ReturnType<typeof database>) {
   const {data:candidates,error:candidateError}=await db.rpc('scribe_cleanup_candidates');
   if(candidateError)throw new Error(candidateError.message);
   for(const session of candidates||[]){
-    const {data:objects,error:listError}=await db.storage.from(BUCKET).list(session.id,{limit:1000});
-    if(listError)continue;
-    if(objects?.length){const {error}=await db.storage.from(BUCKET).remove(objects.map(item=>session.id+'/'+item.name));if(error)continue;}
+    try{
+      const files=await allRows((from,to)=>db.from('scribe_cloud_files').select('id,storage_path').eq('session_id',session.id).order('id').range(from,to));
+      const originals=await allRows((from,to)=>db.from('scribe_source_assets').select('id,storage_path').eq('session_id',session.id).order('id').range(from,to));
+      const paths=new Set([...files,...originals].map(file=>String(file.storage_path)).filter(Boolean));
+      for(let offset=0;;offset+=500){
+        const {data,error}=await db.storage.from(BUCKET).list(session.id,{limit:500,offset,sortBy:{column:'name',order:'asc'}});
+        if(error)throw error;for(const file of data||[])paths.add(session.id+'/'+file.name);
+        if((data||[]).length<500)break;
+      }
+      const targets=[...paths];
+      for(let offset=0;offset<targets.length;offset+=100){const {error}=await db.storage.from(BUCKET).remove(targets.slice(offset,offset+100));if(error)throw error;}
+    }catch(error){console.error('[scribe-cleanup]',session.id,error);continue;}
     const {error}=await db.from('scribe_cloud_sessions').delete().eq('id',session.id).eq('library_id',session.library_id);
     if(error)continue;
   }
