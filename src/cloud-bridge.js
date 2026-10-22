@@ -4,6 +4,9 @@
 import {createCloud} from "./cloud-client.js";
 import {installLibrary} from "./cloud-library.js";
 import {installBeta} from "./beta-access.js";
+import * as uploadEngine from './upload-engine.js';
+import * as uploadStore from './upload-store.js';
+import {installOriginalDownload} from './original-download.js';
 
 const route = new URLSearchParams(location.search);
 const cloud = createCloud();
@@ -13,13 +16,15 @@ if (route.get('admin') === '1') {
   import("./admin-page.js").then(({installAdminPage}) => installAdminPage(cloud));
 } else {
   // 电脑上传队列（public/import-queue.js，普通脚本）通过这里按需加载 PDF 拆页模块。
-  window.__scribeExplodePdf = (file, onProgress) => import("./pdf-pages.js").then(({explodePdf}) => explodePdf(file, onProgress));
+  window.__scribeExplodePdf = (file, onProgress, onPage) => import("./pdf-pages.js").then(({explodePdf}) => explodePdf(file, onProgress, onPage));
+  window.__scribeUploads = {...uploadEngine, ...uploadStore};
   // 等本机数据保险库（public/storage-vault.js）把 IndexedDB 读进内存、页面脚本跑完，再接管同步；
   // 没有保险库的环境（测试、旧页面）直接启动。
   const start = () => {
     window.__scribeCloud = cloud;
     if (document.querySelector('#settings')) installBeta(cloud);
     if (document.querySelector('#settings')) installLibrary(cloud);
+    installOriginalDownload(cloud);
     window.dispatchEvent(new Event("scribe-cloud-ready"));
   };
   Promise.resolve(window.__scribeBoot).catch(() => {}).then(start);

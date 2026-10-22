@@ -10,11 +10,15 @@ async function call(name,body){
   const response=await fetch(base+'/functions/v1/'+name,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
   const payload=await response.json();if(!response.ok)throw new Error(name+': '+response.status+' '+(payload.error||payload.message||'not deployed'));return payload;
 }
-const {libraryKey}=await call('scribe-library',{action:'create'});
+// An administrator provisions a dedicated synthetic test library. Never silently
+// create anonymous cloud storage or test inside a user's real library.
+const libraryKey=process.env.SCRIBE_TEST_LIBRARY_KEY;
+assert.match(libraryKey||'',/^[a-f0-9]{64}$/,'Set SCRIBE_TEST_LIBRARY_KEY to an isolated test library credential (not a real user library).');
 const session=await call('scribe-mobile-upload',{action:'create',libraryKey,title:'部署验收 · 合成文本'});
 const library=(action,body={})=>call('scribe-library',{action,libraryKey,...body});
 try{
   const pages=['First page: knowledge is learned through reading.','Second page: education creates opportunities.'];
+  await call('scribe-mobile-upload',{action:'prepare',token:session.token,manifest:{files:pages.map((text,index)=>({name:'page-'+(index+1)+'.txt',size:new Blob([text]).size,mime:'text/plain'})),originals:[]}});
   // Upload completion is reversed, independently of confirmed page order.
   for(const order of [1,0]){
     const blob=new Blob([pages[order]],{type:'text/plain'});
@@ -32,7 +36,14 @@ try{
     await new Promise(resolve=>setTimeout(resolve,2500));
   }while(Date.now()<deadline);
   assert.equal(result.documents[0]?.processingState,'ready','Background queue did not complete within 3 minutes');
-  assert.deepEqual(result.documents[0].sourcePages.map(page=>page.text.trim()),pages);
+  // 有逐段结构时服务端不再重复下发整页原文（省流），正文因此可能只在 paragraphs 里；
+  // 两种载体都算通过，但必须真的带回这一页的文字。
+  const pageTexts=result.documents[0].sourcePages.map(page=>{
+    const paragraphs=Array.isArray(page.paragraphs)?page.paragraphs:[];
+    const joined=paragraphs.map(item=>String(item?.text||"")).filter(Boolean).join('\n').trim();
+    return joined||String(page.text||"").trim();
+  });
+  assert.deepEqual(pageTexts,pages);
   // 每页都要带回逐段结构；译文缺失只警告，翻译失败不应让整批部署验收失败。
   const pageWithTranslations=result.documents[0].sourcePages.filter(page=>Array.isArray(page.paragraphs)&&page.paragraphs.length);
   if(pageWithTranslations.length!==result.documents[0].sourcePages.length){

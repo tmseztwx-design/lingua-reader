@@ -2,7 +2,7 @@
 //   define    点词卡片查询音标与当前语境释义，结果写入词典缓存，跨设备复用。
 //   translate 为还没有译文的页面补齐逐段中文译文（旧文献与识别时翻译失败的页面都走这里）。
 // 数据访问只经由本函数（服务角色），数据库对客户端默认拒绝。
-import {database, json, libraryFor} from "../_shared/cloud.ts";
+import {database, json, libraryFor, hashKey} from "../_shared/cloud.ts";
 import {defineWords, explainExpressions, translateParagraphs} from "../_shared/ocr-core.ts";
 
 const MAX_WORDS = 24;
@@ -12,8 +12,9 @@ const MAX_TERM = 300;
 
 type Row = Record<string, any>;
 
-function cacheKey(word: string, sentence: string) {
-  return (String(word).toLowerCase() + "|" + String(sentence).toLowerCase()).slice(0, 500);
+function cacheKey(libraryId: string, word: string, sentence: string) {
+  // Context is private, including the cache key. Never share one user's source sentence.
+  return hashKey(libraryId + '|' + String(word).toLowerCase() + '|' + String(sentence).toLowerCase());
 }
 
 async function defineAction(db: ReturnType<typeof database>, libraryId: string, body: Row) {
@@ -26,20 +27,22 @@ async function defineAction(db: ReturnType<typeof database>, libraryId: string, 
     .filter((item: { word: string }) => /^[A-Za-z][A-Za-z'’-]*$/.test(item.word));
   if (!items.length) return json({ words: [] });
 
-  const keys = items.map((item: { word: string; sentence: string }) => cacheKey(item.word, item.sentence));
+  const keys = await Promise.all(items.map((item: { word: string; sentence: string }) => cacheKey(libraryId,item.word, item.sentence)));
   const { data: cached, error: cacheError } = await db
     .from("scribe_word_cache")
     .select("cache_key, phonetic, gloss, meaning")
+    .eq('library_id',libraryId)
     .in("cache_key", keys);
   if (cacheError) throw new Error(cacheError.message);
   const known = new Map<string, Row>(((cached || []) as Row[]).map((row) => [String(row.cache_key), row]));
 
-  const missing = items.filter((_item: unknown, index: number) => !known.has(keys[index]));
+  const missingIndices=items.map((_item:unknown,index:number)=>index).filter((index:number)=>!known.has(keys[index]));
+  const missing = missingIndices.map((index:number)=>items[index]);
   if (missing.length) {
     const fresh = await defineWords(missing, libraryId);
     const rows = fresh
       .map((entry, index) => ({
-        cache_key: cacheKey(missing[index].word, missing[index].sentence),
+        cache_key: keys[missingIndices[index]],library_id:libraryId,
         phonetic: entry.phonetic,
         gloss: entry.gloss,
         meaning: entry.meaning,
@@ -47,12 +50,13 @@ async function defineAction(db: ReturnType<typeof database>, libraryId: string, 
       }))
       .filter((row) => row.meaning || row.phonetic || row.gloss);
     if (rows.length) {
-      const { error } = await db.from("scribe_word_cache").upsert(rows, { onConflict: "cache_key" });
+      const uniqueRows=[...new Map(rows.map(row=>[row.cache_key,row])).values()];
+      const { error } = await db.from("scribe_word_cache").upsert(uniqueRows, { onConflict: "cache_key" });
       if (error) throw new Error(error.message);
     }
     fresh.forEach((entry, index) => {
       if (!entry.phonetic && !entry.meaning && !entry.gloss) return;
-      known.set(cacheKey(missing[index].word, missing[index].sentence), { ...entry });
+      known.set(keys[missingIndices[index]], { ...entry });
     });
   }
 
@@ -95,11 +99,11 @@ async function translateAction(db: ReturnType<typeof database>, libraryId: strin
   if (sessionError) throw new Error(sessionError.message);
   if (!session || session.library_id !== libraryId || session.deleted_at) return json({ error: "这一页不属于当前书库。" }, 403);
 
-  if (Array.isArray(file.paragraphs) && file.paragraphs.length) return json({ paragraphs: file.paragraphs, cached: true });
+  if (Array.isArray(file.paragraphs) && file.paragraphs.length && file.paragraphs.every((row:Row)=>Boolean(row.translation))) return json({ paragraphs: file.paragraphs, cached: true });
   const text = typeof file.ocr_text === "string" ? file.ocr_text.trim() : "";
   if (!text) return json({ error: "这一页还没有原文，暂时无法生成译文。" }, 409);
 
-  const paragraphs = await translateParagraphs(text, String(file.session_id));
+  const paragraphs = await translateParagraphs(text, String(file.session_id),Array.isArray(file.paragraphs)?file.paragraphs:[]);
   if (!paragraphs.length) return json({ error: "译文生成失败，请稍后重试。" }, 502);
   const { error: saveError } = await db.from("scribe_cloud_files").update({ paragraphs }).eq("id", file.id);
   if (saveError) throw new Error(saveError.message);

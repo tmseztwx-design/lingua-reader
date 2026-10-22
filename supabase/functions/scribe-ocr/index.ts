@@ -8,6 +8,27 @@ const __shared = (() => {
   declare const EdgeRuntime:{waitUntil(task:Promise<unknown>):void};
   type Row = Record<string, any>;
   const BUCKET = "scribe-pages";
+  // Supabase's default row cap is 1000. Never interpret that cap as a complete book/library.
+  async function allRows(query: (from:number,to:number)=>any): Promise<Row[]> {
+    const rows:Row[]=[];
+    for(let from=0;;from+=500){
+      const {data,error}=await query(from,from+499);
+      if(error) throw new Error(error.message);
+      rows.push(...(data||[]));
+      if((data||[]).length<500) return rows;
+    }
+  }
+  async function readJsonLimited(req:Request,maxBytes:number) {
+    const reader=req.body?.getReader();if(!reader)throw new SyntaxError('缺少请求内容');
+    const decoder=new TextDecoder();let bytes=0,text='';
+    try{
+      for(;;){const {value,done}=await reader.read();if(done)break;bytes+=value.byteLength;
+        if(bytes>maxBytes){await reader.cancel();throw Object.assign(new Error('请求过大，请分批提交。'),{status:413});}
+        text+=decoder.decode(value,{stream:true});
+      }
+      return JSON.parse(text+decoder.decode());
+    }finally{reader.releaseLock();}
+  }
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -59,7 +80,7 @@ const __shared = (() => {
     if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(work.catch(e=>console.error("[scribe-queue wake]",e.message)));
     else await work;
   }
-  return { json, database, randomKey, withPageCount, libraryFor, hashKey, wakeQueue, BUCKET, cors };
+  return { allRows, readJsonLimited, json, database, randomKey, withPageCount, libraryFor, hashKey, wakeQueue, BUCKET, cors };
 })();
 const { database, json, wakeQueue } = __shared;
 

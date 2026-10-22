@@ -1,4 +1,7 @@
 import {localEntries,fingerprint,applyEntries,stampPageUrls} from './sync-state.js';
+import {readBackupPayload,mergeBackup,summarizeRestore} from './restore-backup.js';
+import {uploadCloudFile,retry} from './upload-engine.js';
+import {captureActivity,applyActivity} from './study-counters.js';
 
 const STATE='scribe-local-v1',KEY='scribe-library-key',META='scribe-sync-meta-v1';
 const nativeSet=Storage.prototype.setItem;
@@ -9,6 +12,7 @@ const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export function installLibrary(cloud) {
   let metadata=read(META,{}),pending={},busy=false,dirty=false,applying=false,readyPromise=null,generation=0;
   let indicator,refreshButton,betaBlocked=false;
+  let knownEntries,knownDocuments={};
   const say=message=>{if(indicator)indicator.textContent=message;};
   const key=()=>localStorage.getItem(KEY)||'';
   const betaKey=()=>{try{return JSON.parse(localStorage.getItem('scribe-beta-session')||'null')?.libraryKey||'';}catch{return '';}};
@@ -69,7 +73,7 @@ export function installLibrary(cloud) {
     await cloud.callFunction('scribe-library',{action:'validate',libraryKey:next});
     await sync();
     write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
-    generation++;
+    generation++;knownEntries=undefined;knownDocuments={};
     nativeSet.call(localStorage,KEY,next);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
     const local=read(STATE,{});local.docs=[];local.cards=[];local.deletedDocs=[];write(STATE,local);
     const cloudState=await libraryCall('sync',{changes:[]});
@@ -104,7 +108,8 @@ export function installLibrary(cloud) {
     try {
       await ensureLibrary();collect();say('正在同步…');      const queued=Object.values(pending).slice(0,100);
       const sending=withValues(queued);
-      const response=await libraryCall('sync',{changes:sending});
+      const activity=captureActivity(key(),read(STATE,{}));
+      const response=await libraryCall('sync',{changes:sending,knownEntries,knownDocuments,activity:activity.request});
       if(epoch!==generation)return;
       // User edits made during the request stay pending and keep their local values.
       const before=read(STATE,{}),live=localEntries(before);
@@ -123,6 +128,7 @@ export function installLibrary(cloud) {
       }
       const rows=response.entries.filter(row=>!pending[row.kind+':'+row.entry_id]);
       const next=applyEntries(before,rows,stampPageUrls(response.documents));
+      if(response.counters)applyActivity(activity,response.counters,before,next);
       for(const change of Object.values(pending))if(change.deleted){
         if(change.kind==='doc'){next.docs=next.docs.filter(doc=>String(doc.id)!==change.id);next.deletedDocs=next.deletedDocs.filter(doc=>String(doc.id)!==change.id);}
         if(change.kind==='card')next.cards=next.cards.filter(card=>String(card.id)!==change.id);
@@ -133,8 +139,13 @@ export function installLibrary(cloud) {
         // （表现就是卡片一会儿有释义、一会儿又回到「正在查询」）。
         const entry=live.get(change.kind+':'+change.id);
         if(change.kind==='doc'){
+          const canonical=[...(next.docs||[]),...(next.deletedDocs||[])].find(doc=>String(doc.id)===change.id);
           next.docs=next.docs.filter(doc=>String(doc.id)!==change.id);next.deletedDocs=next.deletedDocs.filter(doc=>String(doc.id)!==change.id);
-          if(!change.deleted&&entry)(entry.value.deletedAt?next.deletedDocs:next.docs).push(entry.value);
+          if(!change.deleted&&entry){
+            const full={...([...(before.docs||[]),...(before.deletedDocs||[])].find(doc=>String(doc.id)===change.id)||entry.value)};
+            if(full.cloudSessionId&&canonical)for(const name of ['sourcePages','processingState','processingError','completed','cloudVersion','originalSources'])if(name in canonical)full[name]=canonical[name];
+            (full.deletedAt?next.deletedDocs:next.docs).push(full);
+          }
         }else if(change.kind==='card'){
           next.cards=next.cards.filter(card=>String(card.id)!==change.id);if(!change.deleted&&entry)next.cards.push(entry.value);
         }else if(change.kind==='preferences'&&entry)next.settings=entry.value.settings;
@@ -145,6 +156,9 @@ export function installLibrary(cloud) {
         metadata[id]={kind:row.kind,id:row.entry_id,revision:row.revision,fingerprint:row.deleted?'deleted':fingerprint({value:row.value})};
         if(pending[id]) pending[id].revision=row.revision;
       }
+      knownEntries={...(knownEntries||{})};
+      for(const row of response.entries)knownEntries[row.kind+':'+row.entry_id]=row.revision;
+      for(const doc of response.documents||[])if(doc.cloudVersion)knownDocuments[doc.id]=doc.cloudVersion;
       // Generated cloud documents must join the revisioned library on the next tick.
       safeWrite(META,metadata);safeWrite('scribe-sync-pending',pending);
       const snapshot=state=>JSON.stringify([...localEntries(state)].map(([id,entry])=>[id,fingerprint(entry)]));
@@ -160,25 +174,26 @@ export function installLibrary(cloud) {
     }
     finally{busy=false;if(succeeded && (dirty || Object.keys(pending).length))setTimeout(()=>sync().catch(()=>{}),2000);}
   }
+  // 从备份文件恢复：把另一个项目（或旧版页面）导出的学习数据合并回当前书库。
+  // 只补回本机缺失的文献与学习卡，同 id 条目保留当前版本；随后由同步推到云端。
+  // 云端未就绪（没填内测码）时先落在本机，接入书库后会自动同步上去。
+  async function restoreBackup(payload){
+    const {state:next,added,skipped}=mergeBackup(read(STATE,{}),readBackupPayload(payload));
+    applying=true;write(STATE,next);applying=false;
+    collect();
+    try{await sync();}catch{/* 云端暂时不可用：数据已在本机，稍后重试 */ }
+    return {added,skipped};
+  }
   async function createSession(body={}){
     const result=await cloud.callFunction('scribe-mobile-upload',{action:'create',libraryKey:await ensureLibrary(),...body});
     return result;
   }
-  async function upload(token,file,order,onProgress){
-    const signed=await cloud.callFunction('scribe-mobile-upload',{action:'sign',token,name:file.name,size:file.size,mime:file.type,order});
-    if(signed.alreadyUploaded) return;
-    await new Promise((resolve,reject)=>{
-      const xhr=new XMLHttpRequest();xhr.open('PUT',signed.uploadUrl);
-      xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
-      xhr.upload.onprogress=e=>{if(e.lengthComputable)onProgress?.(Math.round(100*e.loaded/e.total));};
-      xhr.onload=()=>xhr.status>=200&&xhr.status<300?resolve():reject(new Error('原件上传失败，请重试。'));
-      xhr.onerror=()=>reject(new Error('网络中断，已保留上传队列。'));xhr.send(file);
-    });
-    await cloud.callFunction('scribe-mobile-upload',{action:'register',token,fileId:signed.fileId,size:file.size,mime:file.type});
+  async function upload(token,file,order,onProgress,options){
+    return uploadCloudFile(cloud.callFunction,token,file,order,onProgress,options);
   }
   async function awaitBatch(token,onProgress){
     for(;;){
-      const status=await cloud.callFunction('scribe-mobile-upload',{action:'status',token});onProgress?.(status);
+      const status=await retry(()=>cloud.callFunction('scribe-mobile-upload',{action:'status',token}));onProgress?.(status);
       if(['complete','partial'].includes(status.ocrStatus)){await sync();return status;}
       await pause(2500);
     }
@@ -216,17 +231,17 @@ export function installLibrary(cloud) {
     vault.estimate().then(estimate=>{
       const mode=vault.info.mode==='indexeddb'?'本机大容量数据库':'浏览器小容量存储（约 5 MB，建议换用 Chrome / Safari 最新版）';
       const usage=estimate&&estimate.quota?' · 已用 '+mb(estimate.usage||0)+' / 可用约 '+mb(estimate.quota):'';
-      line.textContent='本机数据：'+mode+usage+(vault.info.persisted?' · 已申请持久保存':'')+' · 云端书库保存完整主副本';
+      line.textContent='本机数据：'+mode+usage+(vault.info.persisted?' · 已申请持久保存':'')+' · 仅在已连接书库且同步成功后，云端才有对应副本；JSON 导出不包含文件原件。';
     });
   }
-  cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key,storageState,clearLocalCaches};
+  cloud.library={ensureLibrary,createSession,upload,awaitBatch,sync,call:libraryCall,join:joinLibrary,currentKey:key,storageState,clearLocalCaches,restoreBackup};
   window.addEventListener('scribe-reset-workspace',()=>{
     write('scribe-last-workspace',{libraryKey:key(),state:read(STATE,{}),metadata,pending});
-    generation++;localStorage.removeItem(KEY);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
+    generation++;knownEntries=undefined;knownDocuments={};localStorage.removeItem(KEY);metadata={};pending={};write(META,{});write('scribe-sync-pending',{});
   });
   function mount(){
     const panel=document.createElement('section');panel.className='card setting';panel.id='cloudLibrarySettings';
-    panel.innerHTML='<h2>云端书库</h2><p class="muted tiny">书库、学习卡和阅读进度自动同步。另一台设备输入同一同步码即可连接；请妥善保管同步码。</p><p id="cloudSyncState"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button secondary" id="showLibraryKey">显示同步码</button><button class="button secondary" id="joinLibrary">连接已有书库</button><button class="button secondary" id="syncNow">立即同步</button><button class="button secondary" id="betaGoCode">输入内测码</button><button class="button secondary" id="exportSyncConflicts">导出冲突副本</button></div><pre id="libraryKeyValue" hidden style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all"></pre>';
+    panel.innerHTML='<h2>云端书库</h2><p class="muted tiny">书库、学习卡和阅读进度自动同步。另一台设备输入同一同步码即可连接；请妥善保管同步码。</p><p id="cloudSyncState"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button secondary" id="showLibraryKey">显示同步码</button><button class="button secondary" id="joinLibrary">连接已有书库</button><button class="button secondary" id="syncNow">立即同步</button><button class="button secondary" id="betaGoCode">输入内测码</button><button class="button secondary" id="exportSyncConflicts">导出冲突副本</button><button class="button secondary" id="restoreBackup">从备份文件恢复</button><input id="restoreBackupFile" type="file" accept="application/json,.json" hidden></div><pre id="libraryKeyValue" hidden style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all"></pre>';
     document.querySelector('#settings .settings-grid')?.prepend(panel);
     if(!panel.isConnected) document.querySelector('#settings')?.append(panel);
     indicator=panel.querySelector('#cloudSyncState');
@@ -252,6 +267,21 @@ export function installLibrary(cloud) {
     document.querySelector('#exportSyncConflicts').onclick=()=>{
       const blob=new Blob([JSON.stringify(read('scribe-sync-conflicts',[]),null,2)],{type:'application/json'});
       const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='书库同步冲突副本.json';link.click();URL.revokeObjectURL(link.href);
+    };
+    // 换过项目、重装过浏览器、或从旧站点搬回来时，用「导出全部数据」下载的 JSON 把学习数据合并回来。
+    const backupInput=document.querySelector('#restoreBackupFile');
+    document.querySelector('#restoreBackup').onclick=()=>backupInput.click();
+    backupInput.onchange=async()=>{
+      const file=backupInput.files&&backupInput.files[0];if(!file)return;
+      say('正在读取备份：'+file.name);
+      try {
+        const {added,skipped}=await restoreBackup(JSON.parse(await file.text()));
+        const restored=added.docs+added.cards+added.deleted;
+        say(summarizeRestore(added,skipped)+(restored?' 正在重新载入…':''));
+        if(restored)setTimeout(()=>location.reload(),1200);
+      }catch(error){
+        say('恢复失败：'+(error&&error.message||'文件无法解析') );
+      }finally{backupInput.value='';}
     };
     // 旧版本把整份内容存进待发镜像；带上“内容已改”的判断只需短指纹，
     // 读到旧格式就丢掉，collect() 会立刻按当前状态重建（内容来自 STATE，不丢东西）。

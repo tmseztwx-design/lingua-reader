@@ -8,6 +8,27 @@ const __shared = (() => {
   declare const EdgeRuntime:{waitUntil(task:Promise<unknown>):void};
   type Row = Record<string, any>;
   const BUCKET = "scribe-pages";
+  // Supabase's default row cap is 1000. Never interpret that cap as a complete book/library.
+  async function allRows(query: (from:number,to:number)=>any): Promise<Row[]> {
+    const rows:Row[]=[];
+    for(let from=0;;from+=500){
+      const {data,error}=await query(from,from+499);
+      if(error) throw new Error(error.message);
+      rows.push(...(data||[]));
+      if((data||[]).length<500) return rows;
+    }
+  }
+  async function readJsonLimited(req:Request,maxBytes:number) {
+    const reader=req.body?.getReader();if(!reader)throw new SyntaxError('缺少请求内容');
+    const decoder=new TextDecoder();let bytes=0,text='';
+    try{
+      for(;;){const {value,done}=await reader.read();if(done)break;bytes+=value.byteLength;
+        if(bytes>maxBytes){await reader.cancel();throw Object.assign(new Error('请求过大，请分批提交。'),{status:413});}
+        text+=decoder.decode(value,{stream:true});
+      }
+      return JSON.parse(text+decoder.decode());
+    }finally{reader.releaseLock();}
+  }
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -59,13 +80,15 @@ const __shared = (() => {
     if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(work.catch(e=>console.error("[scribe-queue wake]",e.message)));
     else await work;
   }
-  return { json, database, randomKey, withPageCount, libraryFor, hashKey, wakeQueue, BUCKET, cors };
+  return { allRows, readJsonLimited, json, database, randomKey, withPageCount, libraryFor, hashKey, wakeQueue, BUCKET, cors };
 })();
-const { database, libraryFor, wakeQueue, withPageCount } = __shared;
+const { database, libraryFor, wakeQueue, allRows, readJsonLimited } = __shared;
 
 // ---- 函数实现 ----
 // 手机跨网络上传中转：手机（任意网络）→ Enter 云私有桶，电脑/任意设备凭 token 取回。
 // 所有动作都由 token 鉴权；数据库对客户端默认拒绝，只有本函数（服务角色）可以读写。
+
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -77,8 +100,8 @@ const BUCKET = "scribe-pages";
 const LINK_TTL_MS = 24 * 60 * 60 * 1000;
 const SHORT_URL_TTL = 60 * 60;
 const PAGE_URL_TTL = 60 * 60;
-const MAX_FILES = 500; // PDF 在浏览器端按页拆开，一本书可达数百页
-const MAX_BYTES = 100 * 1024 * 1024;
+const MAX_FILES = 2000;
+const MAX_BYTES = 50 * 1024 * 1024; // Actual Enter storage/TUS service limit, verified via OPTIONS.
 const MAX_OPEN_SESSIONS = 20;
 
 const allowedExtensions = new Set([".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png", ".heic", ".heif", ".txt"]);
@@ -126,19 +149,18 @@ function makeToken() {
 async function sessionByToken(db: ReturnType<typeof database>, token: unknown) {
   if (typeof token !== "string" || token.length < 10) return null;
   const { data } = await db.from("scribe_cloud_sessions").select("*").eq("token", token).maybeSingle();
-  if (!data) return null;
+  if (!data || data.deleted_at) return null;
   if (!data.completed_at && new Date(String((data as Row).expires_at)).getTime() <= Date.now()) return null;
   return data as Row;
 }
 
 async function filesOf(db: ReturnType<typeof database>, sessionId: string) {
-  const { data } = await db
+  return await allRows((from,to)=>db
     .from("scribe_cloud_files")
-    .select("id, queue_order, name, size, mime, ocr_status, ocr_error, page_count, uploaded_at")
+    .select("id, queue_order, name, size, mime, storage_path, ocr_status, ocr_error, page_count, uploaded_at")
     .eq("session_id", sessionId)
     .order("queue_order", { ascending: true })
-    .order("created_at", { ascending: true });
-  return (data || []) as Row[];
+    .order("id").range(from,to));
 }
 
 function fileInfo(file: Row) {
@@ -166,13 +188,6 @@ function sessionInfo(session: Row, files: Row[]) {
     fileCount: files.filter((file) => file.uploaded_at).length,
     files: files.map(fileInfo),
   };
-}
-
-async function refreshCounts(db: ReturnType<typeof database>, session: Row) {
-  const files = await filesOf(db, String(session.id));
-  const uploaded = files.filter((file) => file.uploaded_at);
-  await db.from("scribe_cloud_sessions").update({ file_count: uploaded.length }).eq("id", session.id);
-  return files;
 }
 
 async function createSession(db: ReturnType<typeof database>, body: Row) {
@@ -208,58 +223,39 @@ async function signUpload(db: ReturnType<typeof database>, session: Row, body: R
   if (!allowedExtensions.has(extension)) return fail("仅支持 PDF、DOC、DOCX、JPG、PNG、HEIC 或 HEIF 文件。", 415);
   const size = Number(body.size);
   if(!Number.isSafeInteger(size) || size<=0) return fail("文件为空或大小不正确，请重新选择。",400);
-  if (Number.isFinite(size) && size > MAX_BYTES) return fail("单个文件不能超过 100 MB。", 413);
-  const files = await filesOf(db, String(session.id));
-  const order = body.order===undefined?files.length:Number(body.order);
+  if (size > MAX_BYTES) return fail("单个存储对象不能超过 50 MB；大 PDF 请用新版页面自动分片上传。", 413);
+  const order = Number(body.order);
   if(!Number.isSafeInteger(order) || order<0 || order>=MAX_FILES) return fail("文件顺序不正确，请重新确认队列。",400);
-  const {data:previous}=await db.from("scribe_cloud_files").select("*").eq("session_id",session.id).eq("queue_order",order).maybeSingle();
-  if(previous){
-    if(previous.name!==name || Number(previous.size)!==size) return fail("这个队列位置已有其他文件，请重新建立批次。",409);
-    if(previous.uploaded_at) return json({fileId:previous.id,alreadyUploaded:true});
-    const {data:signed,error}=await db.storage.from(BUCKET).createSignedUploadUrl(previous.storage_path,{upsert:true});
-    if(error||!signed) throw new Error(error?.message||"无法重试上传。");
-    return json({fileId:previous.id,path:previous.storage_path,uploadUrl:signed.signedUrl});
-  }
-  if (files.length >= MAX_FILES) return fail(`单批最多 ${MAX_FILES} 个文件。`, 413);
-  const fileId = crypto.randomUUID();
-  const storagePath = `${session.id}/${String(order + 1).padStart(4, "0")}-${fileId}${extension}`;
   const mime = typeof body.mime === "string" && body.mime ? body.mime : mimeByExtension[extension] || "application/octet-stream";
-
-  const { error: insertError } = await db.from("scribe_cloud_files").insert({
-    id: fileId,
-    session_id: session.id,
-    queue_order: order,
-    name,
-    mime,
-    size: Number.isFinite(size) ? size : 0,
-    storage_path: storagePath,
-    ocr_status: "pending",
-  });
-  if (insertError) throw new Error(insertError.message);
-
-  const { data: signed, error: signError } = await db.storage.from(BUCKET).createSignedUploadUrl(storagePath);
+  const original=body.role==='original';
+  const {data:previous,error:reserveError}=original
+    ?await db.from('scribe_source_assets').select('*').eq('session_id',session.id).eq('queue_order',order).maybeSingle()
+    :await db.rpc('scribe_reserve_page',{p_session:session.id,p_order:order,p_name:name,p_size:size,p_mime:mime});
+  if(reserveError) return fail(reserveError.message,409);
+  if(!previous || previous.name!==name || Number(previous.size)!==size) return fail('文件不在已确认的上传清单内。',409);
+  if(!original&&previous.client_file_id&&previous.client_file_id!==body.clientId)return fail('文件身份与确认清单不一致，请勿替换已锁定的页面。',409);
+  if(previous.uploaded_at) return json({fileId:previous.id,alreadyUploaded:true});
+  const { data: signed, error: signError } = await db.storage.from(BUCKET).createSignedUploadUrl(previous.storage_path,{upsert:true});
   if (signError || !signed) throw new Error(signError?.message || "无法签发上传地址。");
 
-  console.log("[scribe-mobile-upload] sign", session.id, order, name);
-  return json({ fileId, path: storagePath, uploadUrl: signed.signedUrl });
+  console.log("[scribe-mobile-upload] sign", session.id, order);
+  return json({ fileId:previous.id, path:previous.storage_path, uploadUrl:signed.signedUrl,
+    uploadToken:signed.token,bucket:BUCKET,resumableUrl:Deno.env.get('SUPABASE_URL')+'/storage/v1/upload/resumable' });
 }
 
 async function registerUpload(db: ReturnType<typeof database>, session: Row, body: Row) {
   if(session.completed_at || new Date(String(session.expires_at)).getTime()<=Date.now()) return fail("上传窗口已结束。",410);
   const fileId = String(body.fileId || "");
   if (!fileId) return fail("缺少文件标识。");
-  const {data:file}=await db.from("scribe_cloud_files").select("*").eq("id",fileId).eq("session_id",session.id).maybeSingle();
+  const table=body.role==='original'?'scribe_source_assets':'scribe_cloud_files';
+  const {data:file}=await db.from(table).select("*").eq("id",fileId).eq("session_id",session.id).maybeSingle();
   if(!file) return fail("未找到该文件。",404);
+  if(file.uploaded_at) return json({ok:true,fileId});
   const {data:objects,error:objectError}=await db.storage.from(BUCKET).list(String(session.id),{search:String(file.storage_path).split('/').pop(),limit:100});
   const object=objects?.find(item=>item.name===String(file.storage_path).split('/').pop());
   if(objectError || !object || Number(object.metadata?.size)!==Number(file.size)) return fail("原件尚未完整送达，请重试上传。",409);
-  const size = Number(body.size);
-  if (Number.isFinite(size) && size > MAX_BYTES) {
-    await db.from("scribe_cloud_files").delete().eq("id", fileId).eq("session_id", session.id);
-    return fail("单个文件不能超过 100 MB。", 413);
-  }
   const { error } = await db
-    .from("scribe_cloud_files")
+    .from(table)
     .update({
       uploaded_at: new Date().toISOString(),
       size: Number(file.size),
@@ -267,53 +263,39 @@ async function registerUpload(db: ReturnType<typeof database>, session: Row, bod
     .eq("id", fileId)
     .eq("session_id", session.id);
   if (error) throw new Error(error.message);
-  await refreshCounts(db, session);
+  // Counting the entire batch after every file was O(n²). Finalization computes it once.
   return json({ ok: true, fileId });
 }
 
 async function completeSession(db: ReturnType<typeof database>, session: Row) {
   if(session.completed_at){await wakeQueue(db);return json({ok:true,fileCount:session.file_count,queued:true});}
   if(new Date(String(session.expires_at)).getTime()<=Date.now()) return fail("上传通道已过期。",410);
-  const files = await refreshCounts(db, session);
-  const uploaded = files.filter((file) => file.uploaded_at);
-  if (!uploaded.length) return fail("还没有收到可识别的页面。", 409);
-  if(uploaded.length!==files.length) return fail("仍有文件未完整上传，确认全部送达后再提交。",409);
-  const { error } = await db
-    .from("scribe_cloud_sessions")
-    .update({ completed_at: new Date().toISOString(), file_count: uploaded.length,ocr_status:"processing" })
-    .eq("id", session.id);
-  if (error) throw new Error(error.message);
+  const {data,error}=await db.rpc('scribe_finalize_upload',{p_session:session.id});
+  if(error) return fail(error.message,409);
   await wakeQueue(db);
-  console.log("[scribe-mobile-upload] complete", session.id, uploaded.length);
-  return json({ ok: true, fileCount: uploaded.length, expiresAt: session.expires_at });
+  return json({...data,expiresAt:session.expires_at});
 }
 
 async function signedUrls(db: ReturnType<typeof database>, session: Row, ttl: number, onlyFileId?: string) {
   const files = await filesOf(db, String(session.id));
   const targets = onlyFileId ? files.filter((file) => file.id === onlyFileId) : files;
   const results: Row[] = [];
-  for (const file of targets) {
-    if (!file.uploaded_at) continue;
-    const path = `${session.id}/${String(Number(file.queue_order) + 1).padStart(4, "0")}-${file.id}${extensionOf(String(file.name))}`;
-    const { data } = await db
-      .from("scribe_cloud_files")
-      .select("storage_path")
-      .eq("id", file.id)
-      .maybeSingle();
-    const storagePath = String((data as Row | null)?.storage_path || path);
-    const { data: signed } = await db.storage.from(BUCKET).createSignedUrl(storagePath, ttl);
-    if (!signed?.signedUrl) continue;
-    results.push({ ...fileInfo(file), url: signed.signedUrl, expiresIn: ttl });
+  const uploaded=targets.filter(file=>file.uploaded_at&&file.storage_path);
+  for(let offset=0;offset<uploaded.length;offset+=100){
+    const batch=uploaded.slice(offset,offset+100);
+    const {data,error}=await db.storage.from(BUCKET).createSignedUrls(batch.map(file=>String(file.storage_path)),ttl);
+    if(error)throw new Error(error.message);
+    for(let index=0;index<batch.length;index++)if(data?.[index]?.signedUrl)results.push({...fileInfo(batch[index]),url:data[index].signedUrl,expiresIn:ttl});
   }
   return results;
 }
 
 async function resultsOf(db: ReturnType<typeof database>, session: Row) {
-  const { data } = await db
+  const data = await allRows((from,to)=>db
     .from("scribe_cloud_files")
     .select("id, queue_order, name, mime, ocr_text, paragraphs, ocr_status, ocr_error")
     .eq("session_id", session.id)
-    .order("queue_order", { ascending: true });
+    .order("queue_order", { ascending: true }).range(from,to));
   return ((data || []) as Row[]).map((file) => ({
     id: file.id,
     order: file.queue_order,
@@ -345,17 +327,11 @@ async function reorderSession(db: ReturnType<typeof database>, body: Row) {
   if (!files.length) return fail("该文献没有页面。", 409);
   const order = Array.isArray(body.order) ? body.order.map(String) : [];
   const known = new Map(files.map((file) => [String(file.id), file]));
-  if (order.length !== files.length || order.some((id) => !known.has(id))) {
+  if (order.length !== files.length || new Set(order).size!==order.length || order.some((id) => !known.has(id))) {
     return fail("页面顺序与文献不一致，请刷新后重试。", 409);
   }
-  for (let index = 0; index < order.length; index += 1) {
-    const { error: updateError } = await db
-      .from("scribe_cloud_files")
-      .update({ queue_order: index })
-      .eq("id", order[index])
-      .eq("session_id", sessionId);
-    if (updateError) throw new Error(updateError.message);
-  }
+  const {error:updateError}=await db.rpc('scribe_reorder_pages',{p_session:sessionId,p_ids:order});
+  if(updateError) return fail(updateError.message,409);
   console.log("[scribe-mobile-upload] reorder", sessionId, order.length, "pages");
   return json({ ok: true, pages: order.length });
 }
@@ -386,15 +362,20 @@ async function removeSession(db: ReturnType<typeof database>, session: Row) {
   // 续传并入的页面仍保存在原批次的目录下，所以按文件行记录的 storage_path 删除，
   // 再用目录列举兜底，保证「永久删除」真的清掉原件。
   const paths = new Set<string>();
-  const { data: rows } = await db.from("scribe_cloud_files").select("storage_path").eq("session_id", session.id);
-  for (const row of (rows || []) as Row[]) {
+  const rows = await allRows((from,to)=>db.from("scribe_cloud_files").select("id,storage_path").eq("session_id", session.id).order('id').range(from,to));
+  const originals=await allRows((from,to)=>db.from('scribe_source_assets').select('id,storage_path').eq('session_id',session.id).order('id').range(from,to));
+  for (const row of [...rows,...originals]) {
     const value = String(row.storage_path || "");
     if (value) paths.add(value);
   }
-  const { data: listed } = await db.storage.from(BUCKET).list(String(session.id), { limit: 1000 });
-  for (const item of listed || []) paths.add(`${session.id}/${item.name}`);
+  for(let offset=0;;offset+=500){
+    const {data:listed,error}=await db.storage.from(BUCKET).list(String(session.id),{limit:500,offset,sortBy:{column:'name',order:'asc'}});
+    if(error)throw new Error(error.message);
+    for(const item of listed||[])paths.add(`${session.id}/${item.name}`);
+    if((listed||[]).length<500)break;
+  }
   const targets = [...paths];
-  if (targets.length){const {error}=await db.storage.from(BUCKET).remove(targets);if(error)throw new Error(error.message);}
+  for(let offset=0;offset<targets.length;offset+=100){const {error}=await db.storage.from(BUCKET).remove(targets.slice(offset,offset+100));if(error)throw new Error(error.message);}
   const { error } = await db.from("scribe_cloud_sessions").delete().eq("id", session.id);
   if (error) throw new Error(error.message);
   console.log("[scribe-mobile-upload] remove", session.id, targets.length);
@@ -424,52 +405,9 @@ async function absorbSession(db: ReturnType<typeof database>, session: Row, body
   if (!target) return fail("目标文献不存在或已删除。", 404);
   if (!target.completed_at) return fail("目标文献还没有完成识别，暂时不能合并。", 409);
 
-  const incoming = (await filesOf(db, String(session.id))).filter((file) => file.uploaded_at);
-  if (!incoming.length) return fail("这一批没有已送达的页面。", 409);
-  const existing = (await filesOf(db, String(target.id))).filter((file) => file.uploaded_at);
-  const baseOrder = existing.reduce((max, file) => Math.max(max, Number(file.queue_order)), -1) + 1;
-  if (existing.length + incoming.length > MAX_FILES) return fail(`合并后超过单批 ${MAX_FILES} 页上限，请拆分。`, 413);
-
-  for (const file of incoming) {
-    const { error } = await db
-      .from("scribe_cloud_files")
-      .update({ session_id: target.id, queue_order: baseOrder + Number(file.queue_order) })
-      .eq("id", file.id)
-      .eq("session_id", session.id);
-    if (error) throw new Error(error.message);
-  }
-
-  const all = [...existing, ...incoming];
-  const failed = all.filter((file) => file.ocr_status === "error").length;
-  const finished = all.filter((file) => file.ocr_status === "complete" || file.ocr_status === "error").length;
-  const ocrStatus = finished < all.length ? "processing" : failed ? "partial" : "complete";
-  // 自动生成的标题带页数，并入后必须同步改写，否则标题会一直停在上一次的数量。
-  const title = withPageCount(target.title, all.length);
-  const { error: updateError } = await db
-    .from("scribe_cloud_sessions")
-    .update({
-      file_count: all.length,
-      title: title || target.title,
-      ocr_status: ocrStatus,
-      ocr_completed_at: ocrStatus === "processing" ? null : new Date().toISOString(),
-    })
-    .eq("id", target.id);
-  if (updateError) throw new Error(updateError.message);
-
-  const { data: entry } = await db
-    .from("scribe_library_entries")
-    .select("revision")
-    .eq("library_id", library.id)
-    .eq("kind", "doc")
-    .eq("entry_id", "cloud-" + session.id)
-    .maybeSingle();
-  if (entry) {
-    await db.rpc("scribe_write_entry", { p_library: library.id, p_kind: "doc", p_id: "cloud-" + session.id, p_value: null, p_deleted: true, p_revision: entry.revision });
-  }
-  const { error: deleteError } = await db.from("scribe_cloud_sessions").delete().eq("id", session.id);
-  if (deleteError) throw new Error(deleteError.message);
-  console.log("[scribe-mobile-upload] absorb", session.id, "->", target.id, incoming.length, "pages");
-  return json({ ok: true, into: target.id, pages: all.length, added: incoming.length });
+  const {data,error:mergeError}=await db.rpc('scribe_absorb_upload',{p_library:library.id,p_source:session.id,p_target:target.id});
+  if(mergeError)return fail(mergeError.message,409);
+  return json(data);
 }
 
 Deno.serve(async (req) => {
@@ -486,9 +424,9 @@ Deno.serve(async (req) => {
 
   let body: Row;
   try {
-    body = (await req.json()) as Row;
-  } catch {
-    return fail("请求格式不正确。");
+    body = (await readJsonLimited(req,2*1024*1024)) as Row;
+  } catch(error) {
+    return fail(error instanceof SyntaxError?'请求格式不正确。':error instanceof Error?error.message:'请求读取失败。',Number((error as {status?:number}).status)||400);
   }
 
   const action = String(body.action || "");
@@ -496,11 +434,31 @@ Deno.serve(async (req) => {
     if (action === "create") return await createSession(db, body);
     if (action === "reorder") return await reorderSession(db, body);
     if (action === "pages") return await refreshPagesByLibrary(db, body);
+    if (action === 'originals') {
+      const library=await libraryFor(db,body.libraryKey);
+      if(!library)return fail('请先连接云端书库。',401);
+      const {data:owner,error}=await db.from('scribe_cloud_sessions').select('id').eq('id',String(body.sessionId||'')).eq('library_id',library.id).is('deleted_at',null).maybeSingle();
+      if(error)throw new Error(error.message);if(!owner)return fail('文献不属于当前书库。',404);
+      const rows=await allRows((from,to)=>db.from('scribe_source_assets').select('*').eq('session_id',owner.id).not('uploaded_at','is',null).order('queue_order').range(from,to));
+      const sources:Row[]=[];
+      for(let offset=0;offset<rows.length;offset+=100){
+        const batch=rows.slice(offset,offset+100);
+        const {data:urls,error}=await db.storage.from(BUCKET).createSignedUrls(batch.map(row=>row.storage_path),3600);
+        if(error)throw new Error(error.message);
+        batch.forEach((row,index)=>sources.push({sourceId:row.source_id,name:row.original_name,size:row.original_size,part:row.part_index,parts:row.part_count,partSize:row.size,url:urls?.[index]?.signedUrl||''}));
+      }
+      return json({sources});
+    }
 
     const session = await sessionByToken(db, body.token);
     if (!session) return json({ error: "此上传通道已失效，请重新生成二维码。" }, 410);
 
     switch (action) {
+      case "prepare": {
+        const {data,error}=await db.rpc('scribe_prepare_upload',{p_session:session.id,p_manifest:body.manifest});
+        if(error) return fail(error.code==='PGRST202'?'云端尚未升级上传数据结构，请管理员先部署 20261021150000 迁移。':error.message,error.code==='PGRST202'?503:409);
+        return json(data);
+      }
       case "status": {
         const files = await filesOf(db, String(session.id));
         return json(sessionInfo(session, files));

@@ -6,6 +6,17 @@ import {Script} from 'node:vm';
 import {localEntries,fingerprint} from '../src/sync-state.js';
 
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
+// 页面里的 src/ 模块在测试中被内联成同作用域的普通脚本：去掉 import/export 关键字后按依赖顺序拼接。
+// 新增模块时只要在这里登记，不必再改各处的读取代码。
+async function inlineModules(...names){
+  if(names.includes('cloud-library.js'))names=['upload-engine.js','study-counters.js',...names];
+  const sources=[];
+  for(const name of names){
+    const source=await readFile(new URL('../src/'+name,import.meta.url),'utf8');
+    sources.push(source.replace(/^import[^\n]*\n/gm,'').replace(/^export\s+/gm,''));
+  }
+  return sources.join('\n');
+}
 test('every classic inline app script parses, not just Vite modules',async()=>{
   for(const file of ['index.html','mobile.html']){
     const html=await readFile(new URL('../'+file,import.meta.url),'utf8');
@@ -56,9 +67,8 @@ test('library sync preserves edits made during a request and backs up stale-devi
   w.localStorage.setItem('scribe-local-v1',JSON.stringify(initial));w.localStorage.setItem('scribe-sync-meta-v1',JSON.stringify(metadata));
   let reply;const requests=[];
   const cloud={callFunction:async(name,body)=>{assert.equal(name,'scribe-library');assert.equal(body.action,'sync');requests.push(body);return new Promise(resolve=>{reply=resolve;});}};
-  const pure=(await readFile(new URL('../src/sync-state.js',import.meta.url),'utf8')).replaceAll('export function','function');
-  const library=(await readFile(new URL('../src/cloud-library.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/,'').replace('export function','function');
-  w.eval(pure+'\n'+library+'\nwindow.installLibrary=installLibrary;');w.installLibrary(cloud);
+  const library=await inlineModules('sync-state.js','restore-backup.js','cloud-library.js');
+  w.eval(library+'\nwindow.installLibrary=installLibrary;');w.installLibrary(cloud);
   w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await tick();
   const response=(progress,revision,conflicts=[])=>({entries:[{kind:'doc',entry_id:'d',value:{id:'d',progress},revision,deleted:false},{kind:'preferences',entry_id:'settings',value:{settings:{}},revision:1,deleted:false}],documents:[],conflicts});
   const edit=progress=>w.localStorage.setItem('scribe-local-v1',JSON.stringify({...JSON.parse(w.localStorage.getItem('scribe-local-v1')),docs:[{id:'d',progress}]}));
@@ -72,6 +82,25 @@ test('library sync preserves edits made during a request and backs up stale-devi
   assert.equal(JSON.parse(w.localStorage.getItem('scribe-sync-conflicts'))[0].value.progress,35);
   assert.equal(Object.keys(JSON.parse(w.localStorage.getItem('scribe-sync-pending'))).length,0);
   dom.window.close();
+});
+
+test('a progress edit during delta sync keeps newly completed canonical OCR pages',async()=>{
+  const dom=new JSDOM('<div id="settings"><div class="settings-grid"></div></div><div class="topbar"></div>',{url:'https://scribe.test',runScripts:'outside-only'});
+  const w=dom.window;w.structuredClone=structuredClone;w.setTimeout=()=>0;w.setInterval=()=>0;
+  const initial={docs:[{id:'cloud-a',cloudSessionId:'a',title:'Book',progress:10,sourcePages:[{text:'old OCR'}]}],cards:[],deletedDocs:[],settings:{}};
+  w.localStorage.setItem('scribe-library-key','a'.repeat(64));w.localStorage.setItem('scribe-local-v1',JSON.stringify(initial));
+  w.localStorage.setItem('scribe-sync-meta-v1',JSON.stringify(Object.fromEntries([...localEntries(initial)].map(([id,entry])=>[id,{kind:entry.kind,id:entry.id,revision:1,fingerprint:fingerprint(entry)}]))));
+  let reply;const requests=[];
+  const cloud={callFunction:async(name,body)=>{requests.push(body);return new Promise(resolve=>{reply=resolve;});}};
+  w.eval(await inlineModules('sync-state.js','restore-backup.js','cloud-library.js')+'\nwindow.installLibrary=installLibrary;');w.installLibrary(cloud);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await tick();
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify({...initial,docs:[{...initial.docs[0],progress:20}]}));
+  reply({entries:[{kind:'doc',entry_id:'cloud-a',revision:1,value:localEntries(initial).get('doc:cloud-a').value}],documents:[{...initial.docs[0],cloudVersion:'v2',pages:1,sourcePages:[{text:'new OCR',paragraphs:[{text:'new OCR',translation:'新译文'}]}]}],conflicts:[]});
+  await tick();const updated=JSON.parse(w.localStorage.getItem('scribe-local-v1')).docs[0];
+  assert.equal(updated.progress,20);assert.equal(updated.sourcePages[0].text,'new OCR');assert.equal(updated.cloudVersion,'v2');
+  const sync=cloud.library.sync();await tick();
+  assert.equal(requests.at(-1).knownDocuments['cloud-a'],'v2');assert.equal(requests.at(-1).changes[0].value.sourcePages,undefined);
+  reply({entries:[],documents:[],conflicts:[]});await sync;dom.window.close();
 });
 
 test('imported documents render one fold flag per paragraph and keep every paragraph translation',async()=>{
@@ -202,10 +231,9 @@ async function betaPage(w,cloud){
   w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
   w.setTimeout=()=>0;w.setInterval=()=>0;
   w.__scribeCloud=cloud;
-  const pure=(await readFile(new URL('../src/sync-state.js',import.meta.url),'utf8')).replaceAll('export function','function');
-  const library=(await readFile(new URL('../src/cloud-library.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/,'').replace('export function','function');
-  const beta=(await readFile(new URL('../src/beta-access.js',import.meta.url),'utf8')).replace('export function','function');
-  w.eval(pure+'\n'+library+'\n'+beta+'\nwindow.installLibrary=installLibrary;window.installBeta=installBeta;');
+  const library=await inlineModules('sync-state.js','restore-backup.js','cloud-library.js');
+  const beta=await inlineModules('beta-access.js');
+  w.eval(library+'\n'+beta+'\nwindow.installLibrary=installLibrary;window.installBeta=installBeta;');
   w.installBeta(cloud);w.installLibrary(cloud);
   w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
   await tick();await tick();await tick();
@@ -775,9 +803,8 @@ test('a definition written while a sync is in flight is not reverted by the stal
   // 每次同步调用都排队等待手动应答，方便精确控制「请求进行中」这个时刻。
   const resolvers=[];
   const cloud={callFunction:async(name,body)=>{assert.equal(body.action,'sync');return await new Promise(resolve=>resolvers.push(resolve));}};
-  const pure=(await readFile(new URL('../src/sync-state.js',import.meta.url),'utf8')).replaceAll('export function','function');
-  const library=(await readFile(new URL('../src/cloud-library.js',import.meta.url),'utf8')).replace(/^import[^\n]+\n/,'').replace('export function','function');
-  w.eval(pure+'\n'+library+'\nwindow.installLibrary=installLibrary;');
+  const library=await inlineModules('sync-state.js','restore-backup.js','cloud-library.js');
+  w.eval(library+'\nwindow.installLibrary=installLibrary;');
   w.installLibrary(cloud);
   w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
   await tick();
@@ -947,5 +974,114 @@ test('a PDF the browser cannot split is still queued as one file with an explana
   input.dispatchEvent(new w.Event('change',{bubbles:true}));await tick();await tick();
   assert.equal(w.document.querySelectorAll('#computerQueue .computer-queue-item').length,1);
   assert.match(w.document.querySelector('#fileMeta').textContent,/broken\.pdf 无法在浏览器拆页/);
+  dom.window.close();
+});
+
+test('a data backup from another project restores its documents and cards here',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.localStorage.setItem('scribe-library-key','a'.repeat(64));
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify({docs:[{id:'mine',title:'我的文献'}],cards:[],deletedDocs:[],minutes:60,reviewed:0,settings:{auto:true}}));
+  const pushed=[];
+  const cloud={callFunction:async(name,body)=>{
+    if(name==='scribe-library'){
+      pushed.push(...(body.changes||[]).map(change=>change.kind+':'+change.id));
+      return {entries:(body.changes||[]).map(change=>({kind:change.kind,entry_id:change.id,value:change.value,revision:1,deleted:change.deleted})),documents:[],conflicts:[]};
+    }
+    return {};
+  }};
+  await betaPage(w,cloud);
+  const backup={docs:[{id:'cloud-old',title:'旧书库文献',pages:9,sourcePages:[{id:'o1',order:1,name:'o1.png',text:'Old page.'}]}],
+    cards:[{id:'card-1',type:'word',term:'inherit',meaning:'继承'}],deletedDocs:[{id:'gone',title:'已删文献'}],
+    minutes:412,reviewed:12,settings:{glossary:'agency = 能动性'}};
+  const input=w.document.querySelector('#restoreBackupFile');
+  Object.defineProperty(input,'files',{value:[new w.File([JSON.stringify(backup)],'scribe-learning-data.json',{type:'application/json'})],configurable:true});
+  input.dispatchEvent(new w.Event('change'));await tick();await tick();await tick();
+  const saved=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  assert.deepEqual(saved.docs.map(doc=>doc.id),['mine','cloud-old'],'恢复的文献与已有文献并存');
+  assert.deepEqual(saved.deletedDocs.map(doc=>doc.id),['gone'],'备份里已删除的文献不会被放回书架');
+  assert.equal(saved.cards[0].term,'inherit');
+  assert.equal(saved.minutes,412,'学习时长取较大值，不把已有投入算少');
+  assert.equal(saved.settings.glossary,'agency = 能动性');
+  assert.ok(pushed.includes('doc:cloud-old')&&pushed.includes('card:card-1'),'恢复的内容随后会同步到云端书库');
+  assert.match(w.document.querySelector('#cloudSyncState').textContent,/已恢复/,'用户能看到恢复了什么');
+  dom.window.close();
+});
+
+test('a restored backup never overwrites work already in this library',async()=>{
+  const dom=new JSDOM(BETA_DOM,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.localStorage.setItem('scribe-library-key','a'.repeat(64));
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify({docs:[{id:'cloud-old',title:'我改过的标题',progress:88}],cards:[{id:'card-1',term:'inherit',meaning:'本机释义'}],deletedDocs:[],minutes:900,reviewed:0,settings:{}}));
+  const cloud={callFunction:async(name,body)=>{
+    if(name==='scribe-library')return {entries:[],documents:[],conflicts:[]};
+    return {};
+  }};
+  await betaPage(w,cloud);
+  const input=w.document.querySelector('#restoreBackupFile');
+  Object.defineProperty(input,'files',{value:[new w.File([JSON.stringify({docs:[{id:'cloud-old',title:'旧标题'}],cards:[{id:'card-1',term:'inherit',meaning:'旧释义'}],minutes:412})],'scribe-learning-data.json',{type:'application/json'})],configurable:true});
+  input.dispatchEvent(new w.Event('change'));await tick();await tick();await tick();
+  const saved=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  assert.equal(saved.docs.find(doc=>doc.id==='cloud-old').title,'我改过的标题','同 id 的文献保留本机版本');
+  assert.equal(saved.cards.find(card=>card.id==='card-1').meaning,'本机释义');
+  assert.equal(saved.minutes,900);
+  assert.match(w.document.querySelector('#cloudSyncState').textContent,/本机都已经有了/);
+  dom.window.close();
+});
+
+const APP_STATE={docs:[{id:'d1',title:'Original book',author:'T',category:'T',status:'reading',color:'new',pages:2,progress:5,time:'0 h'}],cards:[],deletedDocs:[],minutes:0,reviewed:0,filter:'all',tab:'all',kind:'all',settings:{auto:true,timer:true,glossary:''}};
+async function renderApp(w,html){
+  for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/type=["']module["']|\bsrc=/.test(match[1]))w.eval(match[2]);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await tick();await tick();
+}
+
+test('a fresh browser stores the seed so card actions can pair, and covers stay stable',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  await renderApp(w,html);
+  // 全新浏览器：示例必须真的写进存储，否则重命名/删除按钮拿不到对应文献（历史 bug）。
+  const stored=JSON.parse(w.localStorage.getItem('scribe-local-v1'));
+  assert.ok(Array.isArray(stored.docs)&&stored.docs.length,'示例状态要落盘，卡片操作才能配对');
+  const cards=[...w.document.querySelectorAll('#books .book')];
+  assert.ok(cards.length,'书库要渲染出文献卡片');
+  const coverSource=cards[0].querySelector('.cover-photo').getAttribute('src');
+  assert.match(coverSource,/^https:\/\/images\.unsplash\.com\//,'无封面文献用风景图作封面');
+  w.dispatchEvent(new w.Event('scribe-cloud-updated'));
+  const again=[...w.document.querySelectorAll('#books .book')][0].querySelector('.cover-photo').getAttribute('src');
+  assert.equal(again,coverSource,'同一篇文献每次都用同一张封面');
+  dom.window.close();
+});
+
+test('renaming a book in place writes it back and carries it to the cloud library',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  const dom=new JSDOM(html,{url:'https://scribe.test',runScripts:'outside-only'}),w=dom.window;
+  w.structuredClone=structuredClone;w.TextEncoder=TextEncoder;w.scrollTo=()=>{};
+  w.setTimeout=()=>0;w.setInterval=()=>0;w.fetch=()=>new Promise(()=>{});
+  const syncs=[];
+  const cloud={callFunction:async(name,body)=>{
+    if(name!=='scribe-library'||body.action!=='sync')return {};
+    syncs.push(body.changes||[]);
+    // 服务端回声：带上递增修订号，后续写入才会被当成新版本而不是重复插入。
+    return {entries:(body.changes||[]).map(change=>({kind:change.kind,entry_id:change.id,value:change.value,revision:(change.revision||0)+1,deleted:change.deleted===true})),documents:[],conflicts:[]};
+  }};
+  w.__scribeCloud=cloud;
+  w.localStorage.setItem('scribe-library-key','a'.repeat(64));
+  w.localStorage.setItem('scribe-local-v1',JSON.stringify(APP_STATE));
+  w.eval(await inlineModules('sync-state.js','restore-backup.js','cloud-library.js')+'\nwindow.installLibrary=installLibrary;');
+  w.installLibrary(cloud);
+  await renderApp(w,html);
+  const card=w.document.querySelector('#books .book');
+  assert.ok(card.querySelector('.book-rename'),'书库卡片上有重命名入口');
+  card.querySelector('.book-rename').click();
+  const input=card.querySelector('.book-rename-input');
+  assert.equal(input.value,'Original book','就地编辑从当前标题开始');
+  input.value='  重命名后的书  ';
+  card.querySelector('.save-rename').click();
+  assert.equal(JSON.parse(w.localStorage.getItem('scribe-local-v1')).docs[0].title,'重命名后的书','标题写回本机存储并去掉首尾空格');
+  assert.match(w.document.querySelector('#books').textContent,/重命名后的书/);
+  await w.__scribeCloud.library.sync();await tick();
+  const pushed=syncs.flat().filter(change=>change.kind==='doc'&&change.id==='d1');
+  assert.ok(pushed.length,'重命名要进入待发变更');
+  assert.equal(pushed[pushed.length-1].value.title,'重命名后的书','云端拿到的是新标题');
   dom.window.close();
 });
