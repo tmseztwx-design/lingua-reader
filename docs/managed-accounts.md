@@ -30,6 +30,7 @@
 当前代码已更新，本地登录页可预览；**本次没有 Enter Cloud 部署凭证，未声称迁移或云函数已经在实际 Cloud 上生效，也没有创建实际管理员凭据。**
 
 1. 备份现有 Cloud 数据。先按历史迁移顺序完成既有上传/同步迁移，再执行 `supabase/migrations/20261022180000_managed_accounts.sql`。这是新增账号表、函数及扫码通道版本列，不删除旧文献。
+   - Enter 新分支曾把上传升级 SQL 原样复制为 `migration_20261022_010318000`。本次合并将该别名改为只验证结构，不再次建表或初始化统计。若目标 Cloud 已按该历史别名执行上传升级，需核对结构并通过平台对齐迁移历史，**不要再重放** `20261021150000_upload_integrity.sql`。全新实例先执行规范文件，再运行别名验证；不要为了对齐记录删表重建。
 2. 在当前 Cloud 的服务端安全设置中配置 `SCRIBE_ADMIN_USERNAME`（默认 `admin`，3–32 位英文字母/数字等）和 `SCRIBE_ADMIN_PASSWORD`（至少 12 位，UTF-8 不超过 72 字节；建议使用长随机英文/数字/符号密码）。不要将密码发到聊天、写进前端、提交 Git 或放进 VITE_ 环境变量；不要使用文档示例作为实际密码。现有管理员密码达到长度要求时可沿用它完成首次初始化。
 3. 在托管 Cloud 的 Auth 配置关闭公开用户注册、匿名登录及不使用的 OAuth/OTP 自助创建入口。`supabase/config.toml` 的关闭注册配置主要针对本地 CLI，不能冒充修改了托管 Cloud 设置。即使托管 Auth 误开注册，新身份也不能获得应用书库权限，但仍须关闭以减少滥用。
 4. 运行 `pnpm bundle:functions`。部署七个函数：`scribe-accounts`、`scribe-library`、`scribe-mobile-upload`、`scribe-study`、`scribe-beta`、`scribe-queue`、`scribe-ocr`。必须同步更新共享鉴权后的各个函数；`scribe-beta` 应返回 410，`scribe-library create` 始终 403，旧同步码不能继续直接授权。
